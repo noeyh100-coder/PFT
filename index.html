@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>포켓몬 TFT</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="viewport">
+    <div id="game">
+      <div id="tracker">
+        <div id="encounter-icon" class="tip-host"></div>
+        <div id="stage-label">1-1</div>
+        <div id="round-icons"></div>
+        <div id="timer-num">0</div>
+        <div id="timer-wrap"><div id="timer-bar"></div></div>
+      </div>
+
+      <div id="sys-buttons">
+        <button id="btn-ready" class="icon-btn" title="준비 완료"></button>
+        <button id="btn-speed" class="icon-btn" title="전투 속도"><span id="speed-num">x1</span></button>
+        <button id="btn-debug" class="icon-btn" title="개발 도구 (`)"></button>
+        <button id="btn-credit" class="icon-btn" title="크레딧"></button>
+      </div>
+
+      <div id="items" class="frame"></div>
+      <div id="traits"></div>
+      <div id="trait-tip"></div>
+
+      <div id="arena">
+        <canvas id="floor" width="640" height="360"></canvas>
+        <canvas id="overlay" width="640" height="360"></canvas>
+        <div id="board-count"></div>
+        <div id="bench-layer"></div>
+        <div id="unit-layer"></div>
+        <div id="orb-layer"></div>
+        <div id="carousel-layer"></div>
+        <div id="strat-layer"></div>
+        <div id="fx-layer"></div>
+      </div>
+      <div id="banner"></div>
+      <div id="scout-label"></div>
+
+      <div id="right-tabs">
+        <button id="tab-toggle" class="icon-btn small"></button>
+      </div>
+      <div id="players"></div>
+      <div id="damage" class="frame"></div>
+      <div id="info-panel" class="frame"></div>
+
+      <div id="shop" class="frame" data-drop="sell">
+        <div id="shop-left">
+          <div id="level-row"><span id="level-text">1레벨</span><span id="xp-text">0/2</span></div>
+          <div id="xp-wrap"><div id="xp-bar"></div></div>
+          <button id="btn-xp" class="shop-btn"></button>
+          <button id="btn-reroll" class="shop-btn"></button>
+        </div>
+        <div id="shop-top">
+          <div id="odds"></div>
+          <div id="streak-box"></div>
+          <button id="btn-lock" class="icon-btn small" title="상점 잠금"></button>
+        </div>
+        <div id="gold-box"><span id="gold-icon"></span><span id="gold-num">0</span></div>
+        <div id="shop-cards"></div>
+        <div id="sell-hint"></div>
+      </div>
+
+      <button id="return-btn"></button>
+
+      <div id="debug" class="frame">
+        <div class="frame-title">개발 도구</div>
+        <div class="dbg-grid">
+          <button data-dbg="gold" data-amt="10">골드 +10</button>
+          <button data-dbg="xp" data-amt="10">경험치 +10</button>
+          <button data-dbg="refresh">무료 새로고침</button>
+          <button data-dbg="hypnosis" data-amt="10">최면 +10초</button>
+          <button data-dbg="heal" data-amt="500">치유 +500</button>
+          <button data-dbg="gene" data-amt="5">유전자 +5</button>
+          <button data-dbg="download" data-amt="10">다운로드 +10</button>
+          <button data-dbg="stun" data-amt="10">전기 기절 +10</button>
+          <button data-dbg="burn" data-amt="500">화상 피해 +500</button>
+        </div>
+        <div class="dbg-state" id="dbg-state"></div>
+      </div>
+
+      <div id="tooltip"></div>
+      <div id="toasts"></div>
+      <div id="modal"></div>
+    </div>
+  </div>
+
+  <script src="js/data/units.js"></script>
+  <script src="js/data/config.js"></script>
+  <script src="js/data/traits.js"></script>
+  <script src="js/data/skilltext.js"></script>
+  <script src="js/data/sprites.js"></script>
+  <script src="js/core/rng.js"></script>
+  <script src="js/core/hex.js"></script>
+  <script src="js/game/units.js"></script>
+  <script src="js/game/player.js"></script>
+  <script src="js/game/pool.js"></script>
+  <script src="js/game/synergy.js"></script>
+  <script src="js/game/combat.js"></script>
+  <script src="js/game/skills.js"></script>
+  <script src="js/game/unlocks.js"></script>
+  <script src="js/game/bot.js"></script>
+  <script src="js/game/game.js"></script>
+  <script src="js/ui/assets.js"></script>
+  <script src="js/ui/sprites.js"></script>
+  <script src="js/ui/view.js"></script>
+  <script src="js/ui/projection.js"></script>
+  <script src="js/ui/arena.js"></script>
+  <script src="js/ui/mapkit.js"></script>
+  <script src="js/ui/maps.js"></script>
+  <script src="js/ui/app.js"></script>
+</body>
+</html>

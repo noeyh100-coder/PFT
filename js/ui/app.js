@@ -1,0 +1,1203 @@
+const PHASE_LABEL = { planning: '준비', combat: '전투', carousel: '회전초밥', result: '결과', over: '종료' };
+
+class App {
+  constructor() {
+    this.game = new Game({ humanName: '나', realtime: true });
+    this.human = this.game.human;
+    this.speed = 1;
+    this.viewId = this.human.id;
+    this.rightMode = 'players';
+    this.dmgState = { tab: 'dealt', expanded: false };
+    this.selected = null;
+    this.hoverInst = null;
+    this.dragging = false;
+    this.timeLeft = 0;
+    this.timerTotal = 1;
+    this.modalKind = null;
+    this.combatRunning = false;
+    this.ending = false;
+    this.acc = 0;
+    this.lastMatches = [];
+    this.campCache = { label: null, specs: [] };
+    this.carouselScene = null;
+    this.arenaKey = null;
+    this.simSeq = 1;
+    this.dmgTimer = 0;
+    this.infoTimer = 0;
+    this.renderQueued = false;
+    this.traitPage = 0;
+    this.viewCarousel = false;
+    this.tipTrait = null;
+    this.tipTop = 0;
+    this.tipTimer = null;
+    this.$ = id => document.getElementById(id);
+    this.gameEl = this.$('game');
+    Floor.mapId = this.human.mapId;
+    this.arena = new Arena(this);
+    Floor.prerender([this.human.mapId].concat(this.game.players.map(p => p.mapId), CONFIG.maps));
+    this.setupStatic();
+    this.bindControls();
+    this.bindGameEvents();
+    Assets.onLoad(() => this.requestRender());
+    this.fitScreen();
+    window.addEventListener('resize', () => this.fitScreen());
+    this.last = performance.now();
+    requestAnimationFrame(t => this.loop(t));
+    this.game.start();
+  }
+
+  fitScreen() {
+    const s = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    this.scale = s > 0 ? s : 1;
+    this.gameEl.style.transform = 'scale(' + this.scale + ')';
+  }
+
+  toGame(x, y) {
+    const r = this.gameEl.getBoundingClientRect();
+    return { x: (x - r.left) / this.scale, y: (y - r.top) / this.scale };
+  }
+
+  setupStatic() {
+    View.renderItems(this.$('items'));
+    this.$('btn-ready').innerHTML = iconSvg('check', 20);
+    this.$('btn-speed').insertAdjacentHTML('afterbegin', iconSvg('speed', 20));
+    this.$('btn-debug').innerHTML = iconSvg('gear', 20);
+    this.$('btn-credit').innerHTML = iconSvg('info', 20);
+    this.$('encounter-icon').innerHTML = iconSvg('encounter', 16);
+    this.$('gold-icon').innerHTML = iconSvg('coin', 16);
+    this.$('btn-xp').innerHTML = iconSvg('xpup', 20) + '<span class="lbl">경험치 구매<small>' + iconSvg('coin', 10) + CONFIG.xpCost + '</small></span>';
+    this.$('btn-reroll').innerHTML = iconSvg('refresh', 20) + '<span class="lbl">새로고침<small>' + iconSvg('coin', 10) + CONFIG.rerollCost + '</small></span>';
+  }
+
+  bindControls() {
+    this.$('btn-ready').addEventListener('click', () => this.beginCombat());
+    this.$('return-btn').innerHTML = iconSvg('home', 24);
+    this.$('return-btn').addEventListener('click', () => this.pressReturn());
+    this.$('btn-speed').addEventListener('click', () => {
+      this.speed = this.speed === 1 ? 2 : this.speed === 2 ? 4 : 1;
+      this.$('speed-num').textContent = 'x' + this.speed;
+    });
+    this.$('btn-debug').addEventListener('click', () => this.toggleDebug());
+    this.$('btn-credit').addEventListener('click', () => this.showCredits());
+    this.$('btn-xp').addEventListener('click', () => this.buyXp());
+    this.$('btn-reroll').addEventListener('click', () => this.reroll());
+    this.$('btn-lock').addEventListener('click', () => {
+      this.human.shopLocked = !this.human.shopLocked;
+      this.renderHud();
+    });
+    this.$('tab-toggle').addEventListener('click', () => this.setRightMode(this.rightMode === 'players' ? 'damage' : 'players'));
+    this.gameEl.addEventListener('mouseover', e => {
+      const t = e.target.closest('[data-tip]');
+      if (t && !this.dragging) this.showTooltip(t, t.dataset.tip);
+    });
+    this.gameEl.addEventListener('mouseout', e => {
+      const t = e.target.closest('[data-tip]');
+      if (t && (!e.relatedTarget || !t.contains(e.relatedTarget))) this.hideTooltip();
+    });
+    for (const b of document.querySelectorAll('[data-dbg]')) {
+      b.addEventListener('click', () => {
+        const key = b.dataset.dbg;
+        if (key === 'refresh') this.game.debugFreeRefresh(this.human);
+        else this.game.debugAdd(this.human, key, Number(b.dataset.amt));
+        this.render();
+      });
+    }
+    const mapRow = document.createElement('div');
+    mapRow.className = 'dbg-maps';
+    for (const id of CONFIG.maps) {
+      const b = document.createElement('button');
+      b.textContent = MAPS[id].name.split(' · ')[0];
+      b.dataset.tip = MAPS[id].name;
+      b.addEventListener('click', () => {
+        this.human.mapId = id;
+        this.arenaKey = null;
+        this.render();
+      });
+      mapRow.appendChild(b);
+    }
+    this.$('debug').insertBefore(mapRow, this.$('dbg-state'));
+    for (const b of document.querySelectorAll('[data-region]')) {
+      b.addEventListener('click', () => {
+        this.game.setRegion(b.dataset.region || null);
+        this.toast(this.game.region ? this.game.region + ' 조우: 이제 ' + this.game.region + ' 리전폼이 등장합니다' : '조우 지역 없음: 리전폼이 등장하지 않습니다', 'info');
+        this.render();
+      });
+    }
+    const tip = this.$('trait-tip');
+    tip.addEventListener('mouseenter', () => clearTimeout(this.tipTimer));
+    tip.addEventListener('mouseleave', () => this.hideTraitTipSoon());
+    this.gameEl.addEventListener('contextmenu', e => e.preventDefault());
+    this.$('arena').addEventListener('pointerdown', e => {
+      if (e.button === 2) this.moveStrategist(e.clientX, e.clientY);
+    });
+    this.gameEl.addEventListener('pointerdown', e => {
+      if (e.button !== 0 || !this.selected) return;
+      if (e.target.closest('#info-panel, .unit, button, .card, .dmg-row, .prow, #modal, #damage, #shop')) return;
+      this.closeInfo();
+    });
+    window.addEventListener('keydown', e => {
+      if (e.repeat) return;
+      if (e.code === 'KeyD') this.reroll();
+      else if (e.code === 'KeyF') this.buyXp();
+      else if (e.code === 'KeyE') this.sellHovered();
+      else if (e.code === 'Backquote') this.toggleDebug();
+      else if (e.code === 'Space') {
+        e.preventDefault();
+        this.pressSpace();
+      }
+    });
+  }
+
+  bindGameEvents() {
+    this.game.on('round', info => this.onRound(info));
+    this.game.on('notify', n => this.toast(n.msg, n.kind));
+    this.game.on('branch', () => this.maybeShowBranch());
+    this.game.on('update', () => this.requestRender());
+  }
+
+  requestRender() {
+    if (this.renderQueued) return;
+    this.renderQueued = true;
+    requestAnimationFrame(() => {
+      this.renderQueued = false;
+      this.render();
+    });
+  }
+
+  viewed() {
+    let v = this.game.players[this.viewId];
+    if (!v || !v.alive) {
+      this.viewId = this.human.id;
+      v = this.human;
+    }
+    return v;
+  }
+
+  pressReturn() {
+    if (this.carouselScene) {
+      if (this.viewCarousel) this.viewCarousel = false;
+      else this.viewCarousel = true;
+      this.viewId = this.human.id;
+      this.arenaKey = null;
+      this.hideTooltip();
+      this.render();
+      return;
+    }
+    this.setView(this.human.id);
+  }
+
+  pressSpace() {
+    if (this.carouselScene) {
+      if (!this.viewCarousel) {
+        this.viewCarousel = true;
+        this.viewId = this.human.id;
+        this.arenaKey = null;
+        this.render();
+      }
+      return;
+    }
+    this.setView(this.human.id);
+  }
+
+  scouting() {
+    return !!this.carouselScene || this.viewId !== this.human.id;
+  }
+
+  setView(id) {
+    const p = this.game.players[id];
+    if (!p || !p.alive) return;
+    if (this.carouselScene) {
+      this.viewCarousel = false;
+      this.viewId = id;
+      this.arenaKey = null;
+      this.hoverInst = null;
+      this.render();
+      return;
+    }
+    if (this.viewId === id) return;
+    const spot = id === this.human.id ? HOME_BOTTOM : VISIT_SPOT;
+    this.arena.me.place(spot.x, spot.y);
+    this.viewId = id;
+    this.arenaKey = null;
+    this.hoverInst = null;
+    this.render();
+  }
+
+  setRightMode(mode) {
+    this.rightMode = mode;
+    this.renderHud();
+  }
+
+  canShop() {
+    const ph = this.game.phase;
+    return this.human.alive && !this.scouting() && (ph === 'planning' || ph === 'combat' || ph === 'result');
+  }
+
+  buyXp() {
+    if (!this.canShop()) return;
+    if (!this.game.buyXp(this.human)) this.toast(this.human.level >= CONFIG.maxLevel ? '최대 레벨입니다' : '골드가 부족합니다', 'error');
+    this.render();
+  }
+
+  reroll() {
+    if (!this.canShop()) return;
+    if (!this.game.reroll(this.human)) this.toast('골드가 부족합니다', 'error');
+    this.render();
+  }
+
+  buySlot(slot) {
+    if (!this.canShop()) return;
+    const check = this.game.canBuy(this.human, slot);
+    if (!check.ok) {
+      if (check.reason) this.toast(check.reason, 'error');
+      return;
+    }
+    this.game.buy(this.human, slot);
+    this.render();
+  }
+
+  sellHovered() {
+    if (!this.canShop() || !this.hoverInst || this.viewId !== this.human.id) return;
+    const inst = this.hoverInst;
+    if (!this.game.sell(this.human, inst)) {
+      this.toast('전투 중에는 필드의 기물을 팔 수 없습니다', 'error');
+      return;
+    }
+    this.hoverInst = null;
+    this.render();
+  }
+
+  toggleDebug() {
+    this.$('debug').classList.toggle('show');
+    this.renderHud();
+  }
+
+  onRound(info) {
+    this.arenaKey = null;
+    this.combatRunning = false;
+    this.ending = false;
+    if (this.game.phase === 'planning') {
+      const inc = this.game.lastIncome;
+      if (inc && info.type !== 'encounter') {
+        let msg = '수입 +' + inc.base;
+        if (inc.interest) msg += ' · 이자 +' + inc.interest;
+        if (inc.streak) msg += ' · ' + (this.human.streak > 0 ? '연승' : '연패') + ' +' + inc.streak;
+        this.toast(msg, 'info');
+      }
+      if (info.type === 'encounter') this.toast('1-1 조우자는 아직 준비 중입니다. 대신 1코스트 기물 하나를 받았습니다.', 'info');
+      this.timerTotal = this.game.planningTime();
+      this.timeLeft = this.timerTotal;
+      this.render();
+      this.maybeShowBranch();
+    } else if (this.game.phase === 'carousel') {
+      this.startCarousel();
+    }
+  }
+
+  scene() {
+    const g = this.game;
+    const V = this.viewed();
+    if (g.phase === 'carousel') {
+      if (this.viewCarousel || !this.carouselScene) return { mode: 'carousel' };
+      if (V.isHuman) return { mode: 'planning', bottom: { player: V }, top: null, carouselField: true };
+      return { mode: 'planning', top: { player: V }, bottom: null, carouselField: true };
+    }
+    if (g.matches.length) {
+      const m = g.matchFor(V);
+      if (m) {
+        if (!m.sim.uiId) m.sim.uiId = this.simSeq++;
+        const side = g.sideOf(m, V);
+        let other;
+        if (m.kind === 'pve') other = { camp: m.camp };
+        else if (side === 'A') other = { player: m.b, ghost: m.ghost };
+        else other = { player: m.a };
+        if (V.isHuman) return { mode: 'combat', sim: m.sim, flip: false, bottom: { player: V }, top: other, match: m };
+        return { mode: 'combat', sim: m.sim, flip: side === 'A', top: { player: V }, bottom: other, match: m };
+      }
+    }
+    if (V.isHuman) {
+      const info = g.roundInfo();
+      return { mode: 'planning', bottom: { player: V }, top: info.type === 'pve' ? { camp: g.currentCamp() } : null };
+    }
+    return { mode: 'planning', top: { player: V }, bottom: null };
+  }
+
+  campSpecs() {
+    const label = this.game.roundLabel();
+    if (this.campCache.label !== label) {
+      this.campCache = { label, specs: this.game.creepSpecs(this.game.currentCamp()) };
+    }
+    return this.campCache.specs;
+  }
+
+  render() {
+    this.renderHud();
+    this.renderArena();
+  }
+
+  renderArena() {
+    const a = this.arena;
+    const sc = this.scene();
+    if (sc.mode === 'carousel') {
+      a.setCarouselMode(true);
+      a.showCarouselLayer(true);
+      a.me.el.style.display = '';
+      a.clearUnits();
+      a.clearSideSprites();
+      a.renderBench(false, null);
+      a.renderBench(true, null);
+      a.renderOrbs([]);
+      this.$('scout-label').classList.remove('show');
+      a.renderBoardCount('');
+      this.arenaKey = 'carousel';
+      return;
+    }
+    a.setCarouselMode(false);
+    a.setMap(this.viewed().mapId);
+    a.showCarouselLayer(false);
+    a.me.el.style.display = sc.carouselField ? 'none' : '';
+    const key = sc.mode + '|' + this.viewId + '|' + (sc.sim ? sc.sim.uiId : '');
+    const viewMe = this.viewId === this.human.id;
+    const fresh = key !== this.arenaKey;
+    if (fresh) a.renderSides(sc.top, sc.bottom, sc.carouselField);
+    else {
+      a.setPillars(a.pillarTop, a.interestOf(sc.top), true);
+      a.setPillars(a.pillarBottom, a.interestOf(sc.bottom), true);
+    }
+    if (sc.mode === 'planning') {
+      a.clearUnits();
+      if (sc.bottom && sc.bottom.player) {
+        for (const inst of sc.bottom.player.boardUnits()) a.placeToken(this.makeToken(inst, sc.bottom.player), inst.loc.r, inst.loc.c);
+      }
+      if (sc.top && sc.top.player) {
+        for (const inst of sc.top.player.boardUnits()) {
+          const [r, c] = Hex.mirror(inst.loc.r, inst.loc.c);
+          a.placeToken(this.makeToken(inst, sc.top.player), r, c);
+        }
+      }
+      const seaCells = [];
+      const seaOf = (player, mirror) => {
+        if (!player || !synergyTeam(player).tiers['바다의 음유시인']) return;
+        for (const k of player.seaTiles || []) seaCells.push(mirror ? Hex.mirror(Math.floor(k / 10), k % 10) : [Math.floor(k / 10), k % 10]);
+      };
+      seaOf(sc.bottom && sc.bottom.player, false);
+      seaOf(sc.top && sc.top.player, true);
+      if (seaCells.length) a.renderSea(seaCells);
+      if (sc.top && sc.top.camp) {
+        for (const spec of this.campSpecs()) a.placeToken(this.makeCreepToken(spec), spec.r, spec.c);
+      }
+    } else if (fresh) {
+      a.startCombat(sc.sim, sc.flip);
+    }
+    a.renderBench(false, sc.bottom && sc.bottom.player, (inst, owner) => this.makeToken(inst, owner));
+    a.renderBench(true, sc.top && sc.top.player, (inst, owner) => this.makeToken(inst, owner));
+    a.renderBoardCount(viewMe && sc.mode === 'planning' && this.game.phase === 'planning' ? this.human.boardCount() + '/' + this.human.level : '');
+    a.renderOrbs(viewMe && !sc.carouselField ? this.human.orbs || [] : []);
+    a.refreshSprites();
+    const scout = this.$('scout-label');
+    if (sc.carouselField) {
+      scout.textContent = (viewMe ? '내 필드' : this.viewed().name + ' 필드') + ' · 스페이스바: 회전초밥으로';
+      scout.classList.add('show');
+    } else if (!viewMe) {
+      scout.textContent = this.viewed().name + ' 관전 중 · 스페이스바: 내 필드';
+      scout.classList.add('show');
+    } else {
+      scout.classList.remove('show');
+    }
+    this.arenaKey = key;
+  }
+
+  makeToken(inst, owner) {
+    const v = View.instanceView(inst, owner);
+    const sel = this.selected && this.selected.inst === inst;
+    v.className = 'unit' + (sel ? ' selected' : '');
+    const el = View.unitEl(v);
+    el._inst = inst;
+    el._owner = owner;
+    el.addEventListener('pointerdown', e => this.onTokenPointerDown(e, { inst, owner }, el));
+    if (owner.isHuman) {
+      el.addEventListener('mouseenter', () => { this.hoverInst = inst; });
+      el.addEventListener('mouseleave', () => { if (this.hoverInst === inst) this.hoverInst = null; });
+    }
+    return el;
+  }
+
+  makeCreepToken(spec) {
+    const el = View.unitEl({ className: 'unit creep', name: spec.name, form: spec.form, types: spec.types, star: spec.star, cost: spec.cost });
+    el.addEventListener('pointerdown', e => this.onTokenPointerDown(e, { creep: spec }, el));
+    return el;
+  }
+
+  renderHud() {
+    const g = this.game;
+    const h = this.human;
+    this.renderTracker();
+    this.$('btn-ready').disabled = g.phase !== 'planning';
+    this.renderShop();
+    const scouting = this.scouting();
+    this.$('shop').style.display = scouting ? 'none' : '';
+    const ret = this.$('return-btn');
+    ret.classList.toggle('show', scouting && this.human.alive);
+    if (this.carouselScene) ret.dataset.tip = this.viewCarousel ? '내 필드 보기' : '회전초밥으로 (스페이스바)';
+    else ret.dataset.tip = '내 필드로 (스페이스바)';
+    this.arena.me.refresh();
+    this.traitPage = View.renderTraits(this.$('traits'), this.viewed(), this.traitPage, pg => {
+      this.traitPage = pg;
+      this.renderHud();
+    }, {
+      enter: (row, id) => this.showTraitTip(row, id),
+      leave: () => this.hideTraitTipSoon()
+    });
+    if (this.tipTrait) this.renderTraitTip();
+    const playersEl = this.$('players');
+    const dmgEl = this.$('damage');
+    playersEl.style.display = this.rightMode === 'players' ? 'flex' : 'none';
+    dmgEl.classList.toggle('show', this.rightMode === 'damage');
+    const toggle = this.$('tab-toggle');
+    toggle.innerHTML = iconSvg(this.rightMode === 'players' ? 'chart' : 'players', 16);
+    toggle.dataset.tip = this.rightMode === 'players' ? '딜량표 보기' : '플레이어 목록 보기';
+    if (this.rightMode === 'players') View.renderPlayers(playersEl, g, this.viewId, p => this.setView(p.id));
+    else this.renderDamage();
+    this.renderInfo();
+    this.renderDebug();
+    if (h.pendingBranch.length) this.maybeShowBranch();
+  }
+
+  renderTracker() {
+    const g = this.game;
+    const h = this.human;
+    this.$('stage-label').textContent = g.roundLabel();
+    const icons = this.$('round-icons');
+    icons.innerHTML = '';
+    const n = g.roundsInStage(g.stage);
+    for (let r = 1; r <= n; r++) {
+      const type = g.roundInfo(g.stage, r).type;
+      const res = h.history[g.stage + '-' + r];
+      let cls = 'round-ico';
+      if (r === g.round) cls += ' now';
+      else if (res) cls += ' ' + res;
+      const d = View.el('div', cls);
+      d.innerHTML = iconSvg(ROUND_ICON[type], 14);
+      icons.appendChild(d);
+    }
+    this.$('timer-num').dataset.tip = PHASE_LABEL[g.phase] || '';
+    this.$('encounter-icon').dataset.tip = '조우자: 없음 (준비 중)';
+  }
+
+  showTraitTip(row, id) {
+    clearTimeout(this.tipTimer);
+    if (this.dragging) return;
+    this.hideTooltip();
+    const r = row.getBoundingClientRect();
+    this.tipTrait = id;
+    this.tipTop = this.toGame(r.left, r.top).y;
+    this.renderTraitTip();
+  }
+
+  renderTraitTip() {
+    const tip = this.$('trait-tip');
+    if (!this.tipTrait) return;
+    View.renderTraitTip(tip, this.tipTrait, this.viewed(), this.game.region);
+    tip.classList.add('show');
+    const h = tip.offsetHeight;
+    tip.style.top = Math.max(8, Math.min(712 - h, this.tipTop - 6)) + 'px';
+  }
+
+  hideTraitTipSoon() {
+    clearTimeout(this.tipTimer);
+    this.tipTimer = setTimeout(() => {
+      this.tipTrait = null;
+      this.$('trait-tip').classList.remove('show');
+    }, 140);
+  }
+
+  setTimer(left, total) {
+    this.$('timer-bar').style.width = Math.max(0, Math.min(100, total > 0 ? (left / total) * 100 : 0)) + '%';
+    this.$('timer-num').textContent = Math.max(0, Math.ceil(left));
+  }
+
+  renderShop() {
+    const h = this.human;
+    const can = this.canShop();
+    this.$('level-text').textContent = h.level + '레벨';
+    const need = h.xpNeeded();
+    this.$('xp-text').textContent = h.level >= CONFIG.maxLevel ? 'MAX' : h.xp + '/' + need;
+    this.$('xp-bar').style.width = (h.level >= CONFIG.maxLevel ? 100 : (h.xp / need) * 100) + '%';
+    this.$('btn-xp').disabled = !can || h.gold < CONFIG.xpCost || h.level >= CONFIG.maxLevel;
+    this.$('btn-reroll').disabled = !can || h.gold < CONFIG.rerollCost;
+    const odds = CONFIG.shopOdds[h.level];
+    const oddsEl = this.$('odds');
+    oddsEl.innerHTML = '';
+    odds.forEach((v, i) => {
+      const s = View.el('span');
+      const sw = View.el('i');
+      sw.style.background = COST_COLORS[i + 1];
+      s.appendChild(sw);
+      s.appendChild(document.createTextNode(v + '%'));
+      oddsEl.appendChild(s);
+    });
+    this.$('gold-num').textContent = h.gold;
+    const st = this.$('streak-box');
+    st.innerHTML = '';
+    if (Math.abs(h.streak) >= 1) {
+      st.innerHTML = iconSvg(h.streak > 0 ? 'flame' : 'drop', 14);
+      st.appendChild(document.createTextNode(Math.abs(h.streak)));
+      st.title = Math.abs(h.streak) + (h.streak > 0 ? '연승' : '연패');
+    }
+    const lock = this.$('btn-lock');
+    lock.innerHTML = iconSvg(h.shopLocked ? 'lock' : 'unlock', 16);
+    lock.classList.toggle('on', h.shopLocked);
+    const cards = this.$('shop-cards');
+    cards.innerHTML = '';
+    for (let i = 0; i < CONFIG.shopSize; i++) {
+      const card = View.shopCard(this.game, h, i, can);
+      if (h.shop[i]) card.addEventListener('click', () => this.buySlot(i));
+      cards.appendChild(card);
+    }
+  }
+
+  chartMatch() {
+    const V = this.viewed();
+    const g = this.game;
+    if (g.matches.length) return g.matchFor(V);
+    return this.lastMatches.find(m => m.a === V || (m.b === V && !m.ghost)) || null;
+  }
+
+  damageData() {
+    const m = this.chartMatch();
+    if (!m) return null;
+    const V = this.viewed();
+    const side = m.a === V ? 'A' : 'B';
+    const other = side === 'A' ? 'B' : 'A';
+    let oppTitle;
+    if (m.kind === 'pve') oppTitle = m.camp.leader ? '체육관' : (m.camp === CONFIG.pve.default ? '아르세우스' : '야생 포켓몬');
+    else oppTitle = side === 'A' ? m.b.name + (m.ghost ? ' (복제)' : '') : m.a.name;
+    const pick = s => m.sim.units.filter(u => u.side === s);
+    return { mine: { title: V.name, units: pick(side) }, opp: { title: oppTitle, units: pick(other) } };
+  }
+
+  renderDamage() {
+    View.renderDamage(this.$('damage'), this.damageData(), this.dmgState, {
+      toggleExpand: () => {
+        this.dmgState.expanded = !this.dmgState.expanded;
+        this.renderDamage();
+      },
+      setTab: t => {
+        this.dmgState.tab = t;
+        this.renderDamage();
+      },
+      select: cu => this.select({ combat: cu })
+    });
+  }
+
+  select(src) {
+    this.selected = src;
+    this.renderInfo();
+    if (this.scene().mode === 'planning') this.renderArena();
+  }
+
+  closeInfo() {
+    this.selected = null;
+    this.renderInfo();
+    if (this.scene().mode === 'planning') this.renderArena();
+  }
+
+  infoTarget() {
+    const s = this.selected;
+    if (!s) return null;
+    if (s.inst) {
+      if (!s.inst.loc && !s.preview) return null;
+      return View.infoFromInstance(s.inst, s.owner);
+    }
+    if (s.creep) return View.infoFromCreep(s.creep);
+    if (s.combat) return View.infoFromCombat(s.combat);
+    return null;
+  }
+
+  renderInfo() {
+    const panel = this.$('info-panel');
+    const t = this.infoTarget();
+    if (!t) {
+      if (this.selected) this.selected = null;
+      panel.classList.remove('show');
+      panel.innerHTML = '';
+      return;
+    }
+    View.renderInfo(panel, t);
+    if (t.inst && t.owner && !this.selected.preview) {
+      const note = Unlocks.progressText(t.inst, t.owner, this.game);
+      if (note) panel.appendChild(View.el('div', 'ip-note', note));
+    }
+    panel.classList.add('show');
+  }
+
+  canDrag(inst) {
+    const ph = this.game.phase;
+    if (this.viewId !== this.human.id || !this.human.alive || !inst.loc) return false;
+    if (ph === 'planning') return true;
+    if (ph === 'combat' || ph === 'result') return inst.loc.zone === 'bench';
+    return false;
+  }
+
+  onTokenPointerDown(e, src, srcEl) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const sx = e.clientX;
+    const sy = e.clientY;
+    const inst = src.inst;
+    const draggable = inst && src.owner && src.owner.isHuman && !src.preview && this.canDrag(inst);
+    let ghost = null;
+    const hold = { target: null, timer: null, done: false, used: false };
+    const holdKind = other => {
+      if (!other || other === inst) return null;
+      if (inst.unitId === '메타몽' && other.unitId !== '메타몽') return 'link';
+      if (other.unitId === '먹고자' && this.game.canFeed(this.human, inst, other).ok) return 'feed';
+      return null;
+    };
+    const resetHold = () => {
+      clearTimeout(hold.timer);
+      hold.timer = null;
+      hold.target = null;
+      hold.done = false;
+      if (ghost) ghost.classList.remove('holding', 'hold-done');
+    };
+    const trackHold = t => {
+      const other = t && (t.kind === 'board' || t.kind === 'bench') ? this.human.unitAt(t.kind === 'board' ? { zone: 'board', r: t.r, c: t.c } : { zone: 'bench', i: t.i }) : null;
+      const kind = holdKind(other);
+      if (!kind) {
+        if (hold.target) resetHold();
+        return;
+      }
+      if (hold.target === other) return;
+      resetHold();
+      hold.target = other;
+      ghost.classList.add('holding');
+      hold.timer = setTimeout(() => {
+        hold.done = true;
+        if (ghost) {
+          ghost.classList.remove('holding');
+          ghost.classList.add('hold-done');
+        }
+        if (kind === 'link') {
+          hold.used = this.game.linkDitto(this.human, inst, other);
+          this.renderInfo();
+        }
+      }, 1000);
+    };
+    const move = ev => {
+      if (!draggable) return;
+      if (!ghost) {
+        if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 6) return;
+        this.dragging = true;
+        this.hideTooltip();
+        const v = View.instanceView(inst, this.human);
+        v.className = 'unit ghost';
+        ghost = View.unitEl(v);
+        this.gameEl.appendChild(ghost);
+        srcEl.classList.add('dragging');
+        if (this.canShop()) {
+          this.$('sell-hint').textContent = '판매 +' + sellValue(UNITS[inst.unitId], inst.star) + 'G';
+          this.$('shop').classList.add('sell-target');
+        }
+      }
+      const g = this.toGame(ev.clientX, ev.clientY);
+      ghost.style.left = g.x + 'px';
+      ghost.style.top = (g.y + 16) + 'px';
+      const tgt = this.dropTargetAt(ev.clientX, ev.clientY, srcEl);
+      this.highlight(tgt);
+      trackHold(tgt);
+    };
+    const up = ev => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (!ghost) {
+        this.select(src);
+        return;
+      }
+      ghost.remove();
+      this.arena.drawOverlay(null);
+      this.$('shop').classList.remove('sell-target');
+      this.dragging = false;
+      const t = this.dropTargetAt(ev.clientX, ev.clientY, srcEl);
+      const eater = hold.target;
+      const fed = hold.done && eater && holdKind(eater) === 'feed' && t && this.human.unitAt(t.kind === 'board' ? { zone: 'board', r: t.r, c: t.c } : { zone: 'bench', i: t.i }) === eater;
+      clearTimeout(hold.timer);
+      if (fed) {
+        const res = this.game.feed(this.human, inst, eater);
+        if (!res.ok && res.reason) this.toast(res.reason, 'error');
+        this.hoverInst = null;
+      } else if (!hold.used && t) this.dropOn(inst, t);
+      this.render();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  dropTargetAt(x, y, srcEl) {
+    const els = document.elementsFromPoint(x, y);
+    for (const el of els) {
+      if (el.closest('#shop')) return { kind: 'sell' };
+      const u = el.closest('.unit');
+      if (u && u !== srcEl && u._inst && u._owner && u._owner.isHuman && u._inst.loc && !u.classList.contains('ghost')) {
+        const loc = u._inst.loc;
+        if (loc.zone === 'board') return { kind: 'board', r: loc.r, c: loc.c };
+        return { kind: 'bench', i: loc.i };
+      }
+    }
+    return this.arena.hitTest(x, y);
+  }
+
+  highlight(t) {
+    const opts = { grid: this.game.phase === 'planning' };
+    if (t && t.kind === 'board') opts.cell = { r: t.r, c: t.c };
+    if (t && t.kind === 'bench') opts.slot = t.i;
+    this.arena.drawOverlay(opts);
+  }
+
+  dropOn(inst, t) {
+    const g = this.game;
+    if (t.kind === 'sell') {
+      if (!this.canShop()) return;
+      if (!g.sell(this.human, inst)) this.toast('전투 중에는 필드의 기물을 팔 수 없습니다', 'error');
+      this.hoverInst = null;
+      return;
+    }
+    let res = null;
+    if (t.kind === 'board') res = g.moveUnit(this.human, inst, { zone: 'board', r: t.r, c: t.c });
+    else if (t.kind === 'bench') res = g.moveUnit(this.human, inst, { zone: 'bench', i: t.i });
+    if (res && !res.ok && res.reason) this.toast(res.reason, 'error');
+  }
+
+  moveStrategist(cx, cy) {
+    if (!this.human.alive) return;
+    if (this.carouselScene && !this.viewCarousel) return;
+    const p = this.arena.toFlat(cx, cy);
+    let x = Math.max(-20, Math.min(ARENA_W + 20, p.x));
+    let y = Math.max(-10, Math.min(ARENA_H + 10, p.y + 8));
+    const sc = this.carouselScene;
+    if (sc && !this.game.carouselReleased(this.human)) {
+      const sp = sc.spawn[this.human.id];
+      const dx = x - sp.x;
+      const dy = y - sp.y;
+      const d = Math.hypot(dx, dy);
+      const R = CAROUSEL.padR - 30;
+      if (d > R) {
+        x = sp.x + (dx / d) * R;
+        y = sp.y + (dy / d) * R;
+      }
+    }
+    this.arena.me.moveTo(x, y);
+  }
+
+  loop(t) {
+    const dt = Math.min(0.1, Math.max(0, (t - this.last) / 1000));
+    this.last = t;
+    try {
+      this.tick(dt);
+    } catch (err) {
+      console.error(err);
+    }
+    requestAnimationFrame(n => this.loop(n));
+  }
+
+  tick(dt) {
+    const g = this.game;
+    if (g.phase === 'planning' && this.modalKind !== 'branch') {
+      this.timeLeft -= dt;
+      this.setTimer(this.timeLeft, this.timerTotal);
+      if (this.timeLeft <= 0) this.beginCombat();
+    }
+    this.arena.me.update(dt);
+    if (this.combatRunning) this.updateCombat(dt);
+    if (this.carouselScene) this.updateCarousel(dt);
+    this.checkOrbs();
+  }
+
+  beginCombat() {
+    const g = this.game;
+    if (g.phase !== 'planning') return;
+    if (this.modalKind === 'branch') this.closeModal();
+    g.startCombat();
+    if (!g.matches.length) {
+      g.finishCombat();
+      this.render();
+      this.afterResult();
+      return;
+    }
+    this.combatRunning = true;
+    this.ending = false;
+    this.acc = 0;
+    this.arenaKey = null;
+    this.render();
+  }
+
+  updateCombat(dt) {
+    const g = this.game;
+    const tick = CONFIG.combat.tick;
+    this.acc += dt * this.speed;
+    let steps = 0;
+    const viewSim = this.arena.sim;
+    while (this.acc >= tick && steps < 80 && !g.allCombatOver()) {
+      g.stepCombat(tick);
+      this.acc -= tick;
+      steps++;
+      for (const m of g.matches) {
+        const evs = m.sim.drainEvents();
+        if (m.sim === viewSim) this.arena.applyEvents(evs);
+      }
+    }
+    this.arena.updateBars();
+    if (viewSim) this.setTimer(CONFIG.combat.timeLimit - viewSim.time, CONFIG.combat.timeLimit);
+    this.dmgTimer += dt;
+    if (this.dmgTimer > 0.3) {
+      this.dmgTimer = 0;
+      if (this.rightMode === 'damage') this.renderDamage();
+      if (this.selected && this.selected.combat) this.renderInfo();
+    }
+    if (g.allCombatOver() && !this.ending) {
+      this.ending = true;
+      for (const m of g.matches) {
+        const evs = m.sim.drainEvents();
+        if (m.sim === viewSim) this.arena.applyEvents(evs);
+      }
+      setTimeout(() => this.finishCombat(), 700);
+    }
+  }
+
+  finishCombat() {
+    const g = this.game;
+    this.combatRunning = false;
+    this.lastMatches = g.matches.slice();
+    g.finishCombat();
+    this.rightMode = 'damage';
+    const h = this.human;
+    const banner = this.$('banner');
+    if (h.lastResult) {
+      const win = h.lastResult === 'win';
+      banner.className = 'show ' + (win ? 'win' : 'loss');
+      banner.innerHTML = (win ? '승리!' : '패배') + (h.lastDamage ? '<small>체력 -' + h.lastDamage + '</small>' : '');
+    }
+    this.render();
+    setTimeout(() => {
+      banner.className = '';
+      this.afterResult();
+    }, 1400);
+  }
+
+  afterResult() {
+    if (this.game.phase === 'over') {
+      this.render();
+      this.showGameOver();
+      return;
+    }
+    this.game.nextRound();
+  }
+
+  checkOrbs() {
+    const h = this.human;
+    if (this.scouting() || !h.orbs || !h.orbs.length) return;
+    const me = this.arena.me;
+    for (const o of h.orbs.slice()) {
+      if (o.x === undefined) continue;
+      if (Math.hypot(o.x - me.x, o.y - me.y) < 26) {
+        this.game.pickOrb(h, o.id);
+        const el = this.arena.orbEls && this.arena.orbEls[o.id];
+        if (el) el.remove();
+        this.renderHud();
+        if (this.scene().mode === 'planning') {
+          this.arenaKey = null;
+          this.renderArena();
+        }
+      }
+    }
+  }
+
+  startCarousel() {
+    const g = this.game;
+    const car = g.carousel;
+    const a = this.arena;
+    this.closeInfo();
+    a.clearUnits();
+    a.clearSideSprites();
+    a.renderOrbs([]);
+    a.setCarouselMode(true);
+    a.carLayer.innerHTML = '';
+    const sc = { sprites: {}, spawn: {}, items: [], targets: {}, ended: false };
+    for (const p of car.order) {
+      const sp = a.carouselSpawn(p.id, g.players.length);
+      sc.spawn[p.id] = sp;
+      if (p.isHuman) {
+        a.me.place(sp.x, sp.y);
+      } else {
+        const s = new StratSprite({ look: p.strategist, player: p, x: sp.x, y: sp.y, speed: CONFIG.carousel.moveSpeed });
+        a.carLayer.appendChild(s.el);
+        sc.sprites[p.id] = s;
+      }
+    }
+    car.items.forEach((item, idx) => {
+      const def = UNITS[item.unitId];
+      const form = formOf(def, 1, this.human);
+      const el = View.unitEl({ className: 'unit', name: form.name, form, types: form.types, star: 1, cost: def.cost, badge: View.badgeFor(def) });
+      el.addEventListener('pointerdown', e => this.onTokenPointerDown(e, { inst: { unitId: item.unitId, star: 1 }, owner: this.human, preview: true }, el));
+      a.carLayer.appendChild(el);
+      sc.items[idx] = el;
+    });
+    this.carouselScene = sc;
+    this.viewId = this.human.id;
+    this.viewCarousel = true;
+    this.arenaKey = null;
+    this.render();
+    this.toast('회전초밥! 체력이 낮은 순서로 두 명씩 결계가 풀립니다', 'info');
+  }
+
+  carriedToken(unitId) {
+    const def = UNITS[unitId];
+    const form = formOf(def, 1, this.human);
+    return View.unitEl({ className: 'unit', name: '', form, types: form.types, star: 1, cost: def.cost });
+  }
+
+  updateCarousel(dt) {
+    const g = this.game;
+    const car = g.carousel;
+    const sc = this.carouselScene;
+    const a = this.arena;
+    const gdt = dt * this.speed;
+    if (!sc.ended) car.time += gdt;
+    const cfg = CONFIG.carousel;
+    const pos = [];
+    car.items.forEach((item, idx) => {
+      item.angle += cfg.spin * gdt;
+      const p = a.itemPos(item);
+      pos[idx] = p;
+      const el = sc.items[idx];
+      el.style.display = item.takenBy === null ? '' : 'none';
+      placeSprite(el, p.x, p.y, UNIT_ORIGIN.x, UNIT_ORIGIN.y, UNIT_SCALE);
+    });
+    if (this.viewCarousel) {
+      const closed = car.order.filter(p => !g.carouselReleased(p)).map(p => ({ x: sc.spawn[p.id].x, y: sc.spawn[p.id].y, open: false }));
+      a.drawOverlay(closed.length ? { barriers: closed } : null);
+    }
+    for (const p of car.order) {
+      const released = g.carouselReleased(p);
+      if (sc.ended) continue;
+      const picked = car.picked[p.id] !== undefined;
+      if (p.isHuman) {
+        if (!released || picked) continue;
+        const me = a.me;
+        for (let i = 0; i < car.items.length; i++) {
+          if (!g.carouselCanPick(p, i)) continue;
+          if (Math.hypot(pos[i].x - me.x, pos[i].y - (me.y - 10)) < cfg.pickRadius) {
+            g.carouselPick(p, i);
+            me.carry(this.carriedToken(car.items[i].unitId));
+            this.renderHud();
+            break;
+          }
+        }
+        continue;
+      }
+      const s = sc.sprites[p.id];
+      if (released && !picked) {
+        let target = sc.targets[p.id];
+        if (target === undefined || target === null || !g.carouselCanPick(p, target)) target = g.carouselBotChoice(p);
+        sc.targets[p.id] = target;
+        if (target !== null) {
+          const tp = pos[target];
+          s.moveTo(tp.x, tp.y + 10);
+          if (Math.hypot(tp.x - s.x, tp.y - (s.y - 10)) < cfg.pickRadius) {
+            g.carouselPick(p, target);
+            s.carry(this.carriedToken(car.items[target].unitId));
+            s.moveTo(sc.spawn[p.id].x, sc.spawn[p.id].y);
+          }
+        }
+      }
+      s.update(gdt);
+    }
+    this.setTimer(car.duration - car.time, car.duration);
+    if (car.time >= car.duration && !sc.ended) {
+      sc.ended = true;
+      const before = car.picked[this.human.id];
+      g.carouselFinish();
+      const after = car.picked[this.human.id];
+      if (before === undefined && after !== undefined) a.me.carry(this.carriedToken(car.items[after].unitId));
+      for (const p of car.order) {
+        if (!p.isHuman && sc.sprites[p.id] && car.picked[p.id] !== undefined && !sc.sprites[p.id].carryEl) {
+          sc.sprites[p.id].carry(this.carriedToken(car.items[car.picked[p.id]].unitId));
+        }
+      }
+      this.renderHud();
+      setTimeout(() => this.endCarousel(), 900);
+    }
+  }
+
+  endCarousel() {
+    const a = this.arena;
+    const sc = this.carouselScene;
+    if (!sc) return;
+    for (const id in sc.sprites) sc.sprites[id].el.remove();
+    a.carLayer.innerHTML = '';
+    a.drawOverlay(null);
+    a.me.carry(null);
+    a.me.place(HOME_BOTTOM.x, HOME_BOTTOM.y);
+    a.me.el.style.display = '';
+    a.setCarouselMode(false);
+    a.showCarouselLayer(true);
+    this.carouselScene = null;
+    this.viewCarousel = false;
+    this.viewId = this.human.id;
+    this.arenaKey = null;
+    this.afterResult();
+  }
+
+  toast(msg, kind) {
+    const box = this.$('toasts');
+    const el = View.el('div', 'toast ' + (kind || 'info'), msg);
+    box.appendChild(el);
+    while (box.children.length > 4) box.firstChild.remove();
+    setTimeout(() => el.remove(), 3000);
+  }
+
+  showTooltip(anchor, text) {
+    if (!text) return;
+    const tip = this.$('tooltip');
+    tip.textContent = text;
+    tip.classList.toggle('long', text.includes('\n'));
+    tip.classList.add('show');
+    const r = anchor.getBoundingClientRect();
+    const g = this.toGame(r.left + r.width / 2, r.bottom);
+    const w = tip.offsetWidth;
+    const h = tip.offsetHeight;
+    let x = g.x - w / 2;
+    x = Math.max(4, Math.min(1280 - w - 4, x));
+    let y = g.y + 6;
+    if (y + h > 716) y = Math.max(4, this.toGame(0, r.top).y - h - 6);
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+  }
+
+  hideTooltip() {
+    this.$('tooltip').classList.remove('show');
+  }
+
+  openModal(kind, content) {
+    const m = this.$('modal');
+    m.innerHTML = '';
+    m.appendChild(content);
+    m.classList.add('show');
+    this.modalKind = kind;
+  }
+
+  closeModal() {
+    const m = this.$('modal');
+    m.classList.remove('show');
+    m.innerHTML = '';
+    this.modalKind = null;
+  }
+
+  maybeShowBranch() {
+    if (this.modalKind) return;
+    const h = this.human;
+    const unitId = h.pendingBranch[0];
+    if (!unitId) return;
+    const def = UNITS[unitId];
+    const box = View.el('div', 'modal-box');
+    box.appendChild(View.el('div', 'modal-title', formOf(def, 1, h).name + ' 진화 갈래 선택'));
+    box.appendChild(View.el('div', 'modal-sub', def.branchStar + '성부터 이 모습이 됩니다. 이 계열의 기물은 모두 같은 갈래를 따릅니다.'));
+    const grid = View.el('div', 'pick-grid' + (def.branches.length > 3 ? ' wide' : ''));
+    for (const b of def.branches) {
+      const card = View.pickCard(def, h, b.form, b.traits);
+      card.addEventListener('click', () => {
+        this.game.chooseBranch(h, unitId, b.key);
+        this.closeModal();
+        this.arenaKey = null;
+        this.render();
+        this.maybeShowBranch();
+      });
+      grid.appendChild(card);
+    }
+    box.appendChild(grid);
+    this.openModal('branch', box);
+  }
+
+  showCredits() {
+    if (this.modalKind) return;
+    const box = View.el('div', 'modal-box credit-box');
+    box.appendChild(View.el('div', 'modal-title', '크레딧'));
+    const body = View.el('div', 'credit-body');
+    const ko = {};
+    for (const name in FORM_INDEX) if (!ko[FORM_INDEX[name].en]) ko[FORM_INDEX[name].en] = name;
+    const byAuthor = {};
+    for (const en in SPRITE_CREDITS) {
+      for (const who of SPRITE_CREDITS[en].by) {
+        if (!byAuthor[who]) byAuthor[who] = [];
+        byAuthor[who].push(ko[en] || SPRITE_CREDITS[en].name);
+      }
+    }
+    const sec = (title, lines) => {
+      body.appendChild(View.el('div', 'credit-head', title));
+      for (const l of lines) body.appendChild(View.el('div', 'credit-line', l));
+    };
+    sec('포켓몬 도트', [
+      'PMD Sprite Repository (sprites.pmdcollab.org · github.com/PMDCollab/SpriteCollab)',
+      '라이선스: CC BY-NC 4.0 (비상업적 이용, 출처 표기)',
+      'CHUNSOFT: 포켓몬 불가사의 던전 공식 도트 ' + (byAuthor.CHUNSOFT || []).length + '종'
+    ]);
+    const authors = Object.keys(byAuthor).filter(a => a !== 'CHUNSOFT').sort((a, b) => a.localeCompare(b));
+    sec('도트 제작·수정', authors.map(a => a + ': ' + byAuthor[a].join(', ')));
+    sec('폰트', ['Galmuri (quiple) · SIL Open Font License 1.1']);
+    sec('원작', ['Pokémon © Nintendo, Creatures, GAME FREAK. 이 게임은 비공식 팬 게임입니다.']);
+    box.appendChild(body);
+    const actions = View.el('div', 'modal-actions');
+    const close = View.el('button', null, '닫기');
+    close.addEventListener('click', () => this.closeModal());
+    actions.appendChild(close);
+    box.appendChild(actions);
+    this.openModal('credit', box);
+  }
+
+  showGameOver() {
+    const g = this.game;
+    const h = this.human;
+    const box = View.el('div', 'modal-box');
+    box.appendChild(View.el('div', 'modal-title', h.placement === 1 ? '우승!' : '게임 종료'));
+    box.appendChild(View.el('div', 'modal-sub', '최종 순위 ' + h.placement + '등 · ' + g.roundLabel() + '에서 끝났습니다'));
+    const list = View.el('div', 'order-list');
+    const ranked = g.players.slice().sort((a, b) => (a.placement || 99) - (b.placement || 99));
+    for (const p of ranked) list.appendChild(View.el('span', 'chip', (p.placement ? p.placement + '등 ' : '생존 ') + p.name));
+    box.appendChild(list);
+    const actions = View.el('div', 'modal-actions');
+    const again = View.el('button', null, '다시 하기');
+    again.addEventListener('click', () => window.location.reload());
+    actions.appendChild(again);
+    box.appendChild(actions);
+    this.openModal('over', box);
+  }
+
+  renderDebug() {
+    const panel = this.$('debug');
+    if (!panel.classList.contains('show')) return;
+    const h = this.human;
+    const u = CONFIG.unlock;
+    const c = h.counters;
+    const lines = [
+      '최면 누적 ' + Math.floor(c.hypnosis) + ' / ' + u.hypnosisSeconds + '초 (후딘)',
+      '치유 스택 ' + Math.floor(c.heal) + ' / ' + u.healStack + ' (해피너스)',
+      '유전자 ' + Math.floor(c.gene) + ' / ' + u.geneStack + ' (뮤츠)',
+      '다운로드 ' + Math.floor(c.download) + ' / ' + u.downloadStage1 + ', ' + u.downloadStage2 + ' (현재 ' + UNITS['폴리곤'].stageForms[h.downloadStage].name + ')',
+      '전기 기절 ' + Math.floor(c.stun) + ' / ' + u.electricStuns + ' (썬더)',
+      '화상 피해 ' + Math.floor(c.burn) + ' / ' + u.burnDamage + ' (파이어)',
+      '얼음 별 합계 ' + u.iceStarTotal + ' 이상으로 전투 시작 (프리져)',
+      '화석 연승 ' + h.fossilWins + ' / ' + u.kabutoWins + ' (투구) · 연패 ' + h.fossilLosses + ' / ' + u.aerodactylLosses + ' (프테라)',
+      '용의 비늘 ' + h.dragonScales + ' · 수련 스택 ' + Math.floor(h.training) + ' · 사이킥 에너지 ' + Math.round(h.psychic),
+      '조우 지역: ' + (this.game.region || '없음'),
+      '해금: ' + (h.unlockedShop.size ? Array.from(h.unlockedShop).join(', ') : '없음'),
+      '상점 제외: ' + (h.excluded.size ? Array.from(h.excluded).join(', ') : '없음'),
+      '카운터는 전투가 끝날 때 확인됩니다'
+    ];
+    this.$('dbg-state').innerHTML = lines.map(l => View.esc(l)).join('<br>');
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  window.app = new App();
+});
