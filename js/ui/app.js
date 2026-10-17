@@ -1,9 +1,20 @@
 const PHASE_LABEL = { planning: '준비', combat: '전투', carousel: '회전초밥', result: '결과', over: '종료' };
 
 class App {
-  constructor() {
-    this.game = new Game({ humanName: '나', realtime: true });
+  constructor(opts) {
+    const o = opts || { mode: 'solo' };
+    this.mode = o.mode === 'mp' ? 'mp' : 'solo';
+    this.net = o.net || null;
+    this.game = this.mode === 'mp'
+      ? new Game({ seed: o.seed, seats: o.seats, localSlot: o.slot, realtime: true })
+      : new Game({ humanName: o.name || '나', realtime: true });
     this.human = this.game.human;
+    this.driver = new Driver(this.game, { mp: this.mode === 'mp' });
+    this.pending = [];
+    this.netQueue = [];
+    this.replaying = false;
+    this.tickAcc = 0;
+    this.branchSent = new Set();
     this.speed = 1;
     this.viewId = this.human.id;
     this.rightMode = 'players';
@@ -43,8 +54,23 @@ class App {
     this.fitScreen();
     window.addEventListener('resize', () => this.fitScreen());
     this.last = performance.now();
+    if (this.mode === 'mp') {
+      this.$('btn-speed').style.display = 'none';
+      this.$('btn-debug').style.display = 'none';
+    }
     requestAnimationFrame(t => this.loop(t));
-    this.game.start();
+    this.driver.start();
+  }
+
+  act(a) {
+    if (!this.human) return;
+    if (this.mode === 'mp') {
+      if (this.net) this.net.send({ t: 'act', a });
+    } else this.pending.push([this.human.id, a]);
+  }
+
+  pushTicks(list) {
+    for (const t of list) this.netQueue.push(t);
   }
 
   fitScreen() {
@@ -71,11 +97,13 @@ class App {
   }
 
   bindControls() {
-    this.$('btn-ready').addEventListener('click', () => this.beginCombat());
+    this.$('btn-ready').addEventListener('click', () => this.pressReady());
     this.$('return-btn').innerHTML = iconSvg('home', 24);
     this.$('return-btn').addEventListener('click', () => this.pressReturn());
     this.$('btn-speed').addEventListener('click', () => {
+      if (this.mode === 'mp') return;
       this.speed = this.speed === 1 ? 2 : this.speed === 2 ? 4 : 1;
+      this.driver.speed = this.speed;
       this.$('speed-num').textContent = 'x' + this.speed;
     });
     this.$('btn-debug').addEventListener('click', () => this.toggleDebug());
@@ -83,8 +111,7 @@ class App {
     this.$('btn-xp').addEventListener('click', () => this.buyXp());
     this.$('btn-reroll').addEventListener('click', () => this.reroll());
     this.$('btn-lock').addEventListener('click', () => {
-      this.human.shopLocked = !this.human.shopLocked;
-      this.renderHud();
+      this.act({ t: 'lock', v: !this.human.shopLocked });
     });
     this.$('tab-toggle').addEventListener('click', () => {
       if (this.selected) {
@@ -111,10 +138,7 @@ class App {
     });
     for (const b of document.querySelectorAll('[data-dbg]')) {
       b.addEventListener('click', () => {
-        const key = b.dataset.dbg;
-        if (key === 'refresh') this.game.debugFreeRefresh(this.human);
-        else this.game.debugAdd(this.human, key, Number(b.dataset.amt));
-        this.render();
+        this.act({ t: 'dbg', k: b.dataset.dbg, n: Number(b.dataset.amt) || 0 });
       });
     }
     const mapRow = document.createElement('div');
@@ -133,9 +157,7 @@ class App {
     this.$('debug').insertBefore(mapRow, this.$('dbg-state'));
     for (const b of document.querySelectorAll('[data-region]')) {
       b.addEventListener('click', () => {
-        this.game.setRegion(b.dataset.region || null);
-        this.toast(this.game.region ? this.game.region + ' 조우: 이제 ' + this.game.region + ' 리전폼이 등장합니다' : '조우 지역 없음: 리전폼이 등장하지 않습니다', 'info');
-        this.render();
+        this.act({ t: 'region', r: b.dataset.region || null });
       });
     }
     const tip = this.$('trait-tip');
@@ -171,13 +193,55 @@ class App {
 
   bindGameEvents() {
     this.game.on('round', info => this.onRound(info));
-    this.game.on('notify', n => this.toast(n.msg, n.kind));
-    this.game.on('branch', () => this.maybeShowBranch());
+    this.game.on('notify', n => {
+      if (n.p === this.human && !this.replaying) this.toast(n.msg, n.kind);
+    });
+    this.game.on('branch', d => {
+      if (d && d.p === this.human) this.maybeShowBranch();
+    });
     this.game.on('update', () => this.requestRender());
     this.game.on('orbs', () => this.requestRender());
     this.game.on('wingold', p => {
-      if (!p.isHuman) return;
+      if (p !== this.human || this.replaying) return;
       this.arena.goldPop(this.arena.me);
+      this.requestRender();
+    });
+    this.game.on('eliminated', p => {
+      if (p === this.human && this.mode === 'mp' && this.game.phase !== 'over') this.showEliminated();
+    });
+    const d = this.driver;
+    d.on('combatStart', e => this.onCombatStart(e));
+    d.on('combatOver', () => {
+      this.ending = true;
+    });
+    d.on('combatEnd', () => this.onCombatEnd());
+    d.on('over', () => {
+      this.render();
+      this.showGameOver();
+    });
+    d.on('carry', pid => this.onCarry(pid));
+    d.on('carouselEnd', () => this.endCarousel());
+    d.on('orb', e => {
+      if (e.pid !== this.human.id || this.replaying) return;
+      const el = this.arena.orbEls && this.arena.orbEls[e.id];
+      if (el) el.remove();
+      this.renderHud();
+      if (this.scene().mode === 'planning') {
+        this.arenaKey = null;
+        this.renderArena();
+      }
+    });
+    d.on('applied', e => {
+      if (this.replaying) return;
+      if (e.pid === this.human.id) {
+        if (e.res && !e.res.ok && e.res.reason) this.toast(e.res.reason, 'error');
+        if (e.a.t === 'branch') {
+          this.closeModal();
+          this.arenaKey = null;
+          this.maybeShowBranch();
+        }
+        if (e.a.t === 'region') this.toast(this.game.region ? this.game.region + ' 조우: 이제 ' + this.game.region + ' 리전폼이 등장합니다' : '조우 지역 없음: 리전폼이 등장하지 않습니다', 'info');
+      }
       this.requestRender();
     });
   }
@@ -232,7 +296,9 @@ class App {
 
   setView(id) {
     const p = this.game.players[id];
-    if (!p || !p.alive) return;
+    if (!p || !p.alive) {
+      if (id !== this.human.id) return;
+    }
     if (this.carouselScene) {
       this.viewCarousel = false;
       this.viewId = id;
@@ -242,7 +308,8 @@ class App {
       return;
     }
     if (this.viewId === id) return;
-    const spot = id === this.human.id ? HOME_BOTTOM : VISIT_SPOT;
+    const ds = this.driver.strats[this.human.id];
+    const spot = id === this.human.id ? { x: ds.x, y: ds.y } : VISIT_SPOT;
     this.arena.me.place(spot.x, spot.y);
     this.viewId = id;
     this.arenaKey = null;
@@ -262,14 +329,21 @@ class App {
 
   buyXp() {
     if (!this.canShop()) return;
-    if (!this.game.buyXp(this.human)) this.toast(this.human.level >= CONFIG.maxLevel ? '최대 레벨입니다' : '골드가 부족합니다', 'error');
-    this.render();
+    const h = this.human;
+    if (h.level >= CONFIG.maxLevel || h.gold < CONFIG.xpCost) {
+      this.toast(h.level >= CONFIG.maxLevel ? '최대 레벨입니다' : '골드가 부족합니다', 'error');
+      return;
+    }
+    this.act({ t: 'xp' });
   }
 
   reroll() {
     if (!this.canShop()) return;
-    if (!this.game.reroll(this.human)) this.toast('골드가 부족합니다', 'error');
-    this.render();
+    if (this.human.gold < CONFIG.rerollCost) {
+      this.toast('골드가 부족합니다', 'error');
+      return;
+    }
+    this.act({ t: 'reroll' });
   }
 
   buySlot(slot) {
@@ -279,19 +353,28 @@ class App {
       if (check.reason) this.toast(check.reason, 'error');
       return;
     }
-    this.game.buy(this.human, slot);
-    this.render();
+    this.act({ t: 'buy', s: slot });
   }
 
   sellHovered() {
     if (!this.canShop() || !this.hoverInst || this.viewId !== this.human.id) return;
     const inst = this.hoverInst;
-    if (!this.game.sell(this.human, inst)) {
+    if (this.game.phase === 'combat' && inst.loc && inst.loc.zone === 'board') {
       this.toast('전투 중에는 필드의 기물을 팔 수 없습니다', 'error');
       return;
     }
+    this.act({ t: 'sell', iid: inst.iid });
     this.hoverInst = null;
-    this.render();
+  }
+
+  pressReady() {
+    if (this.game.phase !== 'planning' || !this.human.alive) return;
+    this.act({ t: 'ready' });
+    if (this.mode === 'mp') {
+      this.readySent = this.game.roundLabel();
+      this.toast('준비 완료! 다른 플레이어를 기다립니다', 'info');
+      this.renderHud();
+    }
   }
 
   toggleDebug() {
@@ -303,6 +386,10 @@ class App {
     this.arenaKey = null;
     this.combatRunning = false;
     this.ending = false;
+    if (this.replaying) {
+      if (this.game.phase === 'carousel') this.startCarousel();
+      return;
+    }
     if (this.game.phase === 'planning') {
       const inc = this.game.lastIncome;
       if (inc && info.type !== 'encounter') {
@@ -312,8 +399,6 @@ class App {
         this.toast(msg, 'info');
       }
       if (info.type === 'encounter') this.toast('1-1 조우자는 아직 준비 중입니다. 대신 1코스트 기물 하나를 받았습니다.', 'info');
-      this.timerTotal = this.game.planningTime();
-      this.timeLeft = this.timerTotal;
       this.render();
       this.maybeShowBranch();
     } else if (this.game.phase === 'carousel') {
@@ -326,7 +411,7 @@ class App {
     const V = this.viewed();
     if (g.phase === 'carousel') {
       if (this.viewCarousel || !this.carouselScene) return { mode: 'carousel' };
-      if (V.isHuman) return { mode: 'planning', bottom: { player: V }, top: null, carouselField: true };
+      if (V === this.human) return { mode: 'planning', bottom: { player: V }, top: null, carouselField: true };
       return { mode: 'planning', top: { player: V }, bottom: null, carouselField: true };
     }
     if (g.matches.length) {
@@ -335,16 +420,16 @@ class App {
         if (!m.sim.uiId) m.sim.uiId = this.simSeq++;
         const side = g.sideOf(m, V);
         if (m.kind === 'pve') {
-          if (V.isHuman) return { mode: 'combat', sim: m.sim, flip: false, bottom: { player: V }, top: { camp: m.camp }, match: m, allySide: 'A', mapId: V.mapId };
+          if (V === this.human) return { mode: 'combat', sim: m.sim, flip: false, bottom: { player: V }, top: { camp: m.camp }, match: m, allySide: 'A', mapId: V.mapId };
           return { mode: 'combat', sim: m.sim, flip: true, top: { player: V }, bottom: { camp: m.camp }, match: m, allySide: 'A', mapId: V.mapId };
         }
         const hostRole = { player: m.a };
         const visitRole = { player: m.b, ghost: m.ghost };
-        const flip = V.isHuman ? side === 'B' : side === 'A';
+        const flip = V === this.human ? side === 'B' : side === 'A';
         return { mode: 'combat', sim: m.sim, flip, bottom: flip ? visitRole : hostRole, top: flip ? hostRole : visitRole, match: m, allySide: side, mapId: m.a.mapId };
       }
     }
-    if (V.isHuman) {
+    if (V === this.human) {
       const info = g.roundInfo();
       return { mode: 'planning', bottom: { player: V }, top: info.type === 'pve' ? { camp: g.currentCamp() } : null };
     }
@@ -384,7 +469,7 @@ class App {
     a.setCarouselMode(false);
     a.setMap(sc.mapId || this.viewed().mapId);
     a.showCarouselLayer(false);
-    const otherBottom = sc.bottom && sc.bottom.player && !sc.bottom.player.isHuman;
+    const otherBottom = sc.bottom && sc.bottom.player && sc.bottom.player !== this.human;
     a.me.el.style.display = sc.carouselField || otherBottom ? 'none' : '';
     const meTop = false;
     if (meTop !== !!this.meTop) {
@@ -453,7 +538,7 @@ class App {
     el._maxHp = instanceStats(inst, owner).hp;
     el._enemy = owner !== this.human;
     el.addEventListener('pointerdown', e => this.onTokenPointerDown(e, { inst, owner }, el));
-    if (owner.isHuman) {
+    if (owner === this.human) {
       el.addEventListener('mouseenter', () => { this.hoverInst = inst; });
       el.addEventListener('mouseleave', () => { if (this.hoverInst === inst) this.hoverInst = null; });
     }
@@ -494,6 +579,8 @@ class App {
     this.renderInfo();
     this.renderDebug();
     if (h.pendingBranch.length) this.maybeShowBranch();
+    const rb = this.$('btn-ready');
+    rb.classList.toggle('on', this.mode === 'mp' && this.readySent === this.game.roundLabel() && this.game.phase === 'planning');
   }
 
   renderTracker() {
@@ -764,7 +851,7 @@ class App {
     const sx = e.clientX;
     const sy = e.clientY;
     const inst = src.inst;
-    const draggable = inst && src.owner && src.owner.isHuman && !src.preview && this.canDrag(inst);
+    const draggable = inst && src.owner && src.owner === this.human && !src.preview && this.canDrag(inst);
     let ghost = null;
     const hold = { target: null, timer: null, done: false, used: false };
     const holdKind = other => {
@@ -798,8 +885,8 @@ class App {
           ghost.classList.add('hold-done');
         }
         if (kind === 'link') {
-          hold.used = this.game.linkDitto(this.human, inst, other);
-          this.renderInfo();
+          hold.used = true;
+          this.act({ t: 'ditto', d: inst.iid, x: other.iid });
         }
       }, 1000);
     };
@@ -842,8 +929,7 @@ class App {
       const fed = hold.done && eater && holdKind(eater) === 'feed' && t && this.human.unitAt(t.kind === 'board' ? { zone: 'board', r: t.r, c: t.c } : { zone: 'bench', i: t.i }) === eater;
       clearTimeout(hold.timer);
       if (fed) {
-        const res = this.game.feed(this.human, inst, eater);
-        if (!res.ok && res.reason) this.toast(res.reason, 'error');
+        this.act({ t: 'feed', f: inst.iid, e: eater.iid });
         this.hoverInst = null;
       } else if (!hold.used && t) this.dropOn(inst, t);
       this.render();
@@ -857,7 +943,7 @@ class App {
     for (const el of els) {
       if (el.closest('#shop')) return { kind: 'sell' };
       const u = el.closest('.unit');
-      if (u && u !== srcEl && u._inst && u._owner && u._owner.isHuman && u._inst.loc && !u.classList.contains('ghost')) {
+      if (u && u !== srcEl && u._inst && u._owner && u._owner === this.human && u._inst.loc && !u.classList.contains('ghost')) {
         const loc = u._inst.loc;
         if (loc.zone === 'board') return { kind: 'board', r: loc.r, c: loc.c };
         return { kind: 'bench', i: loc.i };
@@ -877,19 +963,31 @@ class App {
     const g = this.game;
     if (t.kind === 'sell') {
       if (!this.canShop()) return;
-      if (!g.sell(this.human, inst)) this.toast('전투 중에는 필드의 기물을 팔 수 없습니다', 'error');
+      if (g.phase === 'combat' && inst.loc && inst.loc.zone === 'board') {
+        this.toast('전투 중에는 필드의 기물을 팔 수 없습니다', 'error');
+        return;
+      }
+      this.act({ t: 'sell', iid: inst.iid });
       this.hoverInst = null;
       return;
     }
-    let res = null;
-    if (t.kind === 'board') res = g.moveUnit(this.human, inst, { zone: 'board', r: t.r, c: t.c });
-    else if (t.kind === 'bench') res = g.moveUnit(this.human, inst, { zone: 'bench', i: t.i });
-    if (res && !res.ok && res.reason) this.toast(res.reason, 'error');
+    if (t.kind === 'board') {
+      if (g.phase !== 'planning') {
+        this.toast('전투 중에는 필드를 바꿀 수 없습니다', 'error');
+        return;
+      }
+      if (inst.loc && inst.loc.zone === 'bench' && !this.human.unitAt({ zone: 'board', r: t.r, c: t.c }) && this.human.boardCount() >= this.human.level) {
+        this.toast('필드에 놓을 수 있는 기물은 ' + this.human.level + '개입니다', 'error');
+        return;
+      }
+      this.act({ t: 'move', iid: inst.iid, z: 'board', r: t.r, c: t.c });
+    } else if (t.kind === 'bench') this.act({ t: 'move', iid: inst.iid, z: 'bench', i: t.i });
   }
 
   moveStrategist(cx, cy) {
     if (!this.human.alive) return;
     if (this.carouselScene && !this.viewCarousel) return;
+    if (!this.carouselScene && this.viewId !== this.human.id) return;
     const p = this.arena.toFlat(cx, cy);
     let x = Math.max(-20, Math.min(ARENA_W + 20, p.x));
     let y = Math.max(-10, Math.min(ARENA_H + 10, p.y + 8));
@@ -905,147 +1003,161 @@ class App {
         y = sp.y + (dy / d) * R;
       }
     }
-    const orbs = !sc && !this.scouting() ? this.human.orbs || [] : [];
-    const near = orbs.find(o => o.x !== undefined && Math.hypot(o.x - p.x, o.y - p.y) < 34);
-    this.arena.me.speed = near ? WALK_SPEED * ORB_RUN : WALK_SPEED;
-    if (near) {
-      x = near.x;
-      y = near.y;
+    const orbs = !sc ? this.human.orbs || [] : [];
+    let run = false;
+    for (const o of orbs) {
+      const op = orbFlatPos(o);
+      if (Math.hypot(op.x - p.x, op.y - p.y) < 34) {
+        x = op.x;
+        y = op.y;
+        run = true;
+        break;
+      }
     }
-    this.arena.me.moveTo(x, y);
+    this.act({ t: 'strat', x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, run });
   }
 
   loop(t) {
     const dt = Math.min(0.1, Math.max(0, (t - this.last) / 1000));
     this.last = t;
     try {
-      this.tick(dt);
+      this.frame(dt);
     } catch (err) {
       console.error(err);
     }
     requestAnimationFrame(n => this.loop(n));
   }
 
-  tick(dt) {
-    const g = this.game;
-    if (g.phase === 'planning' && this.modalKind !== 'branch') {
-      this.timeLeft -= dt;
-      this.setTimer(this.timeLeft, this.timerTotal);
-      if (this.timeLeft <= 0) this.beginCombat();
+  frame(dt) {
+    if (this.mode === 'solo') {
+      this.tickAcc += dt;
+      let n = 0;
+      while (this.tickAcc >= DRIVER_TICK && n < 8) {
+        this.stepDriver(this.pending.splice(0));
+        this.tickAcc -= DRIVER_TICK;
+        n++;
+      }
+      if (n >= 8) this.tickAcc = 0;
+    } else {
+      const backlog = this.netQueue.length;
+      if (backlog > 60 && !this.replaying) this.replaying = true;
+      let n = 0;
+      const limit = this.replaying ? 3000 : 4;
+      while (this.netQueue.length && n < limit) {
+        this.stepDriver(this.netQueue.shift());
+        n++;
+      }
+      if (this.replaying && this.netQueue.length < 3) {
+        this.replaying = false;
+        this.afterReplay();
+      }
     }
-    this.arena.me.update(dt);
-    if (this.combatRunning) this.updateCombat(dt);
-    if (this.carouselScene) this.updateCarousel(dt);
-    this.checkOrbs();
+    if (!this.replaying) this.updateVisuals(dt);
   }
 
-  beginCombat() {
+  afterReplay() {
     const g = this.game;
-    if (g.phase !== 'planning') return;
+    this.closeModal();
+    if (this.carouselScene && g.phase !== 'carousel') {
+      this.carouselScene = null;
+      this.arena.setCarouselMode(false);
+    }
+    if (g.phase === 'carousel' && !this.carouselScene) this.startCarousel();
+    this.combatRunning = g.phase === 'combat';
+    this.arenaKey = null;
+    this.render();
+    if (!this.human.alive && g.phase !== 'over') this.showEliminated();
+    if (g.phase === 'over' && this.driver.state === 'over') this.showGameOver();
+  }
+
+  stepDriver(actions) {
+    this.driver.step(actions);
+    const viewSim = this.arena.sim;
+    for (const m of this.game.matches) {
+      if (!m.sim) continue;
+      const evs = m.sim.drainEvents();
+      if (!this.replaying && m.sim === viewSim && evs.length) this.arena.applyEvents(evs);
+    }
+  }
+
+  updateVisuals(dt) {
+    const d = this.driver;
+    const g = this.game;
+    const tn = this.$('timer-num');
+    if (d.state === 'planning') {
+      this.setTimer(d.timeLeft, d.timerTotal);
+      tn.dataset.tip = PHASE_LABEL.planning;
+    } else if (d.state === 'precombat') {
+      this.setTimer(d.wait, CONFIG.preCombat);
+      tn.dataset.tip = '전투 시작까지';
+    } else if (d.state === 'combat' || d.state === 'ending') {
+      const viewSim = this.arena.sim;
+      if (viewSim) this.setTimer(CONFIG.combat.timeLimit - viewSim.time, CONFIG.combat.timeLimit);
+      tn.dataset.tip = PHASE_LABEL.combat;
+    } else if (d.state === 'carousel' && g.carousel) {
+      this.setTimer(g.carousel.duration - g.carousel.time, g.carousel.duration);
+      tn.dataset.tip = PHASE_LABEL.carousel;
+    }
+    this.syncMe(dt);
+    if (this.combatRunning) {
+      this.arena.updateBars();
+      this.dmgTimer += dt;
+      if (this.dmgTimer > 0.3) {
+        this.dmgTimer = 0;
+        if (this.rightMode === 'damage') this.renderDamage();
+        if (this.selected && this.selected.combat) this.renderInfo();
+        this.renderTraitPanel();
+      }
+    }
+    if (this.carouselScene) this.updateCarousel(dt);
+  }
+
+  syncMe(dt) {
+    const me = this.arena.me;
+    const s = this.driver.strats[this.human.id];
+    if (this.carouselScene ? this.viewCarousel : this.viewId === this.human.id) {
+      const d = Math.hypot(s.x - me.x, s.y - me.y);
+      if (d > 150) me.place(s.x, s.y);
+      else {
+        me.speed = Math.max(60, s.speed) * 1.3;
+        me.moveTo(s.x, s.y);
+      }
+    }
+    me.update(dt);
+  }
+
+  onCombatStart(e) {
     if (this.modalKind === 'branch') this.closeModal();
-    g.startCombat();
-    if (!g.matches.length) {
-      g.finishCombat();
-      this.render();
-      this.afterResult();
+    if (e.none) {
+      if (!this.replaying) this.render();
       return;
     }
     this.combatRunning = true;
     this.ending = false;
-    this.acc = 0;
-    this.preCombat = g.matches.some(m => m.kind === 'pvp') ? CONFIG.preCombat : 0;
     this.arenaKey = null;
+    if (this.replaying) return;
     this.render();
-    if (this.preCombat > 0) this.toast('매칭 완료! ' + CONFIG.preCombat + '초 뒤 전투가 시작됩니다', 'info');
+    if (e.pre > 0) this.toast('매칭 완료! ' + CONFIG.preCombat + '초 뒤 전투가 시작됩니다', 'info');
   }
 
-  updateCombat(dt) {
-    const g = this.game;
-    const tick = CONFIG.combat.tick;
-    if (this.preCombat > 0) {
-      this.preCombat -= dt;
-      this.setTimer(this.preCombat, CONFIG.preCombat);
-      this.$('timer-num').dataset.tip = '전투 시작까지';
-      this.arena.updateBars();
-      return;
-    }
-    this.acc += dt * this.speed;
-    let steps = 0;
-    const viewSim = this.arena.sim;
-    while (this.acc >= tick && steps < 80 && !g.allCombatOver()) {
-      g.stepCombat(tick);
-      this.acc -= tick;
-      steps++;
-      for (const m of g.matches) {
-        const evs = m.sim.drainEvents();
-        if (m.sim === viewSim) this.arena.applyEvents(evs);
-      }
-    }
-    this.arena.updateBars();
-    if (viewSim) this.setTimer(CONFIG.combat.timeLimit - viewSim.time, CONFIG.combat.timeLimit);
-    this.dmgTimer += dt;
-    if (this.dmgTimer > 0.3) {
-      this.dmgTimer = 0;
-      if (this.rightMode === 'damage') this.renderDamage();
-      if (this.selected && this.selected.combat) this.renderInfo();
-      this.renderTraitPanel();
-    }
-    if (g.allCombatOver() && !this.ending) {
-      this.ending = true;
-      for (const m of g.matches) {
-        const evs = m.sim.drainEvents();
-        if (m.sim === viewSim) this.arena.applyEvents(evs);
-      }
-      setTimeout(() => this.finishCombat(), 700);
-    }
-  }
-
-  finishCombat() {
+  onCombatEnd() {
     const g = this.game;
     this.combatRunning = false;
     this.lastMatches = g.matches.slice();
-    g.finishCombat();
+    if (this.replaying) return;
     this.rightMode = 'damage';
     const h = this.human;
     const banner = this.$('banner');
-    if (h.lastResult) {
+    if (h.lastResult && h.alive) {
       const res = h.lastResult;
       banner.className = 'show ' + res;
       banner.innerHTML = (res === 'win' ? '승리!' : res === 'draw' ? '무승부' : '패배') + (h.lastDamage ? '<small>체력 -' + h.lastDamage + '</small>' : '');
     }
     this.render();
-    setTimeout(() => {
+    clearTimeout(this.bannerTimer);
+    this.bannerTimer = setTimeout(() => {
       banner.className = '';
-      this.afterResult();
     }, 1400);
-  }
-
-  afterResult() {
-    if (this.game.phase === 'over') {
-      this.render();
-      this.showGameOver();
-      return;
-    }
-    this.game.nextRound();
-  }
-
-  checkOrbs() {
-    const h = this.human;
-    if (this.scouting() || !h.orbs || !h.orbs.length) return;
-    const me = this.arena.me;
-    for (const o of h.orbs.slice()) {
-      if (o.x === undefined) continue;
-      if (Math.hypot(o.x - me.x, o.y - me.y) < 26) {
-        this.game.pickOrb(h, o.id);
-        const el = this.arena.orbEls && this.arena.orbEls[o.id];
-        if (el) el.remove();
-        this.renderHud();
-        if (this.scene().mode === 'planning') {
-          this.arenaKey = null;
-          this.renderArena();
-        }
-      }
-    }
   }
 
   startCarousel() {
@@ -1058,11 +1170,11 @@ class App {
     a.renderOrbs([]);
     a.setCarouselMode(true);
     a.carLayer.innerHTML = '';
-    const sc = { sprites: {}, spawn: {}, items: [], targets: {}, ended: false };
+    const sc = { sprites: {}, spawn: {}, items: [], ended: false };
     for (const p of car.order) {
       const sp = a.carouselSpawn(p.id, g.players.length);
       sc.spawn[p.id] = sp;
-      if (p.isHuman) {
+      if (p === this.human) {
         a.me.place(sp.x, sp.y);
       } else {
         const s = new StratSprite({ look: p.strategist, player: p, x: sp.x, y: sp.y, speed: CONFIG.carousel.moveSpeed });
@@ -1082,6 +1194,8 @@ class App {
     this.viewId = this.human.id;
     this.viewCarousel = true;
     this.arenaKey = null;
+    for (const p of car.order) if (this.driver.strats[p.id].carry) this.onCarry(p.id);
+    if (this.replaying) return;
     this.render();
     this.toast('회전초밥! 체력이 낮은 순서로 두 명씩 결계가 풀립니다', 'info');
   }
@@ -1092,19 +1206,24 @@ class App {
     return View.unitEl({ className: 'unit', name: '', form, types: form.types, star: 1, cost: def.cost });
   }
 
+  onCarry(pid) {
+    const sc = this.carouselScene;
+    if (!sc) return;
+    const s = this.driver.strats[pid];
+    const sprite = pid === this.human.id ? this.arena.me : sc.sprites[pid];
+    if (!sprite) return;
+    sprite.carry(s.carry ? this.carriedToken(s.carry) : null);
+    if (pid === this.human.id && !this.replaying) this.renderHud();
+  }
+
   updateCarousel(dt) {
     const g = this.game;
     const car = g.carousel;
     const sc = this.carouselScene;
     const a = this.arena;
-    const gdt = dt * this.speed;
-    if (!sc.ended) car.time += gdt;
-    const cfg = CONFIG.carousel;
-    const pos = [];
+    if (!car) return;
     car.items.forEach((item, idx) => {
-      item.angle += cfg.spin * gdt;
-      const p = a.itemPos(item);
-      pos[idx] = p;
+      const p = carouselItemFlat(item);
       const el = sc.items[idx];
       el.style.display = item.takenBy === null ? '' : 'none';
       placeSprite(el, p.x, p.y, UNIT_ORIGIN.x, UNIT_ORIGIN.y, UNIT_SCALE);
@@ -1113,55 +1232,16 @@ class App {
       const closed = car.order.filter(p => !g.carouselReleased(p)).map(p => ({ x: sc.spawn[p.id].x, y: sc.spawn[p.id].y, open: false }));
       a.drawOverlay(closed.length ? { barriers: closed } : null);
     }
-    for (const p of car.order) {
-      const released = g.carouselReleased(p);
-      if (sc.ended) continue;
-      const picked = car.picked[p.id] !== undefined;
-      if (p.isHuman) {
-        if (!released || picked) continue;
-        const me = a.me;
-        for (let i = 0; i < car.items.length; i++) {
-          if (!g.carouselCanPick(p, i)) continue;
-          if (Math.hypot(pos[i].x - me.x, pos[i].y - (me.y - 10)) < cfg.pickRadius) {
-            g.carouselPick(p, i);
-            me.carry(this.carriedToken(car.items[i].unitId));
-            this.renderHud();
-            break;
-          }
-        }
-        continue;
+    for (const id in sc.sprites) {
+      const sp = sc.sprites[id];
+      const s = this.driver.strats[id];
+      const d = Math.hypot(s.x - sp.x, s.y - sp.y);
+      if (d > 150) sp.place(s.x, s.y);
+      else {
+        sp.speed = Math.max(60, s.speed) * 1.3;
+        sp.moveTo(s.x, s.y);
       }
-      const s = sc.sprites[p.id];
-      if (released && !picked) {
-        let target = sc.targets[p.id];
-        if (target === undefined || target === null || !g.carouselCanPick(p, target)) target = g.carouselBotChoice(p);
-        sc.targets[p.id] = target;
-        if (target !== null) {
-          const tp = pos[target];
-          s.moveTo(tp.x, tp.y + 10);
-          if (Math.hypot(tp.x - s.x, tp.y - (s.y - 10)) < cfg.pickRadius) {
-            g.carouselPick(p, target);
-            s.carry(this.carriedToken(car.items[target].unitId));
-            s.moveTo(sc.spawn[p.id].x, sc.spawn[p.id].y);
-          }
-        }
-      }
-      s.update(gdt);
-    }
-    this.setTimer(car.duration - car.time, car.duration);
-    if (car.time >= car.duration && !sc.ended) {
-      sc.ended = true;
-      const before = car.picked[this.human.id];
-      g.carouselFinish();
-      const after = car.picked[this.human.id];
-      if (before === undefined && after !== undefined) a.me.carry(this.carriedToken(car.items[after].unitId));
-      for (const p of car.order) {
-        if (!p.isHuman && sc.sprites[p.id] && car.picked[p.id] !== undefined && !sc.sprites[p.id].carryEl) {
-          sc.sprites[p.id].carry(this.carriedToken(car.items[car.picked[p.id]].unitId));
-        }
-      }
-      this.renderHud();
-      setTimeout(() => this.endCarousel(), 900);
+      sp.update(dt);
     }
   }
 
@@ -1181,7 +1261,6 @@ class App {
     this.viewCarousel = false;
     this.viewId = this.human.id;
     this.arenaKey = null;
-    this.afterResult();
   }
 
   toast(msg, kind) {
@@ -1260,9 +1339,9 @@ class App {
   }
 
   maybeShowBranch() {
-    if (this.modalKind) return;
+    if (this.modalKind || this.replaying) return;
     const h = this.human;
-    const unitId = h.pendingBranch[0];
+    const unitId = h.pendingBranch.find(id => !this.branchSent.has(id + '|' + this.game.roundLabel()));
     if (!unitId) return;
     const def = UNITS[unitId];
     const box = View.el('div', 'modal-box');
@@ -1272,11 +1351,9 @@ class App {
     for (const b of def.branches) {
       const card = View.pickCard(def, h, b.form, b.traits);
       card.addEventListener('click', () => {
-        this.game.chooseBranch(h, unitId, b.key);
+        this.branchSent.add(unitId + '|' + this.game.roundLabel());
+        this.act({ t: 'branch', u: unitId, k: b.key });
         this.closeModal();
-        this.arenaKey = null;
-        this.render();
-        this.maybeShowBranch();
       });
       grid.appendChild(card);
     }
@@ -1331,11 +1408,35 @@ class App {
     for (const p of ranked) list.appendChild(View.el('span', 'chip', (p.placement ? p.placement + '등 ' : '생존 ') + p.name));
     box.appendChild(list);
     const actions = View.el('div', 'modal-actions');
-    const again = View.el('button', null, '다시 하기');
-    again.addEventListener('click', () => window.location.reload());
+    const again = View.el('button', null, this.mode === 'mp' ? '메인으로' : '다시 하기');
+    again.addEventListener('click', () => this.leaveToMain());
     actions.appendChild(again);
     box.appendChild(actions);
+    this.closeModal();
     this.openModal('over', box);
+  }
+
+  showEliminated() {
+    if (this.modalKind === 'over' || this.modalKind === 'out') return;
+    const h = this.human;
+    const box = View.el('div', 'modal-box');
+    box.appendChild(View.el('div', 'modal-title', '탈락'));
+    box.appendChild(View.el('div', 'modal-sub', '최종 순위 ' + (h.placement || '-') + '등 · 남은 플레이어의 게임을 계속 볼 수 있습니다'));
+    const actions = View.el('div', 'modal-actions');
+    const watch = View.el('button', null, '계속 관전');
+    watch.addEventListener('click', () => this.closeModal());
+    const leave = View.el('button', null, '메인으로');
+    leave.addEventListener('click', () => this.leaveToMain());
+    actions.appendChild(watch);
+    actions.appendChild(leave);
+    box.appendChild(actions);
+    this.closeModal();
+    this.openModal('out', box);
+  }
+
+  leaveToMain() {
+    if (this.net) this.net.leave();
+    window.location.reload();
   }
 
   renderDebug() {
@@ -1364,5 +1465,5 @@ class App {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  window.app = new App();
+  window.lobby = new Lobby();
 });

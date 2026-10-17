@@ -69,7 +69,7 @@ function computeSynergies(owner, insts) {
     });
   }
   const kindRank = { type: 1, class: 1, unique: 0 };
-  out.sort((a, b) => (kindRank[a.kind] - kindRank[b.kind]) || (Number(b.active) - Number(a.active)) || (b.tier - a.tier) || (b.count - a.count) || a.id.localeCompare(b.id));
+  out.sort((a, b) => (kindRank[a.kind] - kindRank[b.kind]) || (Number(b.active) - Number(a.active)) || (b.tier - a.tier) || (b.count - a.count) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return out;
 }
 

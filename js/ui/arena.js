@@ -268,7 +268,7 @@ class Arena {
     this.setPillars(this.pillarBottom, this.interestOf(bottom));
     const addSprite = (side, home) => {
       if (!side || noSprites) return;
-      if (side.player && side.player.isHuman) return;
+      if (side.player && side.player === this.app.human) return;
       let s = null;
       if (side.player) {
         s = new StratSprite({ look: side.player.strategist, player: side.player, suffix: side.ghost ? ' (복제)' : '', x: home.x, y: home.y });

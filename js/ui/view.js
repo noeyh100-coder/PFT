@@ -440,16 +440,16 @@ const View = {
     const list = game.players.slice().sort((a, b) => (Number(b.alive) - Number(a.alive)) || (b.hp - a.hp) || ((a.placement || 9) - (b.placement || 9)));
     for (const p of list) {
       let cls = 'prow';
-      if (p.isHuman) cls += ' me';
-      if (human && human.alive && human.currentOpponent === p.id && !p.isHuman) cls += ' vs';
+      if (p === human) cls += ' me';
+      if (human && human.alive && human.currentOpponent === p.id && p !== human) cls += ' vs';
       if (p.id === viewId) cls += ' viewing';
       if (!p.alive) cls += ' dead';
       if (p.hp <= 30) cls += ' low';
       const row = this.el('div', cls);
       const name = this.el('div', 'pname', p.alive ? p.name : p.name + ' · ' + p.placement + '등');
-      const por = this.portrait(p.strategist, p.isHuman ? 36 : 31);
+      const por = this.portrait(p.strategist, p === human ? 36 : 31);
       por.appendChild(this.el('div', 'hp', p.alive ? p.hp : '✕'));
-      if (human && human.alive && human.currentOpponent === p.id && !p.isHuman) {
+      if (human && human.alive && human.currentOpponent === p.id && p !== human) {
         const sw = this.el('div', 'vs-sword');
         sw.innerHTML = iconSvg('sword', 14);
         sw.dataset.tip = human.currentGhost ? '다음 상대 (복제)' : '다음 상대';

@@ -10,17 +10,24 @@ class Game {
   constructor(opts) {
     const o = opts || {};
     this.seed = o.seed || ((Date.now() ^ 0x5bd1e995) >>> 0);
+    NEXT_IID = 1;
     this.rng = new Rng(this.seed);
     this.pool = new Pool();
     this.players = [];
-    if (o.humanName) this.players.push(new Player(0, o.humanName, true));
     const names = this.rng.shuffle(CONFIG.botNames.slice());
     let n = 0;
+    this.solo = !o.seats;
+    if (o.seats) {
+      o.seats.slice(0, 8).forEach((seat, i) => {
+        const name = seat.human ? String(seat.name || '플레이어 ' + (i + 1)) : names[n++ % names.length];
+        this.players.push(new Player(i, name, !!seat.human));
+      });
+    } else if (o.humanName) this.players.push(new Player(0, o.humanName, true));
     while (this.players.length < 8) {
       this.players.push(new Player(this.players.length, names[n % names.length], false));
       n++;
     }
-    this.human = this.players.find(p => p.isHuman) || null;
+    this.human = o.localSlot != null ? this.players[o.localSlot] || null : this.players.find(p => p.isHuman) || null;
     const looks = this.rng.shuffle(CONFIG.strategists.slice());
     const maps = this.rng.shuffle(CONFIG.maps.slice());
     this.players.forEach((p, i) => {
@@ -118,7 +125,7 @@ class Game {
   }
 
   notify(p, msg, kind) {
-    if (p && p.isHuman) this.emit('notify', { msg, kind: kind || 'info' });
+    if (p && p.isHuman) this.emit('notify', { msg, kind: kind || 'info', p });
   }
 
   alivePlayers() {
@@ -189,13 +196,14 @@ class Game {
       } else if (!(this.stage === 1 && this.round === 2)) {
         const inc = this.grantIncome(p, this.stage === 1 ? CONFIG.earlyIncome : CONFIG.baseIncome);
         if (!(this.stage === 1 && this.round <= 2)) p.addXp(CONFIG.passiveXp);
-        if (p.isHuman) this.lastIncome = inc;
+        p.lastIncome = inc;
+        if (p === this.human) this.lastIncome = inc;
       }
       if (!p.shopLocked) this.refreshShop(p);
     }
     if (info.type === 'pvp') this.makePairings();
     this.phase = 'planning';
-    for (const p of alive) if (!p.isHuman) Bot.plan(this, p);
+    for (const p of alive) if (!p.isHuman || p.afk) Bot.plan(this, p);
     this.emit('round', info);
   }
 
@@ -381,7 +389,7 @@ class Game {
       if (p.isHuman) {
         if (!p.pendingBranch.includes(def.id)) {
           p.pendingBranch.push(def.id);
-          this.emit('branch', { unitId: def.id });
+          this.emit('branch', { unitId: def.id, p });
         }
       } else {
         p.branch[def.id] = this.rng.pick(def.branches).key;
@@ -837,7 +845,7 @@ class Game {
       if (m.b && !m.ghost) m.b.history[label] = m.b.lastResult;
     }
     this.handleEliminations();
-    this.phase = this.alivePlayers().length <= 1 || (this.human && !this.human.alive) ? 'over' : 'result';
+    this.phase = this.alivePlayers().length <= 1 || (this.solo && this.human && !this.human.alive) ? 'over' : 'result';
     this.emit('result');
   }
 
