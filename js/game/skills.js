@@ -26,7 +26,7 @@ const SKILL_P = {
   '콘치': { m: 1.7, crit: 0 },
   '왕콘치': { m: 2.2, crit: 1 },
   '핑복': { heal: 0.08 },
-  '럭키': { heal: 0.5 },
+  '럭키': { heal: 0.2 },
   '니드런♀': { red: 0.25, dur: 2 },
   '니드리나': { red: 0.3, dur: 2 },
   '니드퀸': { red: 0.4, dur: 5 },
@@ -128,7 +128,7 @@ const SKILL_P = {
   '글레이시아': { m: 2.3 },
   '님피아': { m: 2.15 },
   '꼬마돌': { m: 0.8, dur: 3, def: 1, red: 0, stun: 0, shield: 0, buff: 0 },
-  '데구리': { m: 1.0, dur: 3, def: 0, red: 0.2, stun: 0, shield: 0.2, buff: 0 },
+  '데구리': { m: 0.3, dur: 3, def: 0, red: 0.2, stun: 0, shield: 0.2, buff: 0 },
   '딱구리': { m: 1.1, dur: 4, def: 0, red: 0.3, stun: 0.5, shield: 0.25, buff: 2 },
   '별가사리': { m: 2.3, heal: 0, spd: 0, shield: 0 },
   '아쿠스타': { m: 2.9, heal: 0, spd: 0, shield: 0 },
@@ -178,7 +178,8 @@ const SKILL_P = {
   '잠만보': { shield: 0.5, slam: 1.5, after: 0.2 },
   '라프라스': { m: 2.3 },
   '프리져': { m: 2.5 },
-  '파이어': { m: 2.75 }
+  '파이어': { m: 2.75 },
+  '썬더': { dur: 5 }
 };
 
 const SKILL_NOCOPY = new Set(['포자', '잠자기', '오리진즈슈퍼노바', '폭포오르기', '번개', '사이코브레이크', '흉내내기']);
@@ -251,7 +252,7 @@ const SKILL_HELPERS = {
       o.shockDmg = this.spaStat(u) * 0.3 * k;
     }
     if (has('얼음') && !(o.ccImmuneUntil > this.time)) {
-      const fd = 1.5 * k * this.otMult('cc');
+      const fd = 1.5 * k * this.ccMul(o);
       o.frozenUntil = Math.max(o.frozenUntil, this.time + fd);
       o.frozenBy = u.side;
       o.stunUntil = Math.max(o.stunUntil, o.frozenUntil);
@@ -402,14 +403,15 @@ const SKILL_HELPERS = {
       }
     }
     const table = cfg.critTable;
-    const cr = Math.max(0, Math.min(table.length - 1, this.rank(u, 'crit') + (opt.crit || 0)));
-    const crit = this.rng.next() < table[cr];
+    const special = opt.special != null ? opt.special : u.special;
+    const cr = Math.max(0, Math.min(table.length - 1, this.rank(u, 'crit') + (opt.crit || 0) + ((special ? u.skillCritSa : u.skillCritPa) || 0)));
+    const roll = this.rng.next();
+    const crit = roll < table[cr];
     let raw = opt.raw != null ? opt.raw : this.offense(u) * mult;
     raw *= (1 + u.skillAmp) * this.skillScale;
     if (crit) raw *= cfg.critMult;
     if (diff > 0) raw *= 1 + cfg.hitBonus;
     if (u.waterSkillAmp) raw *= 1 + u.waterSkillAmp;
-    const special = opt.special != null ? opt.special : u.special;
     const dmg = this.dealDamage(u, t, raw, { special, crit, kind: 'skill', ignoreShield: opt.ignoreShield, armor: opt.armor, ignoreUp: opt.ignoreUp });
     u.lastMissed = false;
     if (t === this.skillTarget && dmg > 0) this.lastHit = true;

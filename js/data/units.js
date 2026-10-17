@@ -1719,7 +1719,7 @@ const UNIT_DATA = [
   "id": "셀러",
   "family": "셀러",
   "variant": "원종",
-  "cost": 2,
+  "cost": 4,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -2618,7 +2618,7 @@ const UNIT_DATA = [
   "id": "쥬쥬",
   "family": "쥬쥬",
   "variant": "원종",
-  "cost": 1,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -5406,7 +5406,7 @@ const UNIT_DATA = [
   "id": "야도란",
   "family": "야돈",
   "variant": "원종",
-  "cost": 4,
+  "cost": 5,
   "shop": false,
   "unlockOnly": true,
   "traits": [
@@ -5483,7 +5483,7 @@ const UNIT_DATA = [
   "id": "야도킹",
   "family": "야돈",
   "variant": "원종",
-  "cost": 4,
+  "cost": 5,
   "shop": false,
   "unlockOnly": true,
   "traits": [
@@ -6945,8 +6945,8 @@ const UNIT_DATA = [
     "range": 4,
     "special": true,
     "role": "특수 마법사",
-    "skill": "폭풍",
-    "skillType": "비행",
+    "skill": "번개",
+    "skillType": "전기",
     "stats": {
      "hp": 90,
      "atk": 90,
@@ -6966,8 +6966,8 @@ const UNIT_DATA = [
     "range": 4,
     "special": true,
     "role": "특수 마법사",
-    "skill": "폭풍",
-    "skillType": "비행",
+    "skill": "번개",
+    "skillType": "전기",
     "stats": {
      "hp": 90,
      "atk": 90,

@@ -7,7 +7,7 @@ class App {
     this.net = o.net || null;
     this.game = this.mode === 'mp'
       ? new Game({ seed: o.seed, seats: o.seats, localSlot: o.slot, realtime: true })
-      : new Game({ humanName: o.name || '나', realtime: true });
+      : new Game({ humanName: o.name || '나', look: o.look, realtime: true });
     this.human = this.game.human;
     this.driver = new Driver(this.game, { mp: this.mode === 'mp' });
     this.pending = [];
@@ -308,9 +308,7 @@ class App {
       return;
     }
     if (this.viewId === id) return;
-    const ds = this.driver.strats[this.human.id];
-    const spot = id === this.human.id ? { x: ds.x, y: ds.y } : VISIT_SPOT;
-    this.arena.me.place(spot.x, spot.y);
+    if (this.human.alive && this.game.phase === 'planning' && this.driver.state === 'planning') this.act({ t: 'visit', to: id });
     this.viewId = id;
     this.arenaKey = null;
     this.hoverInst = null;
@@ -453,6 +451,7 @@ class App {
     const a = this.arena;
     const sc = this.scene();
     if (sc.mode === 'carousel') {
+      this.curScene = sc;
       a.setCarouselMode(true);
       a.showCarouselLayer(true);
       a.me.el.style.display = '';
@@ -469,14 +468,7 @@ class App {
     a.setCarouselMode(false);
     a.setMap(sc.mapId || this.viewed().mapId);
     a.showCarouselLayer(false);
-    const otherBottom = sc.bottom && sc.bottom.player && sc.bottom.player !== this.human;
-    a.me.el.style.display = sc.carouselField || otherBottom ? 'none' : '';
-    const meTop = false;
-    if (meTop !== !!this.meTop) {
-      this.meTop = meTop;
-      const home = meTop ? HOME_TOP : HOME_BOTTOM;
-      a.me.place(home.x, home.y);
-    }
+    this.curScene = sc;
     const key = sc.mode + '|' + this.viewId + '|' + (sc.sim ? sc.sim.uiId : '');
     const viewMe = this.viewId === this.human.id;
     const fresh = key !== this.arenaKey;
@@ -567,6 +559,7 @@ class App {
     else ret.dataset.tip = '내 필드로 (스페이스바)';
     this.arena.me.refresh();
     this.renderTraitPanel();
+    this.renderItemBench();
     const playersEl = this.$('players');
     const dmgEl = this.$('damage');
     playersEl.style.display = this.rightMode === 'players' ? 'flex' : 'none';
@@ -616,6 +609,70 @@ class App {
     if (this.tipTrait) this.renderTraitTip();
   }
 
+  renderItemBench() {
+    const owner = this.viewed();
+    const mine = owner === this.human && this.human.alive;
+    this.itemPage = View.renderItems(this.$('items'), owner, this.itemPage || 0, {
+      more: pg => {
+        this.itemPage = pg;
+        this.renderItemBench();
+      },
+      down: mine ? (e, idx, el) => this.onItemPointerDown(e, idx, el) : null
+    });
+  }
+
+  itemTargetAt(x, y) {
+    const t = this.dropTargetAt(x, y, null);
+    if (!t || (t.kind !== 'board' && t.kind !== 'bench')) return null;
+    if (t.kind === 'board' && this.viewId !== this.human.id) return null;
+    const inst = this.human.unitAt(t.kind === 'board' ? { zone: 'board', r: t.r, c: t.c } : { zone: 'bench', i: t.i });
+    return inst ? { t, inst } : null;
+  }
+
+  onItemPointerDown(e, idx, srcEl) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const id = this.human.items[idx];
+    if (!id) return;
+    const sx = e.clientX;
+    const sy = e.clientY;
+    let ghost = null;
+    const move = ev => {
+      if (!ghost) {
+        if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 6) return;
+        this.dragging = true;
+        this.hideTooltip();
+        ghost = View.itemIcon(id, 30);
+        ghost.classList.add('item-ghost');
+        this.gameEl.appendChild(ghost);
+        srcEl.classList.add('dragging');
+      }
+      const g = this.toGame(ev.clientX, ev.clientY);
+      ghost.style.left = (g.x - 15) + 'px';
+      ghost.style.top = (g.y - 15) + 'px';
+      const hit = this.itemTargetAt(ev.clientX, ev.clientY);
+      this.highlight(hit ? hit.t : null);
+    };
+    const up = ev => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (!ghost) return;
+      ghost.remove();
+      srcEl.classList.remove('dragging');
+      this.arena.drawOverlay(null);
+      this.dragging = false;
+      const hit = this.itemTargetAt(ev.clientX, ev.clientY);
+      if (hit) {
+        if (hit.inst.loc.zone === 'board' && this.game.phase !== 'planning') this.toast('전투 중에는 필드의 기물에 아이템을 쓸 수 없습니다', 'error');
+        else this.act({ t: 'item', i: idx, id, iid: hit.inst.iid });
+      }
+      this.render();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
   uniqueStack(id) {
     const p = this.viewed();
     const g = this.game;
@@ -642,7 +699,7 @@ class App {
       const tgt = dittoTargetOf(p);
       return tgt ? '연결: ' + formOf(UNITS[tgt.unitId], tgt.star, p).name : '';
     }
-    if (id === '천둥의 화신') return '전기 기절 ' + Math.floor(p.counters.stun);
+    if (id === '천둥의 화신') return '';
     if (id === '열기의 화신') return '화상 피해 ' + Math.floor(p.counters.burn);
     return '';
   }
@@ -663,7 +720,7 @@ class App {
   renderTraitTip() {
     const tip = this.$('trait-tip');
     if (!this.tipTrait) return;
-    View.renderTraitTip(tip, this.tipTrait, this.tipOwner || this.viewed(), this.game.region);
+    View.renderTraitTip(tip, this.tipTrait, this.tipOwner || this.viewed(), this.game ? this.game.region : null);
     tip.classList.add('show');
     tip.style.left = this.tipWhere === 'info' ? (1096 - tip.offsetWidth - 10) + 'px' : this.tipWhere === 'planner' ? (this.tipRight + 8) + 'px' : '';
     const h = tip.offsetHeight;
@@ -899,6 +956,10 @@ class App {
         const v = View.instanceView(inst, this.human);
         v.className = 'unit ghost';
         ghost = View.unitEl(v);
+        View.unitBars(ghost, instanceStats(inst, this.human).hp);
+        ghost.classList.add('planbar');
+        ghost.style.transform = srcEl.style.transform || '';
+        ghost.style.transformOrigin = srcEl.style.transformOrigin || '';
         this.gameEl.appendChild(ghost);
         srcEl.classList.add('dragging');
         if (this.canShop()) {
@@ -987,7 +1048,7 @@ class App {
   moveStrategist(cx, cy) {
     if (!this.human.alive) return;
     if (this.carouselScene && !this.viewCarousel) return;
-    if (!this.carouselScene && this.viewId !== this.human.id) return;
+    if (!this.carouselScene && this.viewId !== this.human.id && !(this.game.phase === 'planning' && this.driver.strats[this.human.id].at === this.viewId)) return;
     const p = this.arena.toFlat(cx, cy);
     let x = Math.max(-20, Math.min(ARENA_W + 20, p.x));
     let y = Math.max(-10, Math.min(ARENA_H + 10, p.y + 8));
@@ -1003,11 +1064,11 @@ class App {
         y = sp.y + (dy / d) * R;
       }
     }
-    const orbs = !sc ? this.human.orbs || [] : [];
+    const orbs = !sc && this.viewId === this.human.id ? this.human.orbs || [] : [];
     let run = false;
     for (const o of orbs) {
       const op = orbFlatPos(o);
-      if (Math.hypot(op.x - p.x, op.y - p.y) < 34) {
+      if (Math.hypot(op.x - p.x, op.y - p.y) < 68) {
         x = op.x;
         y = op.y;
         run = true;
@@ -1115,7 +1176,18 @@ class App {
   syncMe(dt) {
     const me = this.arena.me;
     const s = this.driver.strats[this.human.id];
-    if (this.carouselScene ? this.viewCarousel : this.viewId === this.human.id) {
+    const sc = this.curScene;
+    let show = false;
+    if (this.carouselScene) show = this.viewCarousel;
+    else if (!sc || sc.carouselField || sc.mode === 'carousel') show = false;
+    else if (sc.mode === 'planning') show = this.human.alive && s.at === this.viewId;
+    else show = !!(sc.bottom && sc.bottom.player === this.human);
+    const disp = show ? '' : 'none';
+    if (me.el.style.display !== disp) {
+      me.el.style.display = disp;
+      if (show) me.place(s.x, s.y);
+    }
+    if (show) {
       const d = Math.hypot(s.x - me.x, s.y - me.y);
       if (d > 150) me.place(s.x, s.y);
       else {
@@ -1124,6 +1196,55 @@ class App {
       }
     }
     me.update(dt);
+    this.syncOthers(dt);
+  }
+
+  syncOthers(dt) {
+    const a = this.arena;
+    const d = this.driver;
+    const sc = this.curScene;
+    const want = new Map();
+    const mir = s => ({ x: 792 - s.x, y: 530 - s.y });
+    if (sc && !this.carouselScene && sc.mode !== 'carousel' && !sc.carouselField) {
+      if (sc.mode === 'planning') {
+        const V = this.viewed();
+        const hostBottom = V === this.human;
+        for (const p of this.game.players) {
+          if (p === this.human || !p.alive) continue;
+          const s = d.strats[p.id];
+          if (s.at !== V.id) continue;
+          want.set(p.id, (p === V) !== hostBottom ? mir(s) : { x: s.x, y: s.y });
+        }
+      } else {
+        for (const [role, top] of [[sc.top, true], [sc.bottom, false]]) {
+          if (!role || !role.player || role.ghost || role.player === this.human || !role.player.alive) continue;
+          const s = d.strats[role.player.id];
+          want.set(role.player.id, top ? mir(s) : { x: s.x, y: s.y });
+        }
+      }
+    }
+    for (const id in a.others) {
+      if (!want.has(Number(id))) {
+        a.others[id].el.remove();
+        delete a.others[id];
+      }
+    }
+    for (const [id, pos] of want) {
+      const p = this.game.players[id];
+      let sp = a.others[id];
+      if (!sp) {
+        sp = new StratSprite({ look: p.strategist, player: p, x: pos.x, y: pos.y });
+        a.stratLayer.appendChild(sp.el);
+        a.others[id] = sp;
+      }
+      const dist = Math.hypot(pos.x - sp.x, pos.y - sp.y);
+      if (dist > 150) sp.place(pos.x, pos.y);
+      else {
+        sp.speed = Math.max(60, d.strats[id].speed) * 1.3;
+        sp.moveTo(pos.x, pos.y);
+      }
+      sp.update(dt);
+    }
   }
 
   onCombatStart(e) {
@@ -1185,7 +1306,9 @@ class App {
     car.items.forEach((item, idx) => {
       const def = UNITS[item.unitId];
       const form = formOf(def, 1, this.human);
-      const el = View.unitEl({ className: 'unit', name: form.name, form, types: form.types, star: 1, cost: def.cost, badge: View.badgeFor(def) });
+      const el = View.unitEl({ className: 'unit', name: form.name, form, types: form.types, star: 1, cost: def.cost, badge: View.badgeFor(def), items: item.item ? [item.item] : [] });
+      el.classList.add('car-item');
+      el.style.setProperty('--cost-color', COST_COLORS[def.cost]);
       el.addEventListener('pointerdown', e => this.onTokenPointerDown(e, { inst: { unitId: item.unitId, star: 1 }, owner: this.human, preview: true }, el));
       a.carLayer.appendChild(el);
       sc.items[idx] = el;
@@ -1408,7 +1531,8 @@ class App {
     for (const p of ranked) list.appendChild(View.el('span', 'chip', (p.placement ? p.placement + '등 ' : '생존 ') + p.name));
     box.appendChild(list);
     const actions = View.el('div', 'modal-actions');
-    const again = View.el('button', null, this.mode === 'mp' ? '메인으로' : '다시 하기');
+    if (this.net && !this.replaying) this.net.send({ t: 'over' });
+    const again = View.el('button', null, '메인으로');
     again.addEventListener('click', () => this.leaveToMain());
     actions.appendChild(again);
     box.appendChild(actions);
@@ -1450,7 +1574,7 @@ class App {
       '치유 스택 ' + Math.floor(c.heal) + ' / ' + u.healStack + ' (해피너스)',
       '유전자 ' + Math.floor(c.gene) + ' / ' + u.geneStack + ' (뮤츠)',
       '다운로드 ' + Math.floor(c.download) + ' / ' + u.downloadStage1 + ', ' + u.downloadStage2 + ' (현재 ' + UNITS['폴리곤'].stageForms[h.downloadStage].name + ')',
-      '전기 기절 ' + Math.floor(c.stun) + ' / ' + u.electricStuns + ' (썬더)',
+      '낙뢰 적중 ' + Math.floor(c.bolt) + ' / ' + u.electricBolts + ' (썬더)',
       '화상 피해 ' + Math.floor(c.burn) + ' / ' + u.burnDamage + ' (파이어)',
       '얼음 별 합계 ' + u.iceStarTotal + ' 이상으로 전투 시작 (프리져)',
       '화석 연승 ' + h.fossilWins + ' / ' + u.kabutoWins + ' (투구) · 연패 ' + h.fossilLosses + ' / ' + u.aerodactylLosses + ' (프테라)',

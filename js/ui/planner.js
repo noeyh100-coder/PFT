@@ -74,6 +74,7 @@ class Planner {
     btn.dataset.tip = '배치 도구';
     btn.addEventListener('click', () => (this.isOpen ? this.close() : this.openPanel()));
     g.appendChild(btn);
+    this.btn = btn;
     this.wrap = document.createElement('div');
     this.wrap.id = 'planner-wrap';
     this.panel = document.createElement('div');
@@ -94,6 +95,13 @@ class Planner {
     });
     window.addEventListener('pointermove', e => this.onMove(e));
     window.addEventListener('pointerup', e => this.onUp(e));
+  }
+
+  destroy() {
+    this.save();
+    this.drag = null;
+    this.btn.remove();
+    this.wrap.remove();
   }
 
   openPanel() {
@@ -304,6 +312,20 @@ class Planner {
     this.pushUndo();
     d.slots = new Array(PLAN_SLOTS).fill(null);
     this.commit();
+  }
+
+  snapshot() {
+    const h = this.app.human;
+    const d = this.state.draft;
+    if (!h || !d) return;
+    const board = h.boardUnits().slice().sort((a, b) => a.loc.r - b.loc.r || a.loc.c - b.loc.c);
+    const ids = [];
+    for (const u of board) if (UNITS[u.unitId] && !ids.includes(u.unitId) && ids.length < PLAN_SLOTS) ids.push(u.unitId);
+    if (!ids.length) return;
+    this.pushUndo();
+    d.slots = ids.concat(new Array(PLAN_SLOTS - ids.length).fill(null));
+    this.commit();
+    this.app.toast('필드의 기물 ' + ids.length + '마리를 팀에 넣었습니다', 'info');
   }
 
   undoLast() {
@@ -597,8 +619,11 @@ class Planner {
     const owner = this.planOwner(d.slots);
     const list = computeSynergies(owner).filter(s => s.count > 0);
     list.sort((a, b) => Number(b.active) - Number(a.active) || b.tier - a.tier || b.count - a.count || a.id.localeCompare(b.id, 'ko'));
+    const pages = Math.max(1, Math.ceil(list.length / 9));
+    const pg = Math.min(this.synPage || 0, pages - 1);
+    this.synPage = pg;
     for (let i = 0; i < 9; i++) {
-      const s = list[i];
+      const s = list[pg * 9 + i];
       const slot = this.el('div', 'pl-syn-slot');
       if (s) {
         const hx = View.hex(s.id, s);
@@ -609,7 +634,15 @@ class Planner {
       } else slot.appendChild(this.el('div', 'hex pl-syn-empty'));
       syn.appendChild(slot);
     }
-    if (list.length > 9) syn.appendChild(this.el('div', 'pl-syn-more', '+' + (list.length - 9)));
+    if (pages > 1) {
+      const shown = Math.min(9, list.length - pg * 9);
+      const more = this.button('pl-syn-more', null, '+' + (list.length - shown), () => {
+        this.synPage = (pg + 1) % pages;
+        this.app.hideTraitTipSoon();
+        this.render();
+      }, '다음 시너지 보기');
+      syn.appendChild(more);
+    }
     body.appendChild(syn);
     const right = this.el('div', 'pl-right');
     const nameRow = this.el('div', 'pl-name-row');
@@ -670,7 +703,14 @@ class Planner {
     const und = this.button('pl-act', 'undo', '되돌리기', () => this.undoLast());
     und.disabled = !this.undo.length;
     clr.disabled = !d.slots.some(Boolean);
-    acts.appendChild(clr);
+    const group = this.el('div', 'pl-act-group');
+    group.appendChild(clr);
+    if (this.app.game && this.app.human) {
+      const snap = this.button('pl-act', 'snap', '스냅샷', () => this.snapshot(), '지금 필드에 있는 기물로 팀을 채웁니다');
+      snap.disabled = !this.app.human.boardUnits().length;
+      group.appendChild(snap);
+    }
+    acts.appendChild(group);
     acts.appendChild(und);
     right.appendChild(acts);
     body.appendChild(right);

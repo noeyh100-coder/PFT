@@ -1,3 +1,7 @@
+const BOT_DEF_ITEMS = new Set(['protective-pads', 'x-sp-def', 'leftovers', 'rocky-helmet', 'assault-vest', 'kings-rock', 'big-root', 'super-potion', 'weakness-policy', 'flame-orb', 'full-incense', 'lax-incense', 'soothe-bell', 'booster-energy', 'shell-armor', 'mental-herb', 'eviolite', 'black-sludge', 'everstone', 'covert-cloak']);
+const BOT_PHYS_ITEMS = new Set(['muscle-band', 'choice-band', 'punching-glove', 'black-belt', 'spell-tag', 'choice-scarf', 'silver-wing']);
+const BOT_SPEC_ITEMS = new Set(['wise-glasses', 'choice-specs', 'black-glasses', 'soul-dew', 'twisted-spoon', 'max-ether']);
+
 const Bot = {
   targetLevel(g) {
     const s = g.stage;
@@ -30,7 +34,7 @@ const Bot = {
       return 6 + owned.length * 2;
     }
     const have = new Set();
-    for (const u of p.boardUnits()) for (const t of allTraitsOf(UNITS[u.unitId], u.star, p)) have.add(t);
+    for (const u of p.boardUnits()) for (const t of allTraitsOf(UNITS[u.unitId], u.star, p, u)) have.add(t);
     let overlap = 0;
     for (const t of allTraitsOf(def, 1, p)) if (have.has(t)) overlap++;
     return def.cost + overlap * 1.5;
@@ -86,6 +90,70 @@ const Bot = {
     rest.forEach((inst, i) => p.placeBench(inst, i));
   },
 
+  itemFor(id) {
+    if (BOT_DEF_ITEMS.has(id)) return 'def';
+    if (BOT_PHYS_ITEMS.has(id)) return 'phys';
+    if (BOT_SPEC_ITEMS.has(id)) return 'spec';
+    return 'any';
+  },
+
+  recipients(g, p, id) {
+    const board = p.boardUnits();
+    const info = board.map(u => {
+      const st = instanceStats(u, p);
+      const tank = /탱커/.test(st.role || '');
+      return { u, tank, special: !!st.special, v: this.value(p, u) + UNITS[u.unitId].cost * 0.01 + u.iid * 1e-6 };
+    });
+    const kind = this.itemFor(id);
+    const score = x => {
+      let s = x.v;
+      if (kind === 'def') s += x.tank ? 1000 : 0;
+      else {
+        s += x.tank ? 0 : 1000;
+        if (kind === 'phys' && !x.special) s += 500;
+        if (kind === 'spec' && x.special) s += 500;
+      }
+      return s;
+    };
+    return info.sort((a, b) => score(b) - score(a)).map(x => x.u);
+  },
+
+  itemOk(g, p, inst, id) {
+    const d = itemDef(id);
+    if (!d) return false;
+    const comp = (inst.items || []).find(x => itemDef(x) && itemDef(x).kind === 'component');
+    const res = d.kind === 'component' && comp ? combineItems(comp, id) : id;
+    if (res === 'everstone' && canEvolveFurther(inst, p)) return false;
+    if (res === 'eviolite' && !canEvolveFurther(inst, p)) return false;
+    return true;
+  },
+
+  useItems(g, p) {
+    if (g.phase !== 'planning') return;
+    for (const u of p.benchUnits()) {
+      if (!u.items || !u.items.length) continue;
+      const mi = p.items.indexOf('magnet');
+      if (mi < 0) break;
+      g.equipItem(p, mi, u);
+    }
+    if (!p.boardUnits().length) return;
+    const skip = new Set();
+    for (let guard = 0; guard < 40; guard++) {
+      const i = p.items.findIndex((id, k) => id !== 'magnet' && !skip.has(k + ':' + id));
+      if (i < 0) break;
+      const id = p.items[i];
+      let done = false;
+      for (const inst of this.recipients(g, p, id)) {
+        if (!this.itemOk(g, p, inst, id)) continue;
+        if (g.equipItem(p, i, inst).ok) {
+          done = true;
+          break;
+        }
+      }
+      if (!done) skip.add(i + ':' + id);
+    }
+  },
+
   plan(g, p) {
     const reserve = this.reserve(g, p);
     const target = this.targetLevel(g);
@@ -110,5 +178,6 @@ const Bot = {
     }
     this.trimBench(g, p);
     this.arrange(g, p);
+    this.useItems(g, p);
   }
 };

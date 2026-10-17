@@ -140,6 +140,7 @@ class Arena {
     this.sim = null;
     this.flip = false;
     this.sideSprites = [];
+    this.others = {};
     this.carouselMode = null;
     this.overlayKey = '';
     this.buildPillars();
@@ -230,6 +231,11 @@ class Arena {
     return best;
   }
 
+  clearOthers() {
+    for (const id in this.others) this.others[id].el.remove();
+    this.others = {};
+  }
+
   clearSideSprites() {
     for (const s of this.sideSprites) s.el.remove();
     this.sideSprites = [];
@@ -259,6 +265,7 @@ class Arena {
 
   refreshSprites() {
     for (const s of this.sideSprites) s.refresh();
+    for (const id in this.others) this.others[id].refresh();
     this.me.refresh();
   }
 
@@ -269,6 +276,7 @@ class Arena {
     const addSprite = (side, home) => {
       if (!side || noSprites) return;
       if (side.player && side.player === this.app.human) return;
+      if (side.player && !side.ghost) return;
       let s = null;
       if (side.player) {
         s = new StratSprite({ look: side.player.strategist, player: side.player, suffix: side.ghost ? ' (복제)' : '', x: home.x, y: home.y });
@@ -533,6 +541,7 @@ class Arena {
       cost: u.cost,
       badge: View.badgeFor(def),
       ditto: u.ditto,
+      items: u.items,
       dir: this.isFoeSide(u.side) ? SPRITE_DIR.down : SPRITE_DIR.up
     });
     const barSet = View.unitBars(el, u.maxHp);
@@ -545,7 +554,15 @@ class Arena {
     placeSprite(el, f.x, f.y, UNIT_ORIGIN.x, UNIT_ORIGIN.y, UNIT_SCALE);
     el.addEventListener('pointerdown', e => this.app.onTokenPointerDown(e, { combat: u }, el));
     this.unitLayer.appendChild(el);
-    this.cunits[u.uid] = { el, hpFill, shFill, manaFill, barSet, flags: '', pos: Proj.toScreen(f.x, f.y), walkUntil: 0, walkDir: null };
+    const itemEls = [];
+    const icons = el.querySelectorAll('.unit-items .item-ico');
+    (u.items || []).forEach((id, i) => {
+      if (!icons[i] || View.itemStack(u, id, 0) === null) return;
+      const b = document.createElement('b');
+      icons[i].appendChild(b);
+      itemEls.push({ id, b, v: -1 });
+    });
+    this.cunits[u.uid] = { el, hpFill, shFill, manaFill, barSet, itemEls, flags: '', pos: Proj.toScreen(f.x, f.y), walkUntil: 0, walkDir: null };
     if (u.serpent) {
       el.classList.add('serpent-head');
       if (el._spr) Sprites.setScale(el._spr, 0.62);
@@ -566,6 +583,14 @@ class Arena {
       e.shFill.style.left = Math.max(0, (u.hp / total) * 100) + '%';
       e.shFill.style.width = Math.max(0, (u.shield / total) * 100) + '%';
       e.manaFill.style.width = Math.max(0, (u.mana / u.maxMana) * 100) + '%';
+      if (e.itemEls) {
+        for (const it of e.itemEls) {
+          const v = View.itemStack(u, it.id, now);
+          if (v === it.v) continue;
+          it.v = v;
+          it.b.textContent = v > 0 ? String(Math.round(v)) : '';
+        }
+      }
       let flags = '';
       if (u.sleep && !u.sleep.awake) flags += ' sleeping';
       if (u.egg) flags += ' egg';
@@ -769,7 +794,7 @@ class Arena {
       } else if (ev.type === 'freeze') {
         this.floatText(ev.target, '빙결', 'ice');
       } else if (ev.type === 'buff') {
-        const label = { endure: '버티기', warrior: '학살자의 각오', bug: '회복', harden: '단단해지기', break: '보호막 파괴', thunder: '흡수', frenzy: '야단법석', cleanse: '정화' }[ev.kind];
+        const label = { endure: '버티기', warrior: '학살자의 각오', bug: '회복', harden: '단단해지기', break: '보호막 파괴', thunder: '흡수', frenzy: '야단법석', cleanse: '정화', sash: '기합의띠', cloak: '은밀망토', policy: '약점보험', boost: '부스트 완료' }[ev.kind];
         if (label) this.floatText(ev.target, label, 'buff');
       } else if (ev.type === 'death') {
         const e = this.cunits[ev.uid];
@@ -788,6 +813,12 @@ class Arena {
         }
       } else if (ev.type === 'lightning') {
         for (const uid of ev.targets) this.unitFx(uid, 'fx-bolt', 450);
+      } else if (ev.type === 'field' && ev.kind === 'electric') {
+        if (!this.fx.querySelector('.fx-elec')) {
+          const el = document.createElement('div');
+          el.className = 'fx-elec';
+          this.fx.appendChild(el);
+        }
       } else if (ev.type === 'field' && ev.kind === 'fire') {
         if (!this.fx.querySelector('.fx-fire')) {
           const el = document.createElement('div');
@@ -1001,7 +1032,7 @@ class Arena {
       const p = View.cellCenter(o.r, o.c);
       o.x = p.x + (((o.id * 37) % 21) - 10);
       o.y = p.y + (((o.id * 53) % 15) - 7);
-      placeSprite(el, o.x, o.y, 11, 16);
+      placeSprite(el, o.x, o.y, 17, 24);
       this.orbLayer.appendChild(el);
       this.orbEls[o.id] = el;
     }

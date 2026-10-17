@@ -1,10 +1,24 @@
-function bestInstances(list) {
+function bestInstances(list, owner) {
   const best = new Map();
+  const extra = [];
+  const ditto = owner && typeof activeDitto === 'function' ? activeDitto(owner) : null;
   for (const inst of list) {
-    const cur = best.get(inst.unitId);
-    if (!cur || inst.star > cur.star) best.set(inst.unitId, inst);
+    if (ditto && inst === ditto && inst.loc && inst.loc.zone === 'board' && dittoTargetOf(owner)) {
+      extra.push(inst);
+      continue;
+    }
+    const def = UNITS[inst.unitId];
+    const key = def ? def.family : inst.unitId;
+    const cur = best.get(key);
+    if (!cur) {
+      best.set(key, inst);
+      continue;
+    }
+    const a = def ? def.cost : 0;
+    const b = UNITS[cur.unitId] ? UNITS[cur.unitId].cost : 0;
+    if (a > b || (a === b && inst.star > cur.star)) best.set(key, inst);
   }
-  return Array.from(best.values());
+  return Array.from(best.values()).concat(extra);
 }
 
 function tierFor(def, count) {
@@ -14,12 +28,12 @@ function tierFor(def, count) {
 }
 
 function computeSynergies(owner, insts) {
-  const list = bestInstances(insts || owner.boardUnits());
+  const list = bestInstances(insts || owner.boardUnits(), insts ? null : owner);
   const groups = {};
   for (const inst of list) {
     let def = UNITS[inst.unitId];
-    let form = formOf(def, inst.star, owner);
-    let traits = allTraitsOf(def, inst.star, owner);
+    let form = formOf(def, inst.star, owner, inst);
+    let traits = allTraitsOf(def, inst.star, owner, inst);
     let ref = inst;
     if (inst.unitId === '메타몽' && inst.loc && inst.loc.zone === 'board') {
       const cp = dittoCopy(inst, owner);
@@ -44,7 +58,7 @@ function computeSynergies(owner, insts) {
     let pairCosts = [];
     let star3 = 0;
     if (td.mode === 'star3') count = g.filter(m => m.inst.star >= 3).length;
-    else if (td.mode === 'bug') star3 = Math.min(4, g.filter(m => m.inst.star >= 3).length);
+    else if (td.mode === 'bug') star3 = Math.min(5, g.filter(m => m.inst.star >= 3).length);
     else if (td.mode === 'costs') count = new Set(g.map(m => m.def.cost)).size;
     else if (td.mode === 'pairs') {
       const byCost = {};
@@ -96,7 +110,7 @@ function strongestDragonIid(owner) {
   let best = null;
   for (const inst of owner.boardUnits()) {
     const def = UNITS[inst.unitId];
-    if (!formOf(def, inst.star, owner).types.includes('드래곤')) continue;
+    if (!formOf(def, inst.star, owner, inst).types.includes('드래곤')) continue;
     if (!best || def.cost > UNITS[best.unitId].cost || (def.cost === UNITS[best.unitId].cost && inst.star > best.star)) best = inst;
   }
   return best ? best.iid : null;
@@ -153,7 +167,7 @@ function memberActive(owner, entry, id) {
     if (inst.unitId !== entry.unitId) continue;
     const def = UNITS[inst.unitId];
     if (entry.branchKey && owner.branch[def.id] !== entry.branchKey) continue;
-    if (allTraitsOf(def, inst.star, owner).includes(id)) return true;
+    if (allTraitsOf(def, inst.star, owner, inst).includes(id)) return true;
   }
   return false;
 }

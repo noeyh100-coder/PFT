@@ -70,6 +70,10 @@ const ICON_PAL = {
 };
 
 const ICON_BITMAPS = {
+  snap: ['............', '....WWW.....', '.WWWWWWWWWW.', '.W........W.', '.W...LL...W.', '.W..L..L..W.', '.W..L..L..W.', '.W...LL...W.', '.W........W.', '.WWWWWWWWWW.', '............', '............'],
+  crown: ['............', '............', '.Y...YY...Y.', '.YY..YY..YY.', '.YYY.YY.YYY.', '.YYYYYYYYYY.', '.YYRYYYYRYY.', '.YYYYYYYYYY.', '.OOOOOOOOOO.', '............', '............', '............'],
+  dice: ['............', '.WWWWWWWWWW.', '.WKKWWWWWWW.', '.WKKWWWWWWW.', '.WWWWWWWWWW.', '.WWWWKKWWWW.', '.WWWWKKWWWW.', '.WWWWWWWWWW.', '.WWWWWWWKKW.', '.WWWWWWWKKW.', '.WWWWWWWWWW.', '............'],
+  copy: ['............', '.LLLLLLL....', '.L.....L....', '.L..WWWWWWW.', '.L..W.....W.', '.L..W.....W.', '.L..W.....W.', '.LLLW.....W.', '....W.....W.', '....W.....W.', '....WWWWWWW.', '............'],
   plan: ['....LLLL....', '.WWLKKKKLWW.', '.W.LLLLLL.W.', '.W........W.', '.W.RR.WWW.W.', '.W.RR.....W.', '.W........W.', '.W.BB.WWW.W.', '.W.BB.....W.', '.W........W.', '.WWWWWWWWWW.', '............'],
   back: ['............', '....W.......', '...WW.......', '..WWW.......', '.WWWWWWWWWW.', 'WWWWWWWWWWW.', '.WWWWWWWWWW.', '..WWW.......', '...WW.......', '....W.......', '............', '............'],
   close: ['............', '.WW......WW.', '.WWW....WWW.', '..WWW..WWW..', '...WWWWWW...', '....WWWW....', '....WWWW....', '...WWWWWW...', '..WWW..WWW..', '.WWW....WWW.', '.WW......WW.', '............'],

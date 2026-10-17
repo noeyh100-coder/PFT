@@ -48,7 +48,22 @@ function branchOf(def, star, owner) {
   return def.branches.find(b => b.key === key) || null;
 }
 
-function formOf(def, star, owner) {
+function frozenForm(def, name) {
+  if (def.stageForms) {
+    const f = def.stageForms.find(x => x.name === name);
+    if (f) return f;
+  }
+  const f = def.forms.find(x => x.name === name);
+  if (f) return f;
+  const b = def.branches ? def.branches.find(x => x.form.name === name) : null;
+  return b ? b.form : null;
+}
+
+function formOf(def, star, owner, inst) {
+  if (inst && inst.fz) {
+    const f = frozenForm(def, inst.fz);
+    if (f) return f;
+  }
   if (def.stageForms) {
     const stage = owner ? owner.downloadStage : 0;
     return def.stageForms[Math.min(stage, def.stageForms.length - 1)];
@@ -58,17 +73,21 @@ function formOf(def, star, owner) {
   return def.forms[Math.min(star, def.forms.length) - 1];
 }
 
-function classTraitsOf(def, star, owner) {
+function classTraitsOf(def, star, owner, inst) {
+  if (inst && inst.fz) {
+    const fb = def.branches ? def.branches.find(x => x.form.name === inst.fz) : null;
+    return fb && fb.traits ? fb.traits : def.traits;
+  }
   const b = branchOf(def, star, owner);
   if (b && b.traits) return b.traits;
   return def.traits;
 }
 
-function allTraitsOf(def, star, owner) {
-  const form = formOf(def, star, owner);
+function allTraitsOf(def, star, owner, inst) {
+  const form = formOf(def, star, owner, inst);
   const set = [];
   for (const t of form.types) if (!set.includes(t)) set.push(t);
-  for (const t of classTraitsOf(def, star, owner)) if (!set.includes(t)) set.push(t);
+  for (const t of classTraitsOf(def, star, owner, inst)) if (!set.includes(t)) set.push(t);
   if (!def.uniqueStar || star >= def.uniqueStar) for (const t of def.uniques) if (!set.includes(t)) set.push(t);
   return set;
 }
@@ -82,6 +101,17 @@ function formRole(form, range) {
   if (bulk >= Math.max(s.atk, s.spa) * 1.1) return kind + ' 탱커';
   if ((range || form.range || 1) >= 3) return kind + ' 마법사';
   return kind + ' 전사';
+}
+
+const PP_ROLE = { 탱커: [25, 1.5], 전사: [20, 1], 마법사: [16, 1] };
+const PP_ADJUST = { '거북왕': 3, '폴리곤Z': 3, '거대코뿌리': 3, '해피너스': 3, '망나뇽': 3, '뮤': 3, '리자몽': 3, '이상해꽃': 3, '파이어': 3, '프리져': 3, '라프라스': 3, '후딘': 2, '꼬렛': -2, '레트라': -2, '콘치': -2, '왕콘치': -2, '깨비참': -2, '깨비드릴조': -2, '피츄': -2, '크랩': -2, '킹크랩': -2, '파오리': -2, '쁘사이저': -2, '핫삼': -2, '고라파덕': -2, '나옹': -2 };
+
+function ppFor(form, cost, role) {
+  const kind = (role || '').split(' ')[1] || '전사';
+  const base = PP_ROLE[kind] || PP_ROLE.전사;
+  const max = Math.round(base[0] + (Math.max(1, cost) - 1) * base[1] + (PP_ADJUST[form.name] || 0));
+  const start = kind === '탱커' && cost >= 3 ? Math.round(max * 0.15) : 0;
+  return { max: Math.max(8, max), start };
 }
 
 function computeStats(form, cost, star, bonus, opts) {
@@ -100,6 +130,7 @@ function computeStats(form, cost, star, bonus, opts) {
   const sa = special ? main : off;
   const range = o.range || form.range || (special ? CONFIG.combat.rangedRange : 1);
   const dfn = ROLE_DEF[kind] || 30;
+  const pp = ppFor(form, c, role);
   return {
     hp: Math.round(COST_HP[c][ri] * STAR_HP[star - 1] * k * (o.hpMult || 1) * (boost.hp || 1)),
     pa,
@@ -113,7 +144,8 @@ function computeStats(form, cost, star, bonus, opts) {
     range,
     crit: CRIT_CHANCE,
     omnivamp: OMNIVAMP,
-    maxMana: CONFIG.combat.maxMana
+    maxMana: pp.max,
+    startMana: pp.start
   };
 }
 
@@ -152,9 +184,27 @@ function applyFeast(stats, feast) {
   return stats;
 }
 
+const SPECIAL_EVO = new Set(['잉어킹', '미뇽', '신뇽', '고오스', '망키', '캐이시', '핑복', '야돈']);
+
+function canEvolveFurther(inst, owner) {
+  const def = UNITS[inst.unitId];
+  if (!def) return false;
+  const form = formOf(def, inst.star, owner, inst);
+  if (SPECIAL_EVO.has(def.id)) return true;
+  if (def.stageForms) return def.stageForms.findIndex(f => f.name === form.name) < def.stageForms.length - 1;
+  if (def.branches && !def.branches.some(b => b.form.name === form.name)) return true;
+  const names = def.forms.map(f => f.name);
+  const i = names.indexOf(form.name);
+  return i >= 0 && names.slice(i + 1).some(n => n !== form.name);
+}
+
+function hasItem(inst, id) {
+  return !!(inst && inst.items && inst.items.includes(id));
+}
+
 function instanceStats(inst, owner) {
   const def = UNITS[inst.unitId];
-  const form = formOf(def, inst.star, owner);
+  const form = formOf(def, inst.star, owner, inst);
   return applyFeast(computeStats(form, def.cost, inst.star, def.unlockOnly ? UNLOCK_STAT_BONUS : 1, { boost: def.boost }), inst.feast);
 }
 
@@ -172,18 +222,29 @@ function dittoTargetOf(owner) {
   return best;
 }
 
-const DITTO_MULT = [0.7, 0.9, 10];
+const DITTO_MULT = [0.5, 0.7, 10];
+
+function activeDitto(owner) {
+  if (!owner) return null;
+  let best = null;
+  for (const u of owner.boardUnits()) {
+    if (u.unitId !== '메타몽') continue;
+    if (!best || u.star > best.star || (u.star === best.star && u.iid < best.iid)) best = u;
+  }
+  return best;
+}
 
 function dittoCopy(ditto, owner) {
+  if (!ditto || activeDitto(owner) !== ditto) return null;
   const tgt = dittoTargetOf(owner);
   if (!tgt) return null;
   const def = UNITS[tgt.unitId];
-  const form = formOf(def, tgt.star, owner);
+  const form = formOf(def, tgt.star, owner, tgt);
   const base = computeStats(form, def.cost, tgt.star, def.unlockOnly ? UNLOCK_STAT_BONUS : 1, { boost: def.boost });
   const k = DITTO_MULT[Math.min(3, ditto.star) - 1];
   for (const key of ['hp', 'pa', 'sa', 'armor', 'mr']) base[key] = Math.round(base[key] * k);
   base.basic = base.special ? base.sa : base.pa;
-  const traits = allTraitsOf(def, tgt.star, owner).slice();
+  const traits = allTraitsOf(def, tgt.star, owner, tgt).slice();
   if (!traits.includes('괴짜')) traits.push('괴짜');
   return { target: tgt, def, form, stats: base, traits, star: tgt.star };
 }
@@ -191,5 +252,5 @@ function dittoCopy(ditto, owner) {
 let NEXT_IID = 1;
 
 function newInstance(unitId, star) {
-  return { iid: NEXT_IID++, unitId, star: star || 1, wins: 0, pvpWins: 0, takedowns: 0, battles: 0, feast: null, loc: null };
+  return { iid: NEXT_IID++, unitId, star: star || 1, wins: 0, pvpWins: 0, takedowns: 0, battles: 0, feast: null, loc: null, items: [], fz: null, fzFree: false };
 }

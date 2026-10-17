@@ -24,7 +24,7 @@ class Driver {
     this.carTargets = {};
     this.listeners = {};
     this.strats = {};
-    for (const p of game.players) this.strats[p.id] = { x: HOME_BOTTOM.x, y: HOME_BOTTOM.y, tx: HOME_BOTTOM.x, ty: HOME_BOTTOM.y, speed: WALK_SPEED, carry: null };
+    for (const p of game.players) this.strats[p.id] = { x: HOME_BOTTOM.x, y: HOME_BOTTOM.y, tx: HOME_BOTTOM.x, ty: HOME_BOTTOM.y, speed: WALK_SPEED, carry: null, at: p.id, hx: HOME_BOTTOM.x, hy: HOME_BOTTOM.y };
     game.on('round', info => this.onRound(info));
   }
 
@@ -49,6 +49,7 @@ class Driver {
       this.timerTotal = g.planningTime();
       this.timeLeft = this.timerTotal;
     } else if (g.phase === 'carousel') {
+      this.homeAll();
       this.state = 'carousel';
       this.carTargets = {};
       const n = g.players.length;
@@ -60,6 +61,17 @@ class Driver {
         s.carry = null;
         s.speed = p.isHuman && !p.afk ? WALK_SPEED : CONFIG.carousel.moveSpeed;
       }
+    }
+  }
+
+  homeAll() {
+    for (const id in this.strats) {
+      const s = this.strats[id];
+      if (s.at === Number(id)) continue;
+      s.at = Number(id);
+      s.x = s.tx = s.hx;
+      s.y = s.ty = s.hy;
+      s.speed = WALK_SPEED;
     }
   }
 
@@ -121,6 +133,7 @@ class Driver {
   beginCombat() {
     const g = this.game;
     if (g.phase !== 'planning') return;
+    this.homeAll();
     this.autoBranches();
     g.startCombat();
     if (!g.matches.length) {
@@ -210,8 +223,9 @@ class Driver {
   endCarousel() {
     for (const p of this.game.players) {
       const s = this.strats[p.id];
-      s.x = s.tx = HOME_BOTTOM.x;
-      s.y = s.ty = HOME_BOTTOM.y;
+      s.x = s.tx = s.hx = HOME_BOTTOM.x;
+      s.y = s.ty = s.hy = HOME_BOTTOM.y;
+      s.at = p.id;
       s.carry = null;
       s.speed = WALK_SPEED;
     }
@@ -241,9 +255,10 @@ class Driver {
     for (const p of g.players) {
       if (!p.isHuman || !p.alive || !p.orbs || !p.orbs.length) continue;
       const s = this.strats[p.id];
+      if (s.at !== p.id) continue;
       for (const o of p.orbs.slice()) {
         const op = orbFlatPos(o);
-        if (Math.hypot(op.x - s.x, op.y - s.y) < 26) {
+        if (Math.hypot(op.x - s.x, op.y - s.y) < 39) {
           g.pickOrb(p, o.id);
           this.emit('orb', { pid: p.id, id: o.id });
         }
@@ -319,6 +334,14 @@ class Driver {
       case 'feed':
         res = g.feed(p, inst(a.f), inst(a.e));
         break;
+      case 'item': {
+        if (ph === 'over') return;
+        let i = Math.floor(Number(a.i));
+        if (typeof a.id === 'string' && p.items[i] !== a.id) i = p.items.indexOf(a.id);
+        if (i < 0) return;
+        res = g.equipItem(p, i, inst(a.iid));
+        break;
+      }
       case 'ready':
         if (this.state !== 'planning') return;
         this.ready.add(pid);
@@ -342,6 +365,24 @@ class Driver {
         s.tx = x;
         s.ty = y;
         s.speed = (this.state === 'carousel' ? WALK_SPEED : WALK_SPEED * (a.run ? ORB_RUN : 1));
+        break;
+      }
+      case 'visit': {
+        if (this.state !== 'planning' || ph !== 'planning') return;
+        const to = Math.floor(Number(a.to));
+        const tp = g.players[to];
+        if (!tp || !tp.alive) return;
+        const s = this.strats[pid];
+        if (s.at === to) return;
+        if (s.at === pid) {
+          s.hx = s.x;
+          s.hy = s.y;
+        }
+        s.at = to;
+        const spot = to === pid ? { x: s.hx, y: s.hy } : VISIT_SPOT;
+        s.x = s.tx = spot.x;
+        s.y = s.ty = spot.y;
+        s.speed = WALK_SPEED;
         break;
       }
       case 'dbg':
@@ -371,8 +412,8 @@ class Driver {
     };
     mix(g.stage + '-' + g.round + g.phase + this.state);
     for (const p of g.players) {
-      mix(p.hp + '|' + p.gold + '|' + p.level + '|' + p.xp + '|' + p.alive + '|' + p.shop.join(','));
-      for (const u of p.allUnits()) mix(u.iid + u.unitId + u.star + (u.loc ? u.loc.zone + (u.loc.r != null ? u.loc.r + ',' + u.loc.c : u.loc.i) : ''));
+      mix(p.hp + '|' + p.gold + '|' + p.level + '|' + p.xp + '|' + p.alive + '|' + p.shop.join(',') + '|' + p.items.join(','));
+      for (const u of p.allUnits()) mix(u.iid + u.unitId + u.star + (u.loc ? u.loc.zone + (u.loc.r != null ? u.loc.r + ',' + u.loc.c : u.loc.i) : '') + (u.items || []).join(','));
     }
     return h.toString(16);
   }

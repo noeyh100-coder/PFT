@@ -74,6 +74,16 @@ function cleanName(v) {
   return n.length >= 2 ? n : '게스트' + Math.floor(Math.random() * 900 + 100);
 }
 
+function cleanLook(v) {
+  const l = String(v || '');
+  return /^[A-Za-z]{1,16}$/.test(l) ? l : '';
+}
+
+function cleanIcon(v) {
+  const l = String(v || '');
+  return /^[A-Za-z0-9-]{1,24}$/.test(l) ? l : '';
+}
+
 function newCode() {
   for (;;) {
     let c = '';
@@ -88,7 +98,7 @@ function roomView(room, token) {
     state: room.state,
     members: room.members.map(t => {
       const c = clients.get(t);
-      return { name: room.names[t], host: t === room.host, me: t === token, online: !!(c && c.ws) };
+      return { name: room.names[t], look: room.looks[t] || '', icon: room.icons[t] || '', host: t === room.host, me: t === token, online: !!(c && c.ws) };
     })
   };
 }
@@ -108,6 +118,8 @@ function leaveRoom(c, explicit) {
   if (room.state === 'lobby') {
     room.members = room.members.filter(t => t !== c.token);
     delete room.names[c.token];
+    delete room.looks[c.token];
+    delete room.icons[c.token];
     if (room.host === c.token) room.host = room.members[0] || null;
     if (!room.members.length) closeRoom(room);
     else broadcastRoom(room);
@@ -148,7 +160,7 @@ function startGame(room) {
   room.seats = [];
   room.slotOf = {};
   humans.forEach((t, i) => {
-    room.seats.push({ name: room.names[t], human: true });
+    room.seats.push({ name: room.names[t], look: room.looks[t] || '', human: true });
     room.slotOf[t] = i;
   });
   while (room.seats.length < 8) room.seats.push({ human: false });
@@ -172,6 +184,8 @@ function sendCatchup(c, room) {
 
 function onHello(c, m) {
   c.name = cleanName(m.name);
+  c.look = cleanLook(m.look);
+  c.icon = cleanIcon(m.icon);
   send(c, { t: 'welcome', token: c.token, name: c.name });
   for (const room of rooms.values()) {
     if (!room.members.includes(c.token)) continue;
@@ -185,6 +199,8 @@ function onHello(c, m) {
     if (room.state === 'lobby') {
       c.room = room.code;
       room.names[c.token] = c.name;
+      room.looks[c.token] = c.look;
+      room.icons[c.token] = c.icon;
       broadcastRoom(room);
       return;
     }
@@ -198,7 +214,7 @@ function onMessage(c, m) {
   if (m.t === 'create') {
     if (room) leaveRoom(c, false);
     const code = newCode();
-    const r = { code, host: c.token, members: [c.token], names: { [c.token]: c.name }, state: 'lobby', timer: null, created: Date.now() };
+    const r = { code, host: c.token, members: [c.token], names: { [c.token]: c.name }, looks: { [c.token]: c.look }, icons: { [c.token]: c.icon }, state: 'lobby', timer: null, created: Date.now() };
     rooms.set(code, r);
     c.room = code;
     broadcastRoom(r);
@@ -213,6 +229,8 @@ function onMessage(c, m) {
     if (room && room !== r) leaveRoom(c, false);
     if (!r.members.includes(c.token)) r.members.push(c.token);
     r.names[c.token] = c.name;
+    r.looks[c.token] = c.look;
+    r.icons[c.token] = c.icon;
     c.room = code;
     broadcastRoom(r);
     return;
@@ -245,11 +263,12 @@ function onMessage(c, m) {
   if (m.t === 'over') {
     if (room.state !== 'playing') return;
     room.over.add(c.token);
+    room.gone.add(c.token);
   }
 }
 
 wss.on('connection', ws => {
-  const c = { ws, token: null, name: '', room: null, rateStart: 0, rateCount: 0 };
+  const c = { ws, token: null, name: '', look: '', icon: '', room: null, rateStart: 0, rateCount: 0 };
   ws.on('message', data => {
     let m = null;
     try {

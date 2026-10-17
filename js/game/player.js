@@ -15,6 +15,7 @@ class Player {
     this.bench = new Array(CONFIG.benchSize).fill(null);
     this.shop = new Array(CONFIG.shopSize).fill(null);
     this.shopLocked = false;
+    this.pity = 0;
     this.lastOpponent = null;
     this.currentOpponent = null;
     this.lastResult = null;
@@ -26,7 +27,7 @@ class Player {
     this.pending = [];
     this.downloadStage = 0;
     this.pendingDownload = 0;
-    this.counters = { hypnosis: 0, heal: 0, gene: 0, download: 0, stun: 0, burn: 0 };
+    this.counters = { hypnosis: 0, heal: 0, gene: 0, download: 0, bolt: 0, burn: 0 };
     this.dragonScales = 0;
     this.training = 0;
     this.psychic = 0;
@@ -36,6 +37,9 @@ class Player {
     this.participants = new Set();
     this.history = {};
     this.orbs = [];
+    this.items = ['magnet', 'magnet', 'magnet', 'magnet'];
+    this.stage1Items = 0;
+    this.stage1Given = 0;
     this.strategist = 'Hazel';
     this.mapId = null;
     this.dittoLink = null;

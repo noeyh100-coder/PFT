@@ -4,6 +4,8 @@ class Net {
   constructor() {
     this.token = this.loadToken();
     this.name = '';
+    this.look = '';
+    this.icon = '';
     this.ws = null;
     this.handlers = {};
     this.wantOpen = false;
@@ -54,11 +56,12 @@ class Net {
     this.emit('status', s);
   }
 
-  connect(name) {
+  connect(name, look) {
     this.name = name;
+    if (look !== undefined) this.look = look;
     this.wantOpen = true;
     if (this.ws && this.ws.readyState <= 1) {
-      if (this.ws.readyState === 1) this.send({ t: 'hello', token: this.token, name, v: NET_PROTO });
+      if (this.ws.readyState === 1) this.send({ t: 'hello', token: this.token, name, look: this.look, icon: this.icon, v: NET_PROTO });
       return;
     }
     this.openSocket();
@@ -81,7 +84,7 @@ class Net {
     ws.onopen = () => {
       this.retry = 0;
       this.setStatus('open');
-      this.send({ t: 'hello', token: this.token, name: this.name, v: NET_PROTO });
+      this.send({ t: 'hello', token: this.token, name: this.name, look: this.look, icon: this.icon, v: NET_PROTO });
     };
     ws.onmessage = ev => {
       let m = null;

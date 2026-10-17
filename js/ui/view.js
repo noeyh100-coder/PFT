@@ -175,7 +175,69 @@ const View = {
     el.appendChild(this.el('div', 'stars', '★'.repeat(opts.star || 1)));
     el.appendChild(this.el('div', 'label', opts.name));
     if (opts.badge) el.appendChild(this.el('div', 'badge', opts.badge));
+    if (opts.items && opts.items.length) {
+      const row = this.el('div', 'unit-items');
+      for (const id of opts.items) row.appendChild(this.itemIcon(id, 16));
+      el.appendChild(row);
+      el.classList.add('has-items');
+    }
     return el;
+  },
+
+  itemStack(u, id, time) {
+    if (id === 'booster-energy') return u.boostStacks || 0;
+    if (id === 'soul-dew') return u.dewPct || 0;
+    if (id === 'choice-scarf') return u.scarfPct || 0;
+    if (id === 'assault-vest') return u.vestRanks || 0;
+    if (id === 'metronome') return u.metroTarget != null ? 30 * u.it.metronome * Math.floor((time - u.metroSince) / 3) : 0;
+    return null;
+  },
+
+  itemIcon(id, size) {
+    const d = itemDef(id);
+    const el = this.el('div', 'item-ico' + (d ? ' k-' + d.kind : ''));
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    if (d && d.glyph) {
+      el.classList.add('glyph');
+      el.textContent = d.glyph;
+      el.style.fontSize = Math.max(8, Math.round(size * 0.62)) + 'px';
+      el.style.lineHeight = size + 'px';
+    } else {
+      el.style.backgroundImage = 'url("img/item/' + id + '.png")';
+    }
+    return el;
+  },
+
+  itemPreview(stats, items, evolvable) {
+    const out = Object.assign({}, stats);
+    const list = (items || []).filter(id => id !== 'magnet' && itemDef(id));
+    if (!list.length) return out;
+    const n = id => list.filter(x => x === id).length;
+    const rk = { atk: 0, spa: 0, def: 0, spd: 0, spe: 0, crit: 0 };
+    let hp = 0;
+    let pp = 0;
+    for (const id of list) {
+      const st = itemDef(id).stats || {};
+      for (const k in rk) rk[k] += st[k] || 0;
+      hp += st.hp || 0;
+      pp += st.pp || 0;
+    }
+    const evo = evolvable && n('eviolite') ? 1.2 : 1;
+    const mult = k => rankMult(Math.max(-6, Math.min(6, k)));
+    out.hp = Math.round(stats.hp * evo * (1 + 0.2 * n('big-root')) + hp);
+    out.pa = Math.round(stats.pa * evo * (1 + 0.3 * n('choice-band')) * mult(rk.atk));
+    out.sa = Math.round(stats.sa * evo * (1 + 0.25 * n('choice-specs')) * mult(rk.spa));
+    out.armor = Math.round(stats.armor * evo * mult(rk.def));
+    out.mr = Math.round(stats.mr * evo * mult(rk.spd));
+    out.as = Math.round(stats.as * mult(rk.spe) * 100) / 100;
+    out.basic = out.special ? out.sa : out.pa;
+    const table = CONFIG.combat.critTable;
+    out.crit = table[Math.max(0, Math.min(table.length - 1, rk.crit))];
+    out.omnivamp = (stats.omnivamp || 0) + 0.4 * n('shell-bell');
+    out.range = stats.range + n('zoom-lens');
+    out.startMana = Math.min(stats.maxMana, (stats.startMana || 0) + pp);
+    return out;
   },
 
   unitBars(el, maxHp) {
@@ -210,8 +272,8 @@ const View = {
 
   instanceView(inst, owner) {
     const def = UNITS[inst.unitId];
-    const form = formOf(def, inst.star, owner);
-    return { name: form.name, form, types: form.types, star: inst.star, cost: def.cost, badge: this.badgeFor(def) };
+    const form = formOf(def, inst.star, owner, inst);
+    return { name: form.name, form, types: form.types, star: inst.star, cost: def.cost, badge: this.badgeFor(def), items: inst.items || [] };
   },
 
   portrait(name, size) {
@@ -225,9 +287,46 @@ const View = {
     return wrap;
   },
 
-  renderItems(container) {
+  renderItems(container, owner, page, hooks) {
     container.innerHTML = '';
-    for (let i = 0; i < 10; i++) container.appendChild(this.el('div', 'item-slot'));
+    const raw = (owner && owner.items) || [];
+    const list = [];
+    let mag = null;
+    raw.forEach((id, idx) => {
+      if (id === 'magnet') {
+        if (mag) {
+          mag.count++;
+          return;
+        }
+        mag = { id, idx, count: 1 };
+        list.push(mag);
+        return;
+      }
+      list.push({ id, idx, count: 1 });
+    });
+    const per = 10;
+    const pages = Math.max(1, Math.ceil(list.length / per));
+    const pg = Math.min(page || 0, pages - 1);
+    for (let i = 0; i < per; i++) {
+      const entry = list[pg * per + i];
+      const slot = this.el('div', 'item-slot');
+      if (entry) {
+        slot.appendChild(this.itemIcon(entry.id, 30));
+        if (entry.count > 1) slot.appendChild(this.el('div', 'item-count', entry.count));
+        slot.dataset.tip = itemTipText(entry.id);
+        slot.classList.add('filled');
+        if (hooks && hooks.down) slot.addEventListener('pointerdown', e => hooks.down(e, entry.idx, slot));
+      }
+      container.appendChild(slot);
+    }
+    if (pages > 1) {
+      const rest = list.length - Math.min(per, list.length - pg * per);
+      const more = this.el('button', 'item-more', '+' + rest);
+      more.dataset.tip = (pg + 1) + ' / ' + pages + ' 페이지';
+      more.addEventListener('click', () => hooks && hooks.more && hooks.more((pg + 1) % pages));
+      container.appendChild(more);
+    }
+    return pg;
   },
 
   renderTraits(container, owner, page, onMore, hooks) {
@@ -252,7 +351,7 @@ const View = {
         if (t.active) {
           steps.appendChild(this.el('span', t.tier === 1 ? 'cur' : 'got', 3));
           steps.appendChild(this.el('i', null, '›'));
-          steps.appendChild(this.el('span', t.tier > 1 ? 'cur' : null, '3성 ' + (t.star3 || 0) + '/4'));
+          steps.appendChild(this.el('span', t.tier > 1 ? 'cur' : null, '3성 ' + (t.star3 || 0) + '/5'));
         } else steps.textContent = t.count + ' / 3';
       } else if (t.active && t.tiers.length > 1) {
         t.tiers.forEach((n, i) => {
@@ -324,17 +423,17 @@ const View = {
       '프테라': '투구 2성 이상을 필드에 두고 연속 ' + u.aerodactylLosses + '번 패배',
       '신뇽': '미뇽 2성 이상으로 ' + u.dratiniWins + '번 승리하면 진화',
       '망나뇽': '신뇽 2성 이상으로 ' + u.dragonairWins + '번 승리하면 진화',
-      '야도란': '2성 야돈 아래 칸에 2성 셀러를 두고 전투 시작 (셀러를 소모해 1성으로 진화)',
-      '야도킹': '2성 야돈 위 칸에 2성 셀러를 두고 전투 시작 (셀러를 소모해 1성으로 진화)',
+      '야도란': '야돈 뒤 칸에 셀러를 두고 전투 시작 (셀러를 소모하고, 둘 중 낮은 별로 진화)',
+      '야도킹': '야돈 앞 칸에 셀러를 두고 전투 시작 (셀러를 소모하고, 둘 중 낮은 별로 진화)',
       '저승갓숭': '성원숭(망키 2성 이상)이 PvP 전투에서 쓰러지면 진화',
       '갸라도스': '잉어킹 3성으로 전투에 ' + u.magikarpBattles + '번 참여하면 진화',
-      '해피너스': '치유 스택 ' + u.healStack + ' 이상에서 럭키가 전투에 참여하면 진화',
+      '해피너스': '치유 스택 ' + u.healStack + ' 이상에서 럭키가 전투에 참여하면 진화 (럭키 3성이면 스택 2배)',
       '팬텀': '고우스트(고오스 2성 이상)로 처치 관여 ' + u.gastlyTakedowns + '번이면 진화',
       '후딘': '최면 누적 ' + u.hypnosisSeconds + '초를 채운 뒤 윤겔라가 전투에 참여하면 진화',
       '뮤': '한 전투에서 서로 다른 타입 시너지 4개 켜기',
       '뮤츠': '뮤가 참여한 PvP 전투로 유전자 ' + u.geneStack + ' 모으기',
       '프리져': '필드의 얼음 타입 포켓몬 별 합계 ' + u.iceStarTotal + ' 이상으로 전투 시작',
-      '썬더': '전기 시너지 낙뢰로 기절 누적 ' + u.electricStuns + '번',
+      '썬더': '전기 시너지 낙뢰를 적에게 누적 ' + u.electricBolts + '번 맞히기',
       '파이어': '불꽃 시너지 화염 피해 누적 ' + u.burnDamage
     };
     return m[id] || '특별한 조건으로 해금됩니다';
@@ -387,6 +486,14 @@ const View = {
     const evo = this.el('div', 'ut-evo');
     this.renderEvo(evo, def, owner, { size: 26 });
     container.appendChild(evo);
+    const g = typeof app !== 'undefined' && app && app.game ? app.game : null;
+    if (g && g.pool && g.pool.max[def.id] != null) {
+      const stock = this.el('div', 'ut-row');
+      stock.innerHTML = iconSvg('ball', 12);
+      stock.appendChild(this.el('span', 'ut-k', '창고'));
+      stock.appendChild(this.el('span', null, '남은 수 ' + g.pool.remaining(def.id) + '/' + g.pool.max[def.id]));
+      container.appendChild(stock);
+    }
     if (def.unlockOnly) {
       const how = this.el('div', 'ut-unlock');
       how.appendChild(this.el('span', 'ut-k', '해금 조건'));
@@ -481,6 +588,7 @@ const View = {
     const traits = this.el('div', 'card-traits');
     for (const t of allTraitsOf(def, 1, p)) traits.appendChild(this.miniTrait(t));
     card.appendChild(traits);
+    if (game.pool) card.dataset.tip = '창고에 남은 수 ' + game.pool.remaining(id) + '/' + game.pool.max[id];
     const mine = p.allUnits().filter(u => u.unitId === id);
     const n1 = mine.filter(u => u.star === 1).length;
     const n2 = mine.filter(u => u.star === 2).length;
@@ -536,10 +644,12 @@ const View = {
 
   infoFromInstance(inst, owner) {
     const def = UNITS[inst.unitId];
-    const form = formOf(def, inst.star, owner);
-    const stats = instanceStats(inst, owner);
+    const form = formOf(def, inst.star, owner, inst);
+    const raw = instanceStats(inst, owner);
+    const items = inst.items || [];
+    const stats = this.itemPreview(raw, items, canEvolveFurther(inst, owner));
     const base = computeStats(form, def.cost, inst.star, def.unlockOnly ? UNLOCK_STAT_BONUS : 1, { boost: def.boost });
-    return { form, star: inst.star, cost: def.cost, sell: sellValue(def, inst.star), def, traits: allTraitsOf(def, inst.star, owner), stats, base, hp: stats.hp, maxHp: stats.hp, mana: 0, maxMana: stats.maxMana, inst, owner };
+    return { form, star: inst.star, cost: def.cost, sell: sellValue(def, inst.star), def, traits: allTraitsOf(def, inst.star, owner, inst), stats, base, hp: stats.hp, maxHp: stats.hp, mana: stats.startMana || 0, maxMana: stats.maxMana, inst, owner, items };
   },
 
   infoFromCombat(cu) {
@@ -548,7 +658,7 @@ const View = {
     const stats = cu.eff ? Object.assign({}, cu.stats, cu.eff) : cu.stats;
     const base = def && !cu.ditto ? computeStats(form, def.cost, cu.star, def.unlockOnly ? UNLOCK_STAT_BONUS : 1, { boost: def.boost }) : cu.stats;
     const sell = def && cu.iid && !cu.ditto ? sellValue(def, cu.star) : cu.cost;
-    return { form, star: cu.star, cost: cu.cost, sell, def, traits: cu.traits, stats, base, hp: cu.hp, maxHp: Math.round(cu.maxHp), shield: cu.shield, mana: cu.mana, maxMana: cu.maxMana, combat: cu, creep: cu.creep };
+    return { form, star: cu.star, cost: cu.cost, sell, def, traits: cu.traits, stats, base, hp: cu.hp, maxHp: Math.round(cu.maxHp), shield: cu.shield, mana: cu.mana, maxMana: cu.maxMana, combat: cu, creep: cu.creep, items: cu.items || [] };
   },
 
   infoFromCreep(spec) {
@@ -650,7 +760,15 @@ const View = {
     row.appendChild(rng);
     container.appendChild(row);
     const items = this.el('div', 'ip-items');
-    for (let i = 0; i < 3; i++) items.appendChild(this.el('div'));
+    const held = t.items || [];
+    for (let i = 0; i < 3; i++) {
+      const slot = this.el('div');
+      if (held[i]) {
+        slot.appendChild(this.itemIcon(held[i], 40));
+        slot.dataset.tip = itemTipText(held[i]);
+      }
+      items.appendChild(slot);
+    }
     container.appendChild(items);
     const role = this.el('div', 'ip-role');
     role.innerHTML = iconSvg('role', 12);
@@ -684,8 +802,8 @@ const View = {
       ['캐이시', '후딘', '최면 누적 ' + u.hypnosisSeconds + '초 + 윤겔라 전투 참여'],
       ['핑복', '해피너스', '치유 스택 ' + u.healStack + ' + 럭키 전투 참여'],
       ['망키', '저승갓숭', '2성 이상이 PvP 전투에서 쓰러짐'],
-      ['야돈', '야도란', '2성 야돈 아래 칸에 2성 셀러'],
-      ['야돈', '야도킹', '2성 야돈 위 칸에 2성 셀러'],
+      ['야돈', '야도란', '야돈 뒤 칸에 셀러 (낮은 별로)'],
+      ['야돈', '야도킹', '야돈 앞 칸에 셀러 (낮은 별로)'],
       ['암나이트', '투구', '해금: 2성으로 연속 승리 ' + u.kabutoWins + '번'],
       ['투구', '프테라', '해금: 2성으로 연속 패배 ' + u.aerodactylLosses + '번'],
       ['뮤', '뮤츠', '해금: 유전자 ' + u.geneStack]
@@ -711,6 +829,27 @@ const View = {
     };
     for (const id of chain) visit(id);
     container.appendChild(this.el('div', 'evo-title', '진화 계보'));
+    let prevForm = null;
+    const evoCell = (f, label, prev, cls) => {
+      const cell = this.el('div', 'evo-form' + (cls ? ' ' + cls : ''));
+      const box2 = this.el('div', 'evo-pic');
+      const spr = Sprites.portrait(f, pic, { fill: 0.9, max: 2 });
+      if (spr) box2.appendChild(spr);
+      cell.appendChild(box2);
+      cell.appendChild(this.el('div', null, f.name));
+      if (label) cell.appendChild(this.el('small', null, label));
+      const st = typeof SKILL_TEXT !== 'undefined' ? SKILL_TEXT[f.name] : null;
+      const skill = (st && st.name) || f.skill || '';
+      const types = this.el('div', 'evo-types' + (prev && prev.types.join() !== f.types.join() ? ' chg' : ''));
+      for (const t of f.types) types.appendChild(this.hex(t, null, true));
+      cell.appendChild(types);
+      if (skill) {
+        const sk = this.el('div', 'evo-skill' + (prev && ((SKILL_TEXT[prev.name] && SKILL_TEXT[prev.name].name) || prev.skill) !== skill ? ' chg' : ''), skill);
+        if (st && st.text) sk.dataset.tip = skill + (st.type ? ' (' + st.type + ')' : '') + '\n' + st.text.replace(/\[|\]/g, '');
+        cell.appendChild(sk);
+      }
+      return cell;
+    };
     order.forEach((id, idx) => {
       const d = UNITS[id];
       if (!d) return;
@@ -730,32 +869,21 @@ const View = {
           else stages.push([f, (i + 1) + '성']);
         });
       }
+      let rowLast = prevForm;
       stages.forEach(([f, label], i) => {
         if (i) row.appendChild(this.el('span', 'evo-arrow', '›'));
-        const cell = this.el('div', 'evo-form');
-        const box2 = this.el('div', 'evo-pic');
-        const spr = Sprites.portrait(f, pic, { fill: 0.9, max: 2 });
-        if (spr) box2.appendChild(spr);
-        cell.appendChild(box2);
-        cell.appendChild(this.el('div', null, f.name));
-        cell.appendChild(this.el('small', null, label));
-        row.appendChild(cell);
+        row.appendChild(evoCell(f, label, rowLast));
+        rowLast = f;
       });
       box.appendChild(row);
       if (d.branches) {
         const br = this.el('div', 'evo-forms branch');
         br.appendChild(this.el('span', 'evo-arrow', d.branchStar + '성 갈래'));
-        for (const b of d.branches) {
-          const cell = this.el('div', 'evo-form' + (owner && owner.branch && owner.branch[d.id] === b.key ? ' pick' : ''));
-          const box2 = this.el('div', 'evo-pic');
-          const spr = Sprites.portrait(b.form, pic, { fill: 0.9, max: 2 });
-          if (spr) box2.appendChild(spr);
-          cell.appendChild(box2);
-          cell.appendChild(this.el('div', null, b.form.name));
-          br.appendChild(cell);
-        }
+        const baseF = stages.length ? stages[Math.min(stages.length - 1, Math.max(0, d.branchStar - 2))][0] : null;
+        for (const b of d.branches) br.appendChild(evoCell(b.form, '', baseF, owner && owner.branch && owner.branch[d.id] === b.key ? 'pick' : ''));
         box.appendChild(br);
       }
+      prevForm = rowLast;
       container.appendChild(box);
     });
   },

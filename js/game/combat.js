@@ -105,7 +105,9 @@ class CombatSim {
 
   newSideState() {
     return {
-      stats: { heal: 0, stun: 0, burn: 0, training: 0 },
+      stats: { heal: 0, bolt: 0, burn: 0, training: 0 },
+      elecField: false,
+      elecFieldAt: 0,
       cc: 0,
       regen: 0,
       regenAcc: 0,
@@ -233,7 +235,9 @@ class CombatSim {
       phoenix: false,
       fan: false,
       thunder: false,
-      thunderAcc: -1,
+      zap: 0,
+      zapHasteUntil: 0,
+      untargetUntil: 0,
       experiment: false,
       mew: false,
       mewTypes: null,
@@ -333,6 +337,8 @@ class CombatSim {
       u.noSkill = true;
     }
     if (sk === '잠자기') u.sleep = { stock: 0, awake: false, P: P0 };
+    this.applyItems(u, spec);
+    u.mana = Math.min(u.maxMana, (st.startMana || 0) + u.itemPP);
     this.units.push(u);
     this.byUid[uid] = u;
     this.grid[r][c] = uid;
@@ -405,25 +411,20 @@ class CombatSim {
         }
         if (ty('벌레')) {
           const bt = t('벌레');
-          if (bt >= 1) {
-            u.rk.spe += 1;
-            u.rk.acc += 1;
-            u.rk.eva += 1;
-          }
+          const bm = bt >= 6 ? 2 : 1;
           if (bt >= 2) {
-            u.rk.atk += 1;
-            u.rk.spa += 1;
-            u.rk.acc += 1;
-            u.rk.spe += 1;
+            u.rk.atk += bm;
+            u.rk.spa += bm;
           }
           if (bt >= 3) {
-            u.rk.def += 1;
-            u.rk.spd += 1;
-            u.rk.eva += 1;
+            u.rk.def += bm;
+            u.rk.spd += bm;
           }
           if (bt >= 4) {
-            u.rk.eva += 1;
-            u.bugFrenzy = bt >= 5 ? 2 : 1;
+            u.rk.spe += bm;
+            u.rk.acc += bm;
+            u.rk.eva += bm;
+            u.bugFrenzy = bt >= 6 ? 4 : bt >= 5 ? 2 : 1;
           }
         }
         if (t('드래곤')) u.amp += v('드래곤', 'amp') + v('드래곤', 'ampPerScale') * scales;
@@ -499,6 +500,7 @@ class CombatSim {
       sst.sea = T.sea && T.sea.length ? new Set(T.sea) : null;
       sst.seaOn = !!(T.tiers && T.tiers['바다의 음유시인']);
     }
+    this.itemsInitSide(side);
     for (const u of units) {
       u.maxHp = Math.max(1, Math.round(u.base.hp * (1 + u.pct.hp) + u.flatHp));
       u.hp = u.maxHp;
@@ -618,6 +620,7 @@ class CombatSim {
     for (const b of u.tmp) if (b.k === k && b.until > this.time) n += b.n;
     if ((k === 'def' || k === 'spd') && u.poisonUntil > this.time && this.tier(this.enemyOf(u.side), '독') >= 2) n -= 1;
     if (k === 'spe' && u.chalMax && u.chal >= u.chalMax) n += u.chalRank;
+    if (u.kingN && (k === 'def' || k === 'spd')) n += u.kingN;
     return n;
   }
 
@@ -663,7 +666,8 @@ class CombatSim {
     if (u.chill > 0 && u.chillUntil > this.time) a *= Math.max(0.1, 1 - u.chill * u.chillPer);
     if (u.paraUntil > this.time) a *= 0.8;
     if (this.side[this.enemyOf(u.side)].frost) a *= 0.65;
-    if (u.frenzyUntil > this.time) a *= u.bugFrenzy >= 2 ? 2 : 1.5;
+    if (u.frenzyUntil > this.time) a *= 1 + 0.5 * Math.max(1, u.bugFrenzy);
+    if (u.zapHasteUntil > this.time) a *= 2.5;
     return Math.max(0.1, a) * this.otMult('as');
   }
 
@@ -693,7 +697,7 @@ class CombatSim {
   }
 
   gainPP(u, n) {
-    if (!u.alive || n <= 0 || u.experiment || u.thunder || u.egg) return;
+    if (!u.alive || n <= 0 || u.experiment || u.egg || u.casting || u.channel) return;
     let g = n + u.ppBonus;
     if (u.ppFreezeUntil > this.time) g *= 0.5;
     u.mana = Math.min(u.maxMana, u.mana + g);
@@ -732,7 +736,7 @@ class CombatSim {
   stun(t, dur, bySide, kind) {
     if (!t.alive || dur <= 0) return;
     if (t.ccImmuneUntil > this.time && bySide && bySide !== t.side) return;
-    const d = (dur + (bySide ? this.side[bySide].cc : 0)) * this.otMult('cc');
+    const d = (dur + (bySide ? this.side[bySide].cc : 0)) * this.ccMul(t);
     t.stunUntil = Math.max(t.stunUntil, this.time + d);
     this.emit({ type: 'stun', target: t.uid, kind: kind || 'stun', duration: d });
   }
@@ -867,14 +871,16 @@ class CombatSim {
     }
     this.lastHit = true;
     u.lastMissed = false;
-    const crit = this.rng.next() < this.critChance(u);
+    const crit = this.rng.next() < (u.alwaysCrit && !skill ? 1 : this.critChance(u));
     let raw = this.offense(u) * (skill ? cfg.skillMult * (1 + u.skillAmp) : 1) * (mult || 1);
     if (crit) raw *= cfg.critMult;
     if (diff > 0) raw *= 1 + cfg.hitBonus;
     if (skill && u.waterSkillAmp) raw *= 1 + u.waterSkillAmp;
     const o = { special: u.special, crit, kind: skill ? 'skill' : 'basic' };
     const dmg = this.dealDamage(u, t, raw, o);
+    if (!skill && !shadow && u.alive) this.itemOnBasic(u, t, raw, dmg, crit);
     if (!skill && u.basicHeal && dmg > 0 && u.alive) this.heal(u, u.maxHp * u.basicHeal, u);
+    if (!skill && u.thunder && !shadow) this.zapStrike(u, t, raw);
     if (!skill && u.fan) {
       const a = hexMetric(u.r, u.c);
       const b = hexMetric(t.r, t.c);
@@ -905,12 +911,22 @@ class CombatSim {
       this.serpentSkill(u);
       return;
     }
+    if (u.thunder) {
+      u.mana = 0;
+      u.skillCount += 1;
+      const P = SKILL_P['썬더'] || {};
+      u.zapHasteUntil = this.time + (P.dur || 5) * this.durMul(u);
+      this.emit({ type: 'buff', target: u.uid, kind: 'thunder' });
+      this.emit({ type: 'lightning', side: u.side, targets: [u.uid] });
+      return;
+    }
     const used = u.maxMana;
     u.mana = 0;
     u.skillCount += 1;
     if (u.shadowCaster) this.summonShadows(u);
     this.skillScale = 1;
     this.shadowIndex = 0;
+    u.casting = true;
     this.runSkill(u, t);
     const tgt = this.skillTarget;
     if (this.lastHit && u.shadowCaster && tgt) {
@@ -923,9 +939,11 @@ class CombatSim {
     }
     this.skillScale = 1;
     this.shadowIndex = 0;
+    u.casting = false;
     if (this.side[this.enemyOf(u.side)].frost) u.ppFreezeUntil = this.time + 3;
     const refund = u.ppRefund + u.waterRefund;
     if (refund > 0 && u.alive) u.mana = Math.min(u.maxMana, used * refund);
+    if (u.it['max-ether'] && u.alive) u.mana = Math.min(u.maxMana, u.mana + 12 * u.it['max-ether']);
     if (u.fairyHeal) {
       const a = this.lowestRatioAlly(u.side);
       if (a) this.heal(a, a.maxHp * u.fairyHeal * used * (1 + u.fairyBonus), u);
@@ -948,6 +966,10 @@ class CombatSim {
 
   dealDamage(src, t, raw, o) {
     if (!t.alive || raw <= 0) return 0;
+    if (o.crit && t.critGuard) {
+      raw /= CONFIG.combat.critMult;
+      o = Object.assign({}, o, { crit: false });
+    }
     let dmg = raw;
     if (!o.trueDmg) dmg = (raw * 100) / (100 + this.defense(t, o.armor ? false : o.special, o.crit || o.ignoreUp));
     const typed = o.kind === 'basic' || o.kind === 'skill';
@@ -958,6 +980,7 @@ class CombatSim {
     }
     if (typed && src && !o.special && src.burnUntil > this.time) dmg *= 0.8;
     if (src && src.side !== t.side) dmg *= 1 + src.amp + src.bugAmp + (src.warriorOn ? src.warriorAmp : 0);
+    if (typed && src && src.side !== t.side) dmg *= this.itemDamageMult(src, t, o);
     const dura = Math.min(0.9, (t.dura || 0) + (t.bugDura || 0));
     if (dura > 0) dmg *= 1 - dura;
     if (t.frozenUntil > this.time && t.frozenBy && t.frozenBy !== t.side) dmg *= 1 + traitVal('얼음', 'frozenAmp', this.tier(t.frozenBy, '얼음'));
@@ -993,6 +1016,13 @@ class CombatSim {
         t.endureUntil = this.time + t.endure;
         hpDmg = Math.max(0, t.hp - 1);
         this.emit({ type: 'buff', target: t.uid, kind: 'endure' });
+      } else if (t.sashReady) {
+        t.sashReady = false;
+        t.endureUntil = this.time + 2;
+        hpDmg = Math.max(0, t.hp - 1);
+        t.pct.pa += 0.2;
+        t.pct.sa += 0.2;
+        this.emit({ type: 'buff', target: t.uid, kind: 'sash' });
       }
     }
     const real = Math.min(hpDmg, t.hp);
@@ -1010,6 +1040,7 @@ class CombatSim {
     this.emit({ type: 'damage', target: t.uid, amount: Math.max(1, Math.round(total)), crit: !!o.crit, special: !!o.special, kind: o.kind });
     if (src && src.alive && src.vamp > 0 && total > 0 && src.side !== t.side) this.heal(src, total * src.vamp, src);
     if (isHit) this.gainPP(t, CONFIG.combat.ppPerHit);
+    if (isHit && src && src.side !== t.side) this.itemAfterHit(src, t, o, total);
     if (isHit && src && src.side !== t.side) {
       if (src.chillOn) this.addChill(t, 1, src.side);
       if (src.poisoner && (o.kind === 'skill' || src.poisoner >= 3)) this.addPoison(t, src, traitVal('독', 'duration', src.poisoner), false);
@@ -1048,6 +1079,7 @@ class CombatSim {
         else this.addPara(src, 2);
       }
     }
+    if (t.cloakReady) this.itemCloak(t);
     if (t.warriorShield && !t.warriorUsed && t.hp <= t.maxHp * 0.4) {
       t.warriorUsed = true;
       t.warriorOn = true;
@@ -1102,6 +1134,12 @@ class CombatSim {
         this.emit({ type: 'storm', side: t.side, r: s.r, c: s.c, radius: s.radius, grow: true });
       }
     }
+    const fieldSide = this.enemyOf(t.side);
+    if (this.side[fieldSide].elecField) {
+      const near = this.aliveOf(t.side).filter(o => !o.serpent && Hex.dist(t.deathR, t.deathC, o.r, o.c) <= 1).sort((a, b) => a.uid - b.uid).slice(0, 2);
+      if (near.length) this.emit({ type: 'lightning', side: fieldSide, targets: near.map(o => o.uid) });
+      for (const o of near) this.stun(o, 1.5, fieldSide, 'stun');
+    }
     if (t.revivePct && !t.reviveUsed) {
       t.reviveUsed = true;
       t.reviving = true;
@@ -1141,6 +1179,8 @@ class CombatSim {
     u.r = cell[0];
     u.c = cell[1];
     this.grid[u.r][u.c] = u.uid;
+    u.hidden = true;
+    u.untargetUntil = this.time + 2;
     this.emit({ type: 'revive', uid: u.uid });
   }
 
@@ -1153,7 +1193,7 @@ class CombatSim {
     t.chillUntil = this.time + traitVal('얼음', 'duration', tier);
     t.chillPer = traitVal('얼음', 'asPerStack', tier);
     if (t.chill >= max && this.time >= t.freezeCdUntil && !(t.ccImmuneUntil > this.time)) {
-      const d = (traitVal('얼음', 'freeze', tier) + this.side[side].cc) * this.otMult('cc');
+      const d = (traitVal('얼음', 'freeze', tier) + this.side[side].cc) * this.ccMul(t);
       t.frozenUntil = this.time + d;
       t.frozenBy = side;
       t.freezeCdUntil = this.time + traitVal('얼음', 'cooldown', tier);
@@ -1210,19 +1250,19 @@ class CombatSim {
   addPara(t, dur) {
     if (!t.alive || t.egg) return;
     if (t.ccImmuneUntil > this.time) return;
-    t.paraUntil = Math.max(t.paraUntil, this.time + (dur || 3) * this.otMult('cc'));
+    t.paraUntil = Math.max(t.paraUntil, this.time + (dur || 3) * this.ccMul(t));
     this.emit({ type: 'status', target: t.uid, kind: 'para' });
   }
 
   addConfuse(t, dur) {
     if (!t.alive || t.egg) return;
     if (t.ccImmuneUntil > this.time) return;
-    t.confUntil = Math.max(t.confUntil, this.time + (dur || 3) * this.otMult('cc'));
+    t.confUntil = Math.max(t.confUntil, this.time + (dur || 3) * this.ccMul(t));
     this.emit({ type: 'status', target: t.uid, kind: 'confuse' });
   }
 
   bugFrenzy(t) {
-    const k = t.bugFrenzy >= 2 ? 2 : 1;
+    const k = Math.max(1, t.bugFrenzy);
     if (t.bugStacks < 10) {
       t.bugStacks += 1;
       t.bugAmp += 0.03 * k;
@@ -1263,35 +1303,47 @@ class CombatSim {
     for (const e of foes) this.dealDamage(src, e, e.maxHp * pct, { special: true, kind: 'skill' });
   }
 
-  tickThunder(u, dt) {
-    if (u.stunUntil > this.time) return;
-    const iv = 5 / Math.max(0.2, this.attackSpeed(u) / u.base.as);
-    if (u.thunderAcc < 0) u.thunderAcc = iv - 0.3;
-    u.thunderAcc += dt;
-    u.mana = Math.min(u.maxMana, (u.thunderAcc / iv) * u.maxMana);
-    if (u.thunderAcc < iv) return;
-    u.thunderAcc = 0;
-    u.mana = 0;
-    this.casts += 1;
-    u.skillCount += 1;
-    const foes = this.units.filter(o => this.canTarget(u, o)).sort((a, b) => (b.mana / b.maxMana) - (a.mana / a.maxMana) || a.uid - b.uid).slice(0, 3);
-    if (!foes.length) return;
-    this.emit({ type: 'lightning', side: u.side, targets: foes.map(e => e.uid) });
-    let burned = 0;
-    for (const e of foes) {
-      this.dealDamage(u, e, this.spaStat(u) * 2 * (1 + u.skillAmp), { special: true, kind: 'skill' });
-      if (!e.alive) continue;
-      const b = e.mana * 0.4;
-      e.mana -= b;
-      burned += b;
-      this.stun(e, 1.5, u.side, 'stun');
+  zapStrike(u, t, raw) {
+    if (!t.alive && !t.reviving) {
+      this.zapChain(u, t, raw);
+      return;
     }
-    if (burned > 0) {
-      const gain = burned * 0.5 * 0.03;
-      u.pct.sa += gain;
-      u.pct.as += gain;
-      this.emit({ type: 'buff', target: u.uid, kind: 'thunder' });
+    this.emit({ type: 'lightning', side: u.side, targets: [t.uid] });
+    t.zap = (t.zap || 0) + 1;
+    if (t.zap >= 10) {
+      t.zap = 0;
+      this.stun(t, 1.5, u.side, 'stun');
     }
+    this.zapChain(u, t, raw);
+  }
+
+  zapChain(u, t, raw) {
+    if (!(u.zapHasteUntil > this.time)) return;
+    const hit = new Set([t.uid]);
+    let front = [t];
+    let dmg = raw;
+    const chained = [];
+    for (let depth = 0; depth < 4 && front.length; depth++) {
+      dmg *= 0.5;
+      const next = [];
+      for (const f of front) {
+        const fr = f.alive ? f.r : f.deathR;
+        const fc = f.alive ? f.c : f.deathC;
+        const near = this.units.filter(o => !hit.has(o.uid) && this.canTarget(u, o) && !o.serpent && Hex.dist(fr, fc, o.r, o.c) <= 1).sort((a, b) => a.uid - b.uid).slice(0, 3);
+        for (const o of near) {
+          hit.add(o.uid);
+          next.push(o);
+          chained.push(o.uid);
+          this.dealDamage(u, o, dmg, { special: true, kind: 'skill' });
+        }
+      }
+      front = next;
+    }
+    if (chained.length) this.emit({ type: 'lightning', side: u.side, targets: chained });
+  }
+
+  ccMul(t) {
+    return this.otMult('cc') * (this.side[t.side] && this.side[t.side].elecField ? 0.5 : 1);
   }
 
   hatch(u) {
@@ -1583,20 +1635,27 @@ class CombatSim {
       if (this.time >= st.lightAt) {
         st.lightAt += iv;
         const sparks = this.aliveOf(side).filter(u => u.types.includes('전기'));
-        const enemies = this.aliveOf(foe);
+        const enemies = this.aliveOf(foe).filter(e => !e.serpent || !e.hidden);
         if (sparks.length && enemies.length) {
-          const crit = traitVal('전기', 'crit', et) > 0;
-          const raw = Math.max(...sparks.map(u => this.spaStat(u))) * traitVal('전기', 'ratio', et) * (crit ? CONFIG.combat.critMult : 1);
-          this.emit({ type: 'lightning', side, targets: enemies.map(e => e.uid) });
-          for (const e of enemies) {
-            this.dealDamage(null, e, raw, { special: true, crit, kind: 'lightning' });
-            if (e.alive) {
-              this.stun(e, traitVal('전기', 'stun', et), side, 'lightning');
-              st.stats.stun += 1;
-            }
+          const spa = Math.max(...sparks.map(u => this.spaStat(u)));
+          const ranked = enemies.slice().sort(strongerFirst);
+          const n = traitVal('전기', 'count', et);
+          const big = traitVal('전기', 'big', et);
+          const hitList = n >= 99 ? ranked : ranked.slice(0, n);
+          const bigSet = new Set(big > 0 ? ranked.slice(0, 2) : []);
+          this.emit({ type: 'lightning', side, targets: hitList.map(e => e.uid) });
+          for (const e of hitList) {
+            const ratio = bigSet.has(e) ? big : traitVal('전기', 'ratio', et);
+            this.dealDamage(null, e, spa * ratio, { special: true, kind: 'lightning' });
+            st.stats.bolt += 1;
+            if (e.alive) this.addPara(e, traitVal('전기', 'para', et));
           }
         }
       }
+    }
+    if (!st.elecField && this.time >= 8 && this.aliveOf(side).some(u => u.thunder)) {
+      st.elecField = true;
+      this.emit({ type: 'field', side, kind: 'electric' });
     }
     const fl = this.tier(side, '비행');
     if (fl >= 3) {
@@ -1674,6 +1733,13 @@ class CombatSim {
     for (const u of this.units) {
       if (u.reviving && this.time >= u.reviveAt) this.revive(u);
       if (!u.alive) continue;
+      if (u.untargetUntil && this.time >= u.untargetUntil) {
+        u.untargetUntil = 0;
+        if (!u.channel || !u.channel.hidden) {
+          u.hidden = false;
+          this.emit({ type: 'hide', uid: u.uid, on: false });
+        }
+      }
       if (u.egg && this.time >= u.eggUntil) this.hatch(u);
       if (u.mew && this.time >= u.ghostNext) {
         u.ghostNext += 10;
@@ -1737,6 +1803,7 @@ class CombatSim {
         }
       }
       if (u.alive && !u.serpent && this.side[foe].spikes.has(u.r * 10 + u.c)) this.addPoison(u, null, 3, true);
+      if (u.alive && u.items.length) this.tickItems(u, dt);
     }
   }
 
@@ -1766,10 +1833,6 @@ class CombatSim {
       if (!u.alive) continue;
       if (u.serpent) {
         this.tickSerpent(u, dt);
-        continue;
-      }
-      if (u.thunder) {
-        this.tickThunder(u, dt);
         continue;
       }
       if (u.egg) continue;
