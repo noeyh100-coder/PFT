@@ -19,6 +19,10 @@ const Unlocks = {
   onCombatStart(game, p) {
     const board = p.boardUnits();
     p.participants = new Set(board.map(u => u.iid));
+    if (!p.unlockedShop.has('뮤')) {
+      const types = computeSynergies(p).filter(s => s.kind === 'type' && s.active).length;
+      if (types >= 4) this.unlockGuaranteed(game, p, '뮤');
+    }
     if (!p.unlockedShop.has('프리져')) {
       let total = 0;
       for (const inst of board) {
@@ -29,16 +33,16 @@ const Unlocks = {
     }
     const used = new Set();
     for (const inst of board) {
-      if (inst.unitId !== '야돈') continue;
+      if (inst.unitId !== '야돈' || inst.star < 2) continue;
       const up = '야도킹';
       const down = '야도란';
       const tryCells = (cells, target) => {
         if (p.excluded.has(target)) return false;
         for (const [r, c] of cells) {
           const o = p.board[r][c];
-          if (o && o.unitId === '셀러' && !used.has(o.iid)) {
+          if (o && o.unitId === '셀러' && o.star >= 2 && !used.has(o.iid)) {
             used.add(o.iid);
-            this.queue(p, { iid: inst.iid, to: target, star: inst.star, consume: o.iid });
+            this.queue(p, { iid: inst.iid, to: target, star: 1, consume: o.iid });
             return true;
           }
         }
@@ -162,7 +166,7 @@ const Unlocks = {
     if (id === '캐이시') return '후딘 진화: 최면 누적 ' + Math.floor(p.counters.hypnosis) + '/' + cfg.hypnosisSeconds + '초 + 윤겔라 전투 참여';
     if (id === '핑복') return '치유 스택 ' + Math.floor(p.counters.heal) + (p.counters.heal >= cfg.healStack ? ' · 럭키가 전투에 참여하면 해피너스 진화' : '/' + cfg.healStack + ' (해피너스)');
     if (id === '해피너스') return '치유 스택 ' + Math.floor(p.counters.heal);
-    if (id === '야돈') return '위 칸에 셀러 → 야도킹 / 아래 칸에 셀러 → 야도란';
+    if (id === '야돈') return inst.star >= 2 ? '위 칸에 2성 셀러 → 야도킹 / 아래 칸에 2성 셀러 → 야도란 (1성으로 진화)' : '2성이 되면 2성 셀러와 붙어 진화할 수 있습니다';
     if (id === '메타몽') {
       const tgt = dittoTargetOf(p);
       const name = tgt ? formOf(UNITS[tgt.unitId], tgt.star, p).name : '없음';

@@ -33,10 +33,13 @@ const CONFIG = {
   },
   stageDamage: { 1: 0, 2: 2, 3: 5, 4: 8, 5: 10, 6: 12, 7: 17, 8: 25 },
   unitDamage: { 1: 1, 2: 2, 3: 3 },
-  planningTime: { encounter: 10, early: 20, normal: 30, carousel: 15 },
+  planningTime: { encounter: 10, pve: 10, early: 20, normal: 30, carousel: 15 },
+  pveScale: 0.8,
+  preCombat: 5,
   combat: {
     tick: 0.05,
-    timeLimit: 40,
+    timeLimit: 45,
+    overtimeAt: 30,
     moveTime: 0.4,
     dashTime: 0.15,
     maxMana: 20,
@@ -58,7 +61,7 @@ const CONFIG = {
     healStack: 3000,
     geneStack: 100,
     iceStarTotal: 10,
-    electricStuns: 50,
+    electricStuns: 100,
     burnDamage: 5000,
     downloadStage1: 40,
     downloadStage2: 120,
@@ -117,16 +120,16 @@ const CONFIG = {
     4: { gray: 0.35, blue: 0.45, gold: 0.2 },
     5: { gray: 0.3, blue: 0.45, gold: 0.25 }
   },
-  carousel: { firstRelease: 3, releaseGap: 5, lastWindow: 7, ringRadius: 84, spin: 0.22, pickRadius: 24, moveSpeed: 170 },
+  carousel: { firstRelease: 3, releaseGap: 5, lastWindow: 7, ringRadius: 84, spin: 0.22, pickRadius: 24, moveSpeed: 85 },
   strategists: ['Hazel', 'Ember', 'Moss', 'Scarlet', 'Indigo', 'Ebony', 'Sunny', 'Daisy'],
   maps: ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova', 'kalos', 'alola', 'galar', 'paldea'],
   botNames: ['반바지 꼬마', '등산가', '아가씨', '이과계 남자', '낚시꾼', '괴인', '엘리트 트레이너']
 };
 
 const TYPE_COLORS = {
-  '노말': '#a8a77a', '불꽃': '#ee8130', '물': '#6390f0', '풀': '#7ac74c', '전기': '#f7d02c', '얼음': '#96d9d6',
-  '격투': '#c22e28', '독': '#a33ea1', '땅': '#e2bf65', '비행': '#a98ff3', '에스퍼': '#f95587', '벌레': '#a6b91a',
-  '바위': '#b6a136', '고스트': '#735797', '드래곤': '#6f35fc', '악': '#705746', '강철': '#b7b7ce', '페어리': '#d685ad'
+  '노말': '#949495', '불꽃': '#e56c3e', '물': '#5185c5', '풀': '#66a945', '전기': '#fbb917', '얼음': '#6dc8eb',
+  '격투': '#e09c30', '독': '#735198', '땅': '#9c7743', '비행': '#a2c3e7', '에스퍼': '#dd6b7b', '벌레': '#9fa244',
+  '바위': '#bfb889', '고스트': '#684870', '드래곤': '#535ca8', '악': '#4c4948', '강철': '#69a9c7', '페어리': '#dab4d4'
 };
 
 const COST_COLORS = { 1: '#8c8c8c', 2: '#3fae5a', 3: '#3b7fd4', 4: '#a24bd6', 5: '#e0a51b' };

@@ -83,6 +83,17 @@ const Sprites = {
     return wrap;
   },
 
+  hoverPlay(st, on) {
+    if (!st) return;
+    st.start = performance.now();
+    if (on) this.track(st);
+    else {
+      this.live.delete(st);
+      st.frame = -1;
+      this.render(st, st.start);
+    }
+  },
+
   track(st) {
     this.live.add(st);
     if (this.running) return;

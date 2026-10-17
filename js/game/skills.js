@@ -9,8 +9,8 @@ const SKILL_P = {
   '푸푸린': { m: 1.5, ring: 0, stun: 1.5 },
   '푸린': { m: 1.7, ring: 1, stun: 1.5 },
   '푸크린': { m: 2.0, ring: 1, stun: 2 },
-  '콘팡': { m: 1.8, n: 1 },
-  '도나리': { m: 2.2, n: 2 },
+  '콘팡': { m: 1.8, n: 1, red: 0.2 },
+  '도나리': { m: 2.2, n: 2, red: 0.25 },
   '고라파덕': { m: 1.7, line: 0 },
   '골덕': { m: 2.1, line: 2 },
   '발챙이': { m: 1.8, heal: 0.02 },
@@ -19,16 +19,16 @@ const SKILL_P = {
   '왕구리': { m: 2.3 },
   '두두': { m: 1.8, behind: 1 },
   '두트리오': { m: 2.15, behind: 2 },
-  '슬리프': { m: 2.0, steal: 0.4, stunMul: 1.5 },
-  '슬리퍼': { m: 2.4, steal: 0.5, stunMul: 2 },
+  '슬리프': { m: 2.0, steal: 0.4, stunMul: 1.5, guard: 1 },
+  '슬리퍼': { m: 2.4, steal: 0.5, stunMul: 2, guard: 1, guardDef: 1 },
   '아라리': { m: 1.8, allies: false },
   '나시': { m: 2.15, allies: true },
   '콘치': { m: 1.7, crit: 0 },
   '왕콘치': { m: 2.2, crit: 1 },
   '핑복': { heal: 0.08 },
   '럭키': { heal: 0.5 },
-  '니드런♀': { red: 0.25, dur: 3 },
-  '니드리나': { red: 0.3, dur: 4 },
+  '니드런♀': { red: 0.25, dur: 2 },
+  '니드리나': { red: 0.3, dur: 2 },
   '니드퀸': { red: 0.4, dur: 5 },
   '니드런♂': { m: 1.8, behind: 0 },
   '니드리노': { m: 2.1, behind: 1 },
@@ -71,8 +71,8 @@ const SKILL_P = {
   '거대코뿌리': { m: 3.0 },
   '나옹': { m: 1.7, ring: 0, gold: 1 },
   '페르시온': { m: 2.1, ring: 1, gold: 2 },
-  '디그다': { m: 1.8, heal: 0.3, air: 1.5 },
-  '닥트리오': { m: 2.3, heal: 0.4, air: 2 },
+  '디그다': { m: 2.2, heal: 0, air: 1.5 },
+  '닥트리오': { m: 2.8, heal: 0, air: 2 },
   '피츄': { m: 1.8, splash: 0 },
   '피카츄': { m: 2.1, splash: 0 },
   '라이츄': { m: 2.5, splash: 0.5 },
@@ -130,8 +130,8 @@ const SKILL_P = {
   '꼬마돌': { m: 0.8, dur: 3, def: 1, red: 0, stun: 0, shield: 0, buff: 0 },
   '데구리': { m: 1.0, dur: 3, def: 0, red: 0.2, stun: 0, shield: 0.2, buff: 0 },
   '딱구리': { m: 1.1, dur: 4, def: 0, red: 0.3, stun: 0.5, shield: 0.25, buff: 2 },
-  '별가사리': { m: 1.9, heal: 0.2, spd: 0, shield: 0 },
-  '아쿠스타': { m: 2.3, heal: 0, spd: 2, shield: 0.25 },
+  '별가사리': { m: 2.3, heal: 0, spd: 0, shield: 0 },
+  '아쿠스타': { m: 2.9, heal: 0, spd: 0, shield: 0 },
   '고오스': { m: 2.0, hide: 0, pierce: false },
   '고우스트': { m: 2.3, hide: 0.5, pierce: true },
   '알통몬': { m: 2.0, crit: 1 },
@@ -166,7 +166,7 @@ const SKILL_P = {
   '팬텀': { m: 2.5 },
   '망나뇽': { m: 0.9, dur: 3 },
   '후딘': { m: 2.65 },
-  '해피너스': {},
+  '해피너스': { heal: 0.175, shield: 0.14 },
   '망키': { m: 1.8 },
   '성원숭': { m: 2.1 },
   '저승갓숭': { m: 1.8 },
@@ -181,28 +181,7 @@ const SKILL_P = {
   '파이어': { m: 2.75 }
 };
 
-const MEW_P = {
-  '파괴광선': { m: 3.0 },
-  '용성군': { m: 2.75 },
-  '벌레의야단법석': { m: 2.3 },
-  '불대문자': { m: 2.5, chance: 0.3 },
-  '파도타기': { m: 2.3 },
-  '기합구슬': { m: 2.65 },
-  '스톤샤워': { m: 2.1 },
-  '대지의힘': { m: 2.3, buff: 0, chance: 0.1 },
-  '문포스': { m: 2.35, chance: 0.3 },
-  '솔라빔': { m: 2.65, line: 4, shield: 0, buff: 0, charge: 1 },
-  '폭풍': { m: 2.5 },
-  '번개': { m: 2.5 },
-  '병상첨병': { m: 2.0 },
-  '사이코키네시스': { m: 2.3 },
-  '악의파동': { m: 2.15 },
-  '오물웨이브': { m: 2.35, r: 2, spd: 0, buff: 0, per: 0, chance: 0.1 },
-  '철제광선': { m: 2.9 },
-  '눈보라': { m: 2.5 }
-};
-
-const SKILL_NOCOPY = new Set(['포자', '잠자기', '모든 기술', '폭포오르기', '번개', '사이코브레이크', '흉내내기']);
+const SKILL_NOCOPY = new Set(['포자', '잠자기', '오리진즈슈퍼노바', '폭포오르기', '번개', '사이코브레이크', '흉내내기']);
 
 const SKILL_HELPERS = {
   durMul(u) {
@@ -219,6 +198,96 @@ const SKILL_HELPERS = {
 
   ring(u, r, c, R) {
     return this.foesOf(u).filter(o => Hex.dist(r, c, o.r, o.c) <= R);
+  },
+
+  mewTypeList(u) {
+    const list = (this.side[u.side].mewTypes || []).slice();
+    for (const x of u.mewExtra || []) if (!list.includes(x)) list.push(x);
+    return list;
+  },
+
+  densestFoe(u, R) {
+    const foes = this.foesOf(u).filter(e => !e.hidden);
+    let best = null;
+    let bestN = -1;
+    for (const e of foes) {
+      const n = foes.filter(o => Hex.dist(e.r, e.c, o.r, o.c) <= R).length;
+      if (n > bestN) {
+        bestN = n;
+        best = e;
+      }
+    }
+    return best;
+  },
+
+  cleanse(a) {
+    a.poisonUntil = 0;
+    a.toxicSince = 0;
+    a.burnUntil = 0;
+    a.paraUntil = 0;
+    a.confUntil = 0;
+    a.chill = 0;
+    a.frozenUntil = 0;
+    a.antiHealUntil = 0;
+    a.shockUntil = 0;
+    if (!a.channel && !(a.sleep && !a.sleep.awake)) a.stunUntil = Math.min(a.stunUntil, this.time);
+    a.tmp = a.tmp.filter(e => e.n > 0);
+  },
+
+  supernovaHit(u, o, d, types, k, hits) {
+    const has = x => types.includes(x);
+    const st = this.side[u.side];
+    if (!o.alive) return;
+    if (has('불꽃')) {
+      this.addBurn(o, u, 4 * k);
+      o.antiHeal = Math.min(0.75, 0.5 * k);
+      o.antiHealUntil = this.time + 4 * k;
+    }
+    if (has('전기')) {
+      this.addPara(o, 4 * k);
+      o.shockUntil = this.time + 4 * k;
+      o.shockAt = this.time + 2;
+      o.shockSrc = u;
+      o.shockDmg = this.spaStat(u) * 0.3 * k;
+    }
+    if (has('얼음') && !(o.ccImmuneUntil > this.time)) {
+      const fd = 1.5 * k * this.otMult('cc');
+      o.frozenUntil = Math.max(o.frozenUntil, this.time + fd);
+      o.frozenBy = u.side;
+      o.stunUntil = Math.max(o.stunUntil, o.frozenUntil);
+      this.emit({ type: 'freeze', target: o.uid, duration: fd });
+    }
+    if (has('독')) this.addPoison(o, u, 4 * k, true);
+    if (has('땅')) {
+      const n = -Math.round(1 * k);
+      o.tmp.push({ k: 'def', n, until: this.time + 6 });
+      o.tmp.push({ k: 'spd', n, until: this.time + 6 });
+    }
+    if (has('에스퍼')) this.addConfuse(o, 3 * k);
+    if (has('악')) {
+      o.tmp.push({ k: 'atk', n: -1, until: this.time + 99 });
+      o.tmp.push({ k: 'spa', n: -1, until: this.time + 99 });
+      u.darkAcc += 0.3 * k;
+      while (u.darkAcc >= 1) {
+        u.darkAcc -= 1;
+        this.perma(u, 'atk', 1);
+        this.perma(u, 'spa', 1);
+      }
+    }
+    if (has('바위') && d > 0) this.dealDamage(u, o, d * 0.3 * k, { trueDmg: true, kind: 'true' });
+    if (has('풀') && o.alive) this.dealDamage(u, o, o.maxHp * 0.04 * k, { special: true, kind: 'grass' });
+    if (has('격투') && o.alive) this.dealDamage(u, o, Math.min(400, 20 + (st.training || 0) * 0.002) * k, { special: false, kind: 'fight' });
+    if (has('에스퍼') && d > 0) {
+      let from = o;
+      for (let i = 0; i < 2; i++) {
+        const next = this.foesOf(u).find(e => !hits.has(e) && Hex.dist(from.r, from.c, e.r, e.c) <= 1);
+        if (!next) break;
+        hits.add(next);
+        this.emit({ type: 'hitfx', target: next.uid, kind: '에스퍼' });
+        this.dealDamage(u, next, d * 0.3 * k, { special: true, kind: 'chain' });
+        from = next;
+      }
+    }
   },
 
   axis(u, t) {
@@ -533,12 +602,12 @@ const SKILL_HELPERS = {
   },
 
   skillParams(u) {
-    if (u.mew) return MEW_P[MEW_MOVES[u.skillType]] || { m: 2.3 };
+    if (u.mew) return { m: 3.0, r: 2 };
     return (u.form && SKILL_P[u.form.name]) || {};
   },
 
   skillName(u) {
-    if (u.mew) return MEW_MOVES[u.skillType];
+    if (u.mew) return '오리진즈슈퍼노바';
     if (u.sleep && u.sleep.awake) return '잠자기 각성';
     return u.form && u.form.skill;
   },
@@ -633,9 +702,73 @@ const SKILLS = {
     if (P.ring) S.ringFx(u, t.r, t.c, 1);
     S.hitAll(u, list, P.m, { onHit: o => S.status(u, o, 'sleep', P.stun) });
   },
+  '오리진즈슈퍼노바'(S, u, t, P) {
+    const types = S.mewTypeList(u);
+    const has = x => types.includes(x);
+    const k = has('노말') ? 1.5 : 1;
+    const R = (P.r || 2) + (has('드래곤') ? 1 : 0);
+    const center = S.densestFoe(u, R) || S.aliveOr(u, t);
+    if (!center) return;
+    const cr = center.r;
+    const cc = center.c;
+    u.mewCasts += 1;
+    const cast = u.mewCasts;
+    S.emit({ type: 'supernova', uid: u.uid, r: cr, c: cc, radius: R, types: types.slice() });
+    if (has('비행') && (u.flyRanks || 0) < 3) {
+      u.flyRanks = (u.flyRanks || 0) + 1;
+      S.perma(u, 'spe', Math.round(1 * k) || 1);
+    }
+    if (has('물')) {
+      for (const a of S.alliesOf(u)) {
+        S.cleanse(a);
+        a.ccImmuneUntil = Math.max(a.ccImmuneUntil, S.time + 4 * k);
+      }
+      S.emit({ type: 'buff', target: u.uid, kind: 'cleanse' });
+    }
+    S.channel(u, {
+      dur: 1.1,
+      noHypno: true,
+      then: () => {
+        const st = S.side[u.side];
+        let mult = P.m;
+        if (has('드래곤')) mult += Math.min(1.5, 0.05 * (st.scales || 0) * k);
+        S.emit({ type: 'skillfx', uid: u.uid, r: cr, c: cc, radius: R, kind: types[0] || '에스퍼', slam: true });
+        const list = S.ring(u, cr, cc, R);
+        const hits = new Set(list);
+        let total = 0;
+        for (const o of list) {
+          const d = S.hit(u, o, mult, { burst: true });
+          total += d;
+          S.supernovaHit(u, o, d, types, k, hits);
+        }
+        if (has('벌레')) for (const e of S.foesOf(u)) e.mana = Math.max(0, e.mana * (1 - Math.min(0.6, 0.3 * k)));
+        if (has('비행') && cast % 3 === 0) {
+          const origin = { r: cr, c: cc };
+          for (const o of list) if (o.alive && !(o.r === cr && o.c === cc)) S.knock(origin, o, Math.round(1 * k) || 1);
+        }
+        if (has('풀') && total > 0) {
+          const big = S.alliesOf(u).sort((a, b) => b.maxHp - a.maxHp)[0];
+          if (big) {
+            const add = total * 0.2 * k;
+            big.maxHp += add;
+            big.hp += add;
+          }
+        }
+        if (has('페어리') && total > 0) {
+          const allies = S.alliesOf(u);
+          for (const a of allies) S.healAmt(u, a, (total * 0.4 * k) / allies.length);
+        }
+        if (has('강철')) {
+          const thr = Math.min(0.25, (0.12 + Math.floor(S.defense(u, false) / 10) * 0.01) * k);
+          for (const o of list) if (o.alive && o.hp <= o.maxHp * thr) S.execute(o, u.side);
+        }
+      }
+    });
+  },
   '벌레의저항'(S, u, t, P) {
     S.ringFx(u, t.r, t.c, 1);
     S.hitAll(u, S.ring(u, t.r, t.c, 1), P.m, { onHit: o => S.debuff(u, o, 'spa', -P.n, 4) });
+    if (P.red) S.reduce(u, u, P.red, 4, 'all');
   },
   '물대포'(S, u, t, P) {
     const list = P.line ? S.line(u, t, P.line) : [t];
@@ -663,6 +796,8 @@ const SKILLS = {
     const mul = t.stunUntil > S.time ? P.stunMul : 1;
     const d = S.hit(u, t, P.m * mul, {});
     S.healAmt(u, u, d * P.steal);
+    if (P.guard) S.buff(u, 'spd', P.guard, 4);
+    if (P.guardDef) S.buff(u, 'def', P.guardDef, 4);
   },
   '신통력'(S, u, t, P) {
     if (P.allies) for (const a of S.alliesOf(u)) {
@@ -816,12 +951,13 @@ const SKILLS = {
     S.hitAll(u, list, P.m, {
       onKill: () => {
         S.side[u.side].gold += P.gold;
+        u.payday = (u.payday || 0) + P.gold;
         S.emit({ type: 'gold', target: u.uid, amount: P.gold });
       }
     });
   },
   '구멍파기'(S, u, t, P) {
-    S.healAmt(u, u, u.maxHp * P.heal);
+    if (P.heal) S.healAmt(u, u, u.maxHp * P.heal);
     S.channel(u, {
       dur: 1,
       hidden: true,
@@ -1053,9 +1189,9 @@ const SKILLS = {
   },
   '사이코쇼크'(S, u, t, P) {
     S.hit(u, t, P.m, { armor: true });
-    S.healAmt(u, u, (u.maxHp - u.hp) * P.heal);
-    S.buff(u, 'spd', P.spd, 5);
-    S.shieldPct(u, P.shield, 0);
+    if (P.heal) S.healAmt(u, u, (u.maxHp - u.hp) * P.heal);
+    if (P.spd) S.buff(u, 'spd', P.spd, 5);
+    if (P.shield) S.shieldPct(u, P.shield, 0);
   },
   '고스트다이브'(S, u, t, P) {
     const strike = () => {
@@ -1191,10 +1327,10 @@ const SKILLS = {
   },
   '생명의물방울'(S, u, t, P) {
     S.emit({ type: 'skillfx', uid: u.uid, r: u.r, c: u.c, radius: 6, kind: '물', heal: true });
-    for (const a of S.alliesOf(u)) S.healAmt(u, a, a.maxHp * 0.25);
+    for (const a of S.alliesOf(u)) S.healAmt(u, a, a.maxHp * (P.heal || 0.25));
     S.buff(u, 'def', 2, 5);
     S.buff(u, 'spd', 2, 5);
-    S.shieldPct(u, 0.2, 0);
+    S.shieldPct(u, P.shield || 0.2, 0);
   },
   '드레인펀치'(S, u, t, P) {
     const d = S.hit(u, t, P.m, {});

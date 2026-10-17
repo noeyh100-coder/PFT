@@ -320,7 +320,7 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": true,
-    "role": "특수 전사",
+    "role": "특수 탱커",
     "skill": "벌레의저항",
     "skillType": "벌레",
     "stats": {
@@ -339,9 +339,9 @@ const UNIT_DATA = [
      "벌레",
      "독"
     ],
-    "range": 2,
+    "range": 1,
     "special": true,
-    "role": "특수 전사",
+    "role": "특수 탱커",
     "skill": "벌레의저항",
     "skillType": "벌레",
     "stats": {
@@ -360,9 +360,9 @@ const UNIT_DATA = [
      "벌레",
      "독"
     ],
-    "range": 2,
+    "range": 1,
     "special": true,
-    "role": "특수 전사",
+    "role": "특수 탱커",
     "skill": "벌레의저항",
     "skillType": "벌레",
     "stats": {
@@ -659,7 +659,7 @@ const UNIT_DATA = [
   "id": "슬리프",
   "family": "슬리프",
   "variant": "원종",
-  "cost": 1,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -673,9 +673,9 @@ const UNIT_DATA = [
     "types": [
      "에스퍼"
     ],
-    "range": 3,
+    "range": 1,
     "special": true,
-    "role": "특수 마법사",
+    "role": "특수 탱커",
     "skill": "꿈먹기",
     "skillType": "에스퍼",
     "stats": {
@@ -693,9 +693,9 @@ const UNIT_DATA = [
     "types": [
      "에스퍼"
     ],
-    "range": 3,
+    "range": 1,
     "special": true,
-    "role": "특수 마법사",
+    "role": "특수 탱커",
     "skill": "꿈먹기",
     "skillType": "에스퍼",
     "stats": {
@@ -713,9 +713,9 @@ const UNIT_DATA = [
     "types": [
      "에스퍼"
     ],
-    "range": 3,
+    "range": 1,
     "special": true,
-    "role": "특수 마법사",
+    "role": "특수 탱커",
     "skill": "꿈먹기",
     "skillType": "에스퍼",
     "stats": {
@@ -954,7 +954,8 @@ const UNIT_DATA = [
      "spe": 50
     }
    }
-  ]
+  ],
+  "uniqueStar": 2
  },
  {
   "id": "니드런♀",
@@ -2259,8 +2260,8 @@ const UNIT_DATA = [
      "불꽃"
     ],
     "range": 1,
-    "special": false,
-    "role": "물리 전사",
+    "special": true,
+    "role": "특수 전사",
     "skill": "니트로차지",
     "skillType": "불꽃",
     "stats": {
@@ -2279,8 +2280,8 @@ const UNIT_DATA = [
      "불꽃"
     ],
     "range": 1,
-    "special": false,
-    "role": "물리 전사",
+    "special": true,
+    "role": "특수 전사",
     "skill": "니트로차지",
     "skillType": "불꽃",
     "stats": {
@@ -2299,8 +2300,8 @@ const UNIT_DATA = [
      "불꽃"
     ],
     "range": 1,
-    "special": false,
-    "role": "물리 전사",
+    "special": true,
+    "role": "특수 전사",
     "skill": "니트로차지",
     "skillType": "불꽃",
     "stats": {
@@ -2318,11 +2319,11 @@ const UNIT_DATA = [
   "id": "뿔카노",
   "family": "뿔카노",
   "variant": "원종",
-  "cost": 2,
+  "cost": 3,
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "기병대"
+   "감시자"
   ],
   "uniques": [],
   "forms": [
@@ -2485,7 +2486,7 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": false,
-    "role": "물리 탱커",
+    "role": "물리 전사",
     "skill": "구멍파기",
     "skillType": "땅",
     "stats": {
@@ -2505,7 +2506,7 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": false,
-    "role": "물리 탱커",
+    "role": "물리 전사",
     "skill": "구멍파기",
     "skillType": "땅",
     "stats": {
@@ -2525,7 +2526,7 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": false,
-    "role": "물리 탱커",
+    "role": "물리 전사",
     "skill": "구멍파기",
     "skillType": "땅",
     "stats": {
@@ -2617,7 +2618,7 @@ const UNIT_DATA = [
   "id": "쥬쥬",
   "family": "쥬쥬",
   "variant": "원종",
-  "cost": 2,
+  "cost": 1,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -4069,9 +4070,9 @@ const UNIT_DATA = [
     "types": [
      "물"
     ],
-    "range": 1,
+    "range": 4,
     "special": true,
-    "role": "특수 탱커",
+    "role": "특수 마법사",
     "skill": "사이코쇼크",
     "skillType": "에스퍼",
     "stats": {
@@ -4090,9 +4091,9 @@ const UNIT_DATA = [
      "물",
      "에스퍼"
     ],
-    "range": 1,
+    "range": 4,
     "special": true,
-    "role": "특수 탱커",
+    "role": "특수 마법사",
     "skill": "사이코쇼크",
     "skillType": "에스퍼",
     "stats": {
@@ -4111,9 +4112,9 @@ const UNIT_DATA = [
      "물",
      "에스퍼"
     ],
-    "range": 1,
+    "range": 4,
     "special": true,
-    "role": "특수 탱커",
+    "role": "특수 마법사",
     "skill": "사이코쇼크",
     "skillType": "에스퍼",
     "stats": {
@@ -4285,7 +4286,7 @@ const UNIT_DATA = [
   "id": "야돈",
   "family": "야돈",
   "variant": "원종",
-  "cost": 4,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -4659,7 +4660,7 @@ const UNIT_DATA = [
   "id": "쁘사이저",
   "family": "쁘사이저",
   "variant": "원종",
-  "cost": 4,
+  "cost": 3,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -5989,8 +5990,8 @@ const UNIT_DATA = [
   "family": "뮤",
   "variant": "원종",
   "cost": 5,
-  "shop": true,
-  "unlockOnly": false,
+  "shop": false,
+  "unlockOnly": true,
   "traits": [
    "주문술사"
   ],
@@ -6007,7 +6008,7 @@ const UNIT_DATA = [
     "range": 4,
     "special": true,
     "role": "특수 마법사",
-    "skill": "모든 기술",
+    "skill": "오리진즈슈퍼노바",
     "skillType": "에스퍼",
     "stats": {
      "hp": 100,
@@ -6027,7 +6028,7 @@ const UNIT_DATA = [
     "range": 4,
     "special": true,
     "role": "특수 마법사",
-    "skill": "모든 기술",
+    "skill": "오리진즈슈퍼노바",
     "skillType": "에스퍼",
     "stats": {
      "hp": 100,
@@ -6047,7 +6048,7 @@ const UNIT_DATA = [
     "range": 4,
     "special": true,
     "role": "특수 마법사",
-    "skill": "모든 기술",
+    "skill": "오리진즈슈퍼노바",
     "skillType": "에스퍼",
     "stats": {
      "hp": 100,
@@ -6515,7 +6516,11 @@ const UNIT_DATA = [
      "spe": 80
     }
    }
-  ]
+  ],
+  "boost": {
+   "hp": 1.2,
+   "pa": 1.2
+  }
  },
  {
   "id": "해피너스",

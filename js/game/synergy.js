@@ -42,7 +42,9 @@ function computeSynergies(owner, insts) {
     const g = groups[id];
     let count = g.length;
     let pairCosts = [];
+    let star3 = 0;
     if (td.mode === 'star3') count = g.filter(m => m.inst.star >= 3).length;
+    else if (td.mode === 'bug') star3 = Math.min(4, g.filter(m => m.inst.star >= 3).length);
     else if (td.mode === 'costs') count = new Set(g.map(m => m.def.cost)).size;
     else if (td.mode === 'pairs') {
       const byCost = {};
@@ -50,7 +52,7 @@ function computeSynergies(owner, insts) {
       pairCosts = Object.keys(byCost).filter(c => byCost[c] === 2).map(Number).sort((a, b) => a - b);
       count = pairCosts.length;
     }
-    const tier = tierFor(td, count);
+    const tier = td.mode === 'bug' ? (count >= 3 ? 1 + star3 : 0) : tierFor(td, count);
     out.push({
       id,
       kind: td.kind,
@@ -62,11 +64,12 @@ function computeSynergies(owner, insts) {
       active: tier > 0,
       members: g.map(m => m.form.name),
       unitIds: g.map(m => m.def.id),
-      pairCosts
+      pairCosts,
+      star3
     });
   }
-  const kindRank = { type: 0, class: 0, unique: 1 };
-  out.sort((a, b) => (Number(b.active) - Number(a.active)) || (kindRank[a.kind] - kindRank[b.kind]) || (b.tier - a.tier) || (b.count - a.count) || a.id.localeCompare(b.id));
+  const kindRank = { type: 1, class: 1, unique: 0 };
+  out.sort((a, b) => (kindRank[a.kind] - kindRank[b.kind]) || (Number(b.active) - Number(a.active)) || (b.tier - a.tier) || (b.count - a.count) || a.id.localeCompare(b.id));
   return out;
 }
 
@@ -84,7 +87,8 @@ function synergyTeam(owner) {
     tiers,
     waterPairCosts: water,
     normals,
-    scales: owner.dragonScales || 0
+    scales: owner.dragonScales || 0,
+    training: owner.training || 0
   };
 }
 

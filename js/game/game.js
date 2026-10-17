@@ -29,6 +29,7 @@ class Game {
       p.seaTiles = this.rollSea();
     });
     this.realtime = !!o.realtime;
+    this.hostLog = {};
     this.orbSeq = 1;
     this.stage = 1;
     this.round = 1;
@@ -144,6 +145,7 @@ class Game {
   planningTime() {
     const info = this.roundInfo();
     if (info.type === 'encounter') return CONFIG.planningTime.encounter;
+    if (info.type === 'pve') return CONFIG.planningTime.pve;
     if (this.stage === 1) return CONFIG.planningTime.early;
     return CONFIG.planningTime.normal;
   }
@@ -174,9 +176,17 @@ class Game {
       return;
     }
     for (const p of alive) {
+      if (this.bugTier(p) >= 2) {
+        p.bugRounds = (p.bugRounds || 0) + 1;
+        p.bugShop = p.bugRounds % 3 === 0;
+        if (p.bugShop) this.notify(p, '벌레 시너지: 이번 라운드 상점에는 벌레 포켓몬만 나옵니다', 'info');
+      } else {
+        p.bugRounds = 0;
+        p.bugShop = false;
+      }
       if (info.type === 'encounter') {
         this.giveRandomUnit(p, 1);
-      } else {
+      } else if (!(this.stage === 1 && this.round === 2)) {
         const inc = this.grantIncome(p, this.stage === 1 ? CONFIG.earlyIncome : CONFIG.baseIncome);
         if (!(this.stage === 1 && this.round <= 2)) p.addXp(CONFIG.passiveXp);
         if (p.isHuman) this.lastIncome = inc;
@@ -207,6 +217,7 @@ class Game {
 
   isEligible(p, def) {
     if (p.excluded.has(def.id)) return false;
+    if (p.allUnits().some(u => u.unitId === def.id && u.star >= 3)) return false;
     if (!this.regionAllowed(def)) return false;
     return def.shop || p.unlockedShop.has(def.id);
   }
@@ -214,8 +225,10 @@ class Game {
   rollShopUnit(p, locked) {
     const odds = CONFIG.shopOdds[p.level];
     const byCost = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+    const bugOnly = p.bugShop && UNIT_DATA.some(def => this.isBugDef(def) && this.isEligible(p, def) && !locked.has(def.id) && this.pool.remaining(def.id) > 0);
     for (const def of UNIT_DATA) {
       if (!this.isEligible(p, def) || locked.has(def.id) || this.pool.remaining(def.id) <= 0) continue;
+      if (bugOnly && !this.isBugDef(def)) continue;
       byCost[def.cost].push(def);
     }
     let costs = [1, 2, 3, 4, 5].filter(c => byCost[c].length > 0 && odds[c - 1] > 0);
@@ -227,6 +240,14 @@ class Game {
     }
     const def = this.rng.weighted(byCost[cost], d => this.pool.remaining(d.id));
     return def ? def.id : null;
+  }
+
+  isBugDef(def) {
+    return (def.stageForms || def.forms).some(f => f.types.includes('벌레'));
+  }
+
+  bugTier(p) {
+    return synergyTeam(p).tiers['벌레'] || 0;
   }
 
   refreshShop(p) {
@@ -251,6 +272,12 @@ class Game {
   reroll(p) {
     if (p.gold < CONFIG.rerollCost) return false;
     p.gold -= CONFIG.rerollCost;
+    const bt = this.bugTier(p);
+    if (bt >= 3) p.addXp(1);
+    if (bt >= 4 && this.rng.next() < 0.3) {
+      p.gold += CONFIG.rerollCost;
+      this.notify(p, '벌레 시너지: 무료 새로고침!', 'loot');
+    }
     this.refreshShop(p);
     return true;
   }
@@ -333,6 +360,7 @@ class Game {
         keep.pvpWins = Math.max(keep.pvpWins, ...others.map(o => o.pvpWins));
         keep.takedowns = Math.max(keep.takedowns, ...others.map(o => o.takedowns));
         keep.battles = Math.max(keep.battles || 0, ...others.map(o => o.battles || 0));
+        keep.payday = (keep.payday || 0) + others.reduce((s, o) => s + (o.payday || 0), 0);
         for (const o of others) {
           if (!o.feast) continue;
           keep.feast = keep.feast || { atk: 0, spa: 0, def: 0, spd: 0 };
@@ -444,7 +472,14 @@ class Game {
       best = pairs;
       if (ok) break;
     }
-    this.pairings = best || [];
+    this.pairings = (best || []).map(([a, b, ghost]) => {
+      if (ghost) return [a, b, ghost];
+      const key = Math.min(a.id, b.id) + '-' + Math.max(a.id, b.id);
+      const last = this.hostLog[key];
+      const host = last == null ? (this.rng.next() < 0.5 ? a : b) : last === a.id ? b : a;
+      this.hostLog[key] = host.id;
+      return host === a ? [a, b, false] : [b, a, false];
+    });
     for (const [a, b, ghost] of this.pairings) {
       a.currentOpponent = b.id;
       a.currentGhost = ghost;
@@ -453,7 +488,7 @@ class Game {
   }
 
   autoFill(p) {
-    while (p.boardCount() < p.level) {
+    for (let guard = 0; guard < 40 && p.boardCount() < p.level; guard++) {
       const bench = p.benchUnits();
       if (!bench.length) break;
       bench.sort((a, b) => UNITS[b.unitId].cost * copiesForStar(b.star) - UNITS[a.unitId].cost * copiesForStar(a.star));
@@ -520,7 +555,7 @@ class Game {
     return camp.units.map(u => {
       const form = FORM_INDEX[u.name];
       const [r, c] = Hex.mirror(u.r, u.c);
-      const stats = computeStats(form, u.cost, u.star, u.mult, { hpMult: u.hpMult, range: u.range });
+      const stats = computeStats(form, u.cost, u.star, u.mult * CONFIG.pveScale, { hpMult: u.hpMult, range: u.range });
       return { iid: null, unitId: null, creep: true, name: form.name, form, types: form.types, star: u.star, cost: u.cost, stats, r, c, drops: u.drops || 1 };
     });
   }
@@ -554,19 +589,14 @@ class Game {
       }
     } else {
       for (const pair of this.pairings) {
-        let a = pair[0];
-        let b = pair[1];
+        const a = pair[0];
+        const b = pair[1];
         const ghost = pair[2];
-        if (!ghost && b.isHuman) {
-          const t = a;
-          a = b;
-          b = t;
-        }
         const teamA = this.teamFor(a, false);
         const teamB = this.teamFor(b, true);
         const sim = new CombatSim(this.boardSpecs(a, false, false), this.boardSpecs(b, true, ghost), this.rng.seedFor(), this.realtime, teamA, teamB);
         this.matches.push({ kind: 'pvp', a, b, ghost, sim, teamA, teamB });
-        if (a.isHuman) this.humanSim = sim;
+        if (a.isHuman || (b.isHuman && !ghost)) this.humanSim = sim;
       }
     }
     if (!this.realtime) for (const m of this.matches) m.sim.runToEnd();
@@ -575,7 +605,33 @@ class Game {
   }
 
   stepCombat(dt) {
-    for (const m of this.matches) if (!m.sim.over) m.sim.step(dt);
+    for (const m of this.matches) {
+      if (m.sim.over) continue;
+      m.sim.step(dt);
+      if (m.kind === 'pve' && m.a.isHuman && this.realtime) this.liveDrops(m);
+      if (m.sim.over) this.payWin(m);
+    }
+  }
+
+  payWin(m) {
+    if (m.kind !== 'pvp' || m.winPaid || !m.sim.over) return;
+    m.winPaid = true;
+    const w = m.sim.winner === 'A' ? m.a : m.sim.winner === 'B' && !m.ghost ? m.b : null;
+    if (!w) return;
+    w.gold += 1;
+    this.notify(w, '승리 보상: 1골드', 'loot');
+    this.emit('wingold', w);
+  }
+
+  liveDrops(m) {
+    let added = false;
+    for (const u of m.sim.units) {
+      if (u.side !== 'B' || u.alive || u.dropped) continue;
+      u.dropped = true;
+      for (let i = 0; i < (u.drops || 1); i++) m.a.orbs.push(this.makeOrb(u.deathR, u.deathC));
+      added = true;
+    }
+    if (added) this.emit('orbs');
   }
 
   allCombatOver() {
@@ -617,7 +673,8 @@ class Game {
   dropOrbs(p, sim) {
     const orbs = [];
     for (const u of sim.units) {
-      if (u.side !== 'B' || u.alive) continue;
+      if (u.side !== 'B' || u.alive || u.dropped) continue;
+      u.dropped = true;
       for (let i = 0; i < (u.drops || 1); i++) orbs.push(this.makeOrb(u.deathR, u.deathC));
     }
     if (p.isHuman && this.realtime) {
@@ -690,6 +747,11 @@ class Game {
   }
 
   payGold(p, sim, side) {
+    for (const u of sim.units) {
+      if (u.side !== side || !u.payday || !u.iid) continue;
+      const inst = p.findInstance(u.iid);
+      if (inst) inst.payday = (inst.payday || 0) + u.payday;
+    }
     const g = sim.side[side].gold;
     if (!g) return;
     p.gold += g;
@@ -701,10 +763,16 @@ class Game {
     return stageDmg + survivors.reduce((s, u) => s + (CONFIG.unitDamage[u.star] || 1), 0);
   }
 
-  applyPvp(p, won, enemySurvivors) {
-    if (won) {
+  applyPvp(p, result, enemySurvivors) {
+    if (result === 'win') {
       p.streak = p.streak > 0 ? p.streak + 1 : 1;
       p.lastResult = 'win';
+    } else if (result === 'draw') {
+      p.streak = 0;
+      p.lastResult = 'draw';
+      const dmg = enemySurvivors.length + 1;
+      p.hp -= dmg;
+      p.lastDamage = dmg;
     } else {
       p.streak = p.streak < 0 ? p.streak - 1 : -1;
       p.lastResult = 'loss';
@@ -739,16 +807,23 @@ class Game {
         Unlocks.onCombatEnd(this, p, sim, 'A', false);
         this.afterSynergy(p, m.teamA, sim, 'A', won, false);
         this.dropOrbs(p, sim);
+        if (p.isHuman && this.realtime && (p.orbs || []).length) {
+          this.collectOrbs(p);
+          this.emit('orbs');
+        }
       } else {
+        this.payWin(m);
         const a = m.a;
         const b = m.b;
-        this.applyPvp(a, sim.winner === 'A', sim.survivors('B'));
+        const resA = sim.winner === 'draw' ? 'draw' : sim.winner === 'A' ? 'win' : 'loss';
+        const resB = sim.winner === 'draw' ? 'draw' : sim.winner === 'B' ? 'win' : 'loss';
+        this.applyPvp(a, resA, sim.survivors('B'));
         this.payGold(a, sim, 'A');
         Unlocks.onCombatEnd(this, a, sim, 'A', true);
         this.afterSynergy(a, m.teamA, sim, 'A', sim.winner === 'A', true);
         a.lastOpponent = b.id;
         if (!m.ghost) {
-          this.applyPvp(b, sim.winner === 'B', sim.survivors('A'));
+          this.applyPvp(b, resB, sim.survivors('A'));
           this.payGold(b, sim, 'B');
           Unlocks.onCombatEnd(this, b, sim, 'B', true);
           this.afterSynergy(b, m.teamB, sim, 'B', sim.winner === 'B', true);
@@ -802,9 +877,14 @@ class Game {
   setupCarousel() {
     const costs = CONFIG.carouselCosts[Math.min(7, this.stage)] || CONFIG.carouselCosts[7];
     const items = [];
+    const used = new Set();
     costs.forEach((c, i) => {
-      const list = UNIT_DATA.filter(d => d.shop && d.cost === c && this.regionAllowed(d));
-      items.push({ unitId: this.rng.pick(list).id, takenBy: null, angle: (Math.PI * 2 * i) / costs.length });
+      const all = UNIT_DATA.filter(d => d.shop && this.regionAllowed(d));
+      let list = all.filter(d => d.cost === c && !used.has(d.id));
+      if (!list.length) list = all.filter(d => !used.has(d.id)).sort((a, b) => Math.abs(a.cost - c) - Math.abs(b.cost - c)).filter((d, _, arr) => d.cost === arr[0].cost);
+      const pick = this.rng.pick(list);
+      used.add(pick.id);
+      items.push({ unitId: pick.id, takenBy: null, angle: (Math.PI * 2 * i) / costs.length });
     });
     const order = this.rng.shuffle(this.alivePlayers().slice());
     order.sort((a, b) => a.hp - b.hp);
@@ -826,7 +906,6 @@ class Game {
     if (!item || item.takenBy !== null) return false;
     if (car.picked[p.id] !== undefined) return false;
     const def = UNITS[item.unitId];
-    if (p.excluded.has(def.id)) return false;
     return !this.lockedVariants(p).has(def.id);
   }
 

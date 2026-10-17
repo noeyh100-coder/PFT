@@ -7,6 +7,7 @@ const CLASS_COLORS = {
 const ROUND_ICON = { encounter: 'encounter', pve: 'ball', pvp: 'sword', carousel: 'sushi' };
 
 const View = {
+  planned: new Set(),
   CELL_W: 54,
   CELL_H: 62,
   ROW_STEP: 46,
@@ -46,22 +47,97 @@ const View = {
     return '#f6c945';
   },
 
-  traitAbbr(id) {
-    return id.length <= 2 ? id : id.slice(0, 2);
+  traitKind(id) {
+    const td = TRAIT_DATA.map[id];
+    if (td) return td.kind;
+    return TYPE_COLORS[id] ? 'type' : 'class';
   },
 
-  hex(id) {
-    const h = this.el('div', 'hex');
-    h.style.setProperty('--hex-color', this.traitColor(id));
-    h.appendChild(this.el('span', null, this.traitAbbr(id)));
+  tierLook(id, entry) {
+    if (!entry) return 'base';
+    if (!entry.active || !entry.tier) return 'off';
+    const td = TRAIT_DATA.map[id];
+    const total = td && td.stepLabels ? td.stepLabels.length : (entry.tiers || [1]).length;
+    const t = entry.tier;
+    if (total <= 1) return 'gold';
+    if (total === 2) return t >= 2 ? 'gold' : 'bronze';
+    if (total === 3) return ['bronze', 'silver', 'gold'][Math.min(t, 3) - 1];
+    if (t >= total) return 'prism';
+    return ['bronze', 'silver', 'gold'][Math.min(t, 3) - 1];
+  },
+
+  uniqueForm(id) {
+    this.uniqueForms = this.uniqueForms || {};
+    if (id in this.uniqueForms) return this.uniqueForms[id];
+    let form = null;
+    for (const key in UNITS) {
+      const def = UNITS[key];
+      if (def.uniques && def.uniques.includes(id)) {
+        form = formOf(def, Math.max(1, def.uniqueStar || 1), null);
+        break;
+      }
+    }
+    this.uniqueForms[id] = form;
+    return form;
+  },
+
+  traitIconSvg(id, scale) {
+    this.iconCache = this.iconCache || {};
+    const key = id + '|' + scale;
+    if (this.iconCache[key]) return this.iconCache[key];
+    const g = TRAIT_ICONS[id];
+    const w = g[0].length;
+    const h = g.length;
+    let full = '';
+    let half = '';
+    g.forEach((row, y) => {
+      let x = 0;
+      while (x < w) {
+        const ch = row[x];
+        let n = 1;
+        while (x + n < w && row[x + n] === ch) n++;
+        const d = 'M' + x + ' ' + y + 'h' + n + 'v1h-' + n + 'z';
+        if (ch === '#') full += d;
+        else if (ch === '+') half += d;
+        x += n;
+      }
+    });
+    const vw = w + (w % 2);
+    const vh = h + (h % 2);
+    const crisp = scale % 1 === 0;
+    const svg = '<svg class="hex-ico" width="' + vw * scale + '" height="' + vh * scale + '" viewBox="0 0 ' + vw + ' ' + vh + '" shape-rendering="' + (crisp ? 'crispEdges' : 'geometricPrecision') + '">' +
+      (half ? '<path d="' + half + '" fill="currentColor" fill-opacity="0.5"/>' : '') +
+      '<path d="' + full + '" fill="currentColor"/></svg>';
+    this.iconCache[key] = svg;
+    return svg;
+  },
+
+  hex(id, entry, mini) {
+    const kind = this.traitKind(id);
+    const h = this.el('div', 'hex k-' + kind + ' t-' + this.tierLook(id, entry));
+    if (kind === 'type' && TYPE_COLORS[id]) h.style.setProperty('--type-color', TYPE_COLORS[id]);
+    if (kind === 'unique') {
+      const form = this.uniqueForm(id);
+      const size = mini ? 16 : 30;
+      const spr = form ? Sprites.portrait(form, size, { fill: 0.95 }) : null;
+      if (spr) {
+        const box = this.el('div', 'hex-face');
+        box.style.width = size + 'px';
+        box.style.height = size + 'px';
+        box.appendChild(spr);
+        h.appendChild(box);
+      } else h.appendChild(this.el('span', 'hex-txt', id.slice(0, 2)));
+    } else if (typeof TRAIT_ICONS !== 'undefined' && TRAIT_ICONS[id]) {
+      h.insertAdjacentHTML('beforeend', this.traitIconSvg(id, mini ? 0.5 : 1));
+    } else {
+      h.appendChild(this.el('span', 'hex-txt', id.slice(0, 2)));
+    }
     return h;
   },
 
   miniTrait(id) {
     const row = this.el('div', 'mini-trait');
-    const h = this.hex(id);
-    h.firstChild.textContent = '';
-    row.appendChild(h);
+    row.appendChild(this.hex(id, null, true));
     row.appendChild(this.el('span', null, id));
     return row;
   },
@@ -80,6 +156,7 @@ const View = {
 
   unitEl(opts) {
     const el = this.el('div', opts.className || 'unit');
+    el.classList.add('s' + Math.min(3, opts.star || 1));
     const ring = this.el('div', 'cost-ring');
     ring.style.boxShadow = '0 0 0 2px ' + (COST_COLORS[opts.cost] || '#888');
     let orb = opts.form ? Sprites.make(opts.form, { star: opts.star, dir: opts.dir }) : null;
@@ -99,6 +176,36 @@ const View = {
     el.appendChild(this.el('div', 'label', opts.name));
     if (opts.badge) el.appendChild(this.el('div', 'badge', opts.badge));
     return el;
+  },
+
+  unitBars(el, maxHp) {
+    const bars = this.el('div', 'bars');
+    const hp = this.el('div', 'bar hp');
+    const hpFill = this.el('i');
+    const shFill = this.el('i', 'sh');
+    const tk = this.el('b', 'tk');
+    hp.appendChild(hpFill);
+    hp.appendChild(shFill);
+    hp.appendChild(tk);
+    const mana = this.el('div', 'bar mana');
+    const manaFill = this.el('i');
+    mana.appendChild(manaFill);
+    bars.appendChild(hp);
+    bars.appendChild(mana);
+    el.appendChild(bars);
+    hpFill.style.width = '100%';
+    manaFill.style.width = '0%';
+    const out = { bars, hpFill, shFill, manaFill, tk, tkTotal: 0 };
+    this.setTicks(out, maxHp);
+    return out;
+  },
+
+  setTicks(b, total) {
+    const t = Math.max(1, Math.round(total));
+    if (b.tkTotal === t) return;
+    b.tkTotal = t;
+    b.tk.style.setProperty('--tk', Math.min(100, (100 / t) * 100) + '%');
+    b.tk.style.setProperty('--tk2', Math.min(100, (1000 / t) * 100) + '%');
   },
 
   instanceView(inst, owner) {
@@ -132,12 +239,22 @@ const View = {
     for (const t of list.slice(pg * per, pg * per + per)) {
       const row = this.el('div', 'trait' + (t.active ? ' active' : ''));
       row.dataset.trait = t.id;
-      row.appendChild(this.hex(t.id));
+      row.appendChild(this.hex(t.id, t));
       row.appendChild(this.el('div', 'trait-count', t.count));
       const text = this.el('div', 'trait-text');
       text.appendChild(this.el('div', 'trait-name', t.id));
       const steps = this.el('div', 'trait-steps');
-      if (t.active && t.tiers.length > 1) {
+      const td = TRAIT_DATA.map[t.id];
+      if (t.kind === 'unique') {
+        const st = hooks && hooks.stack ? hooks.stack(t.id) : '';
+        if (st) steps.appendChild(this.el('span', 'stack', st));
+      } else if (td && td.mode === 'bug') {
+        if (t.active) {
+          steps.appendChild(this.el('span', t.tier === 1 ? 'cur' : 'got', 3));
+          steps.appendChild(this.el('i', null, '›'));
+          steps.appendChild(this.el('span', t.tier > 1 ? 'cur' : null, '3성 ' + (t.star3 || 0) + '/4'));
+        } else steps.textContent = t.count + ' / 3';
+      } else if (t.active && t.tiers.length > 1) {
         t.tiers.forEach((n, i) => {
           if (i) steps.appendChild(this.el('i', null, '›'));
           steps.appendChild(this.el('span', i + 1 === t.tier ? 'cur' : i < t.tier ? 'got' : null, n));
@@ -183,8 +300,10 @@ const View = {
     const card = Assets.cardUrl(m.form);
     const spr = Assets.ready(card) ? null : Sprites.portrait(m.form, 48, { fill: 0.85, max: 2 });
     if (Assets.ready(card)) {
-      el.style.backgroundImage = 'url("' + card + '")';
+      const pic = this.el('div', 'tt-art');
+      pic.style.backgroundImage = 'url("' + card + '")';
       el.classList.add('art');
+      el.appendChild(pic);
     } else if (spr) {
       el.classList.add('dot');
       el.appendChild(spr);
@@ -192,13 +311,88 @@ const View = {
       el.style.background = this.orbBackground(m.form.types);
       el.appendChild(this.el('span', null, m.form.name.slice(0, 2)));
     }
-    let tip = m.label;
-    if (m.form.name !== m.unitId) tip += ' (' + m.form.name + ')';
-    if (m.note) tip += ' · ' + m.note;
-    if (m.unlock) tip += ' · 해금';
-    if (id === '노말' && NORMAL_EFFECTS[m.unitId]) tip += ' — ' + NORMAL_EFFECTS[m.unitId].text;
-    el.dataset.tip = tip;
+    el.dataset.unit = m.unitId;
+    el.dataset.form = m.form.name;
+    if (m.note) el.dataset.note = m.note;
     return el;
+  },
+
+  unlockHow(id) {
+    const u = CONFIG.unlock;
+    const m = {
+      '투구': '암나이트 2성 이상을 필드에 두고 연속 ' + u.kabutoWins + '번 승리',
+      '프테라': '투구 2성 이상을 필드에 두고 연속 ' + u.aerodactylLosses + '번 패배',
+      '신뇽': '미뇽 2성 이상으로 ' + u.dratiniWins + '번 승리하면 진화',
+      '망나뇽': '신뇽 2성 이상으로 ' + u.dragonairWins + '번 승리하면 진화',
+      '야도란': '2성 야돈 아래 칸에 2성 셀러를 두고 전투 시작 (셀러를 소모해 1성으로 진화)',
+      '야도킹': '2성 야돈 위 칸에 2성 셀러를 두고 전투 시작 (셀러를 소모해 1성으로 진화)',
+      '저승갓숭': '성원숭(망키 2성 이상)이 PvP 전투에서 쓰러지면 진화',
+      '갸라도스': '잉어킹 3성으로 전투에 ' + u.magikarpBattles + '번 참여하면 진화',
+      '해피너스': '치유 스택 ' + u.healStack + ' 이상에서 럭키가 전투에 참여하면 진화',
+      '팬텀': '고우스트(고오스 2성 이상)로 처치 관여 ' + u.gastlyTakedowns + '번이면 진화',
+      '후딘': '최면 누적 ' + u.hypnosisSeconds + '초를 채운 뒤 윤겔라가 전투에 참여하면 진화',
+      '뮤': '한 전투에서 서로 다른 타입 시너지 4개 켜기',
+      '뮤츠': '뮤가 참여한 PvP 전투로 유전자 ' + u.geneStack + ' 모으기',
+      '프리져': '필드의 얼음 타입 포켓몬 별 합계 ' + u.iceStarTotal + ' 이상으로 전투 시작',
+      '썬더': '전기 시너지 낙뢰로 기절 누적 ' + u.electricStuns + '번',
+      '파이어': '불꽃 시너지 화염 피해 누적 ' + u.burnDamage
+    };
+    return m[id] || '특별한 조건으로 해금됩니다';
+  },
+
+  renderUnitTip(container, unitId, formName, note, owner) {
+    container.innerHTML = '';
+    const def = UNITS[unitId];
+    if (!def) return;
+    const base = def.stageForms ? def.stageForms[0] : def.forms[0];
+    const form = formName && FORM_INDEX[formName] ? FORM_INDEX[formName] : base;
+    const br = def.branches ? def.branches.find(b => b.form.name === form.name) : null;
+    const head = this.el('div', 'ut-head');
+    const pic = this.el('div', 'ut-pic');
+    pic.style.setProperty('--cost-color', COST_COLORS[def.cost]);
+    const spr = Sprites.portrait(form, 40, { fill: 0.9, max: 2 });
+    if (spr) pic.appendChild(spr);
+    head.appendChild(pic);
+    const info = this.el('div', 'ut-info');
+    info.appendChild(this.el('b', null, form.name + (form.name !== def.id ? ' (' + def.id + ' 계열)' : '')));
+    const sub = this.el('div', 'ut-sub');
+    sub.innerHTML = iconSvg('coin', 11);
+    sub.appendChild(document.createTextNode(def.cost + '코스트'));
+    if (def.unlockOnly) {
+      const open = owner && owner.unlockedShop && owner.unlockedShop.has(def.id);
+      const chip = this.el('span', 'ut-chip' + (open ? ' open' : ''));
+      chip.innerHTML = iconSvg(open ? 'unlock' : 'lock', 11);
+      chip.appendChild(document.createTextNode(open ? '해금됨' : '잠김'));
+      sub.appendChild(chip);
+    }
+    if (note) sub.appendChild(this.el('span', 'ut-note', note));
+    info.appendChild(sub);
+    head.appendChild(info);
+    container.appendChild(head);
+    const role = this.el('div', 'ut-row');
+    role.innerHTML = iconSvg('role', 12);
+    role.appendChild(this.el('span', 'ut-k', '역할군'));
+    role.appendChild(this.el('span', null, form.role || roleOf(form, computeStats(form, def.cost, 1, 1))));
+    container.appendChild(role);
+    const tr = [];
+    for (const x of form.types.concat(br && br.traits ? br.traits : def.traits, def.uniques)) if (!tr.includes(x)) tr.push(x);
+    const traits = this.el('div', 'ut-traits');
+    for (const t of tr) {
+      const mt = this.miniTrait(t);
+      if (def.uniqueStar && def.uniques.includes(t)) mt.appendChild(this.el('small', null, def.uniqueStar + '성부터'));
+      traits.appendChild(mt);
+    }
+    container.appendChild(traits);
+    if (NORMAL_EFFECTS[def.id] && form.types.includes('노말')) container.appendChild(this.el('div', 'ut-line', '노말 효과: ' + NORMAL_EFFECTS[def.id].text));
+    const evo = this.el('div', 'ut-evo');
+    this.renderEvo(evo, def, owner, { size: 26 });
+    container.appendChild(evo);
+    if (def.unlockOnly) {
+      const how = this.el('div', 'ut-unlock');
+      how.appendChild(this.el('span', 'ut-k', '해금 조건'));
+      how.appendChild(this.el('span', null, this.unlockHow(def.id)));
+      container.appendChild(how);
+    }
   },
 
   renderTraitTip(container, id, owner, region) {
@@ -208,16 +402,16 @@ const View = {
     const entry = owner ? computeSynergies(owner).find(s => s.id === id) : null;
     const tier = entry ? entry.tier : 0;
     const head = this.el('div', 'tt-head');
-    head.appendChild(this.hex(id));
+    head.appendChild(this.hex(id, entry || { active: false }));
     head.appendChild(this.el('b', null, id));
     head.appendChild(this.el('span', 'tt-kind', td.kind === 'type' ? '타입' : td.kind === 'class' ? '직업' : '고유'));
     container.appendChild(head);
     container.appendChild(this.el('div', 'tt-desc', td.desc));
     for (const line of this.traitExtra(id, owner, entry)) container.appendChild(this.el('div', 'tt-extra', line));
     const steps = this.el('div', 'tt-steps');
-    td.tiers.forEach((n, i) => {
+    (td.stepLabels || td.tiers).forEach((n, i) => {
       const row = this.el('div', 'tt-step' + (i + 1 === tier ? ' on' : i + 1 < tier ? ' got' : ''));
-      const label = td.countLabel === '짝' ? n + '짝' : td.countLabel === '3성 벌레' ? '3성 ' + n + '마리' : td.countLabel === '가격 종류' ? n + '종류' : n;
+      const label = td.stepLabels ? n : td.countLabel === '짝' ? n + '짝' : td.countLabel === '가격 종류' ? n + '종류' : n;
       row.appendChild(this.el('span', 'tt-n', '(' + label + ')'));
       row.appendChild(this.el('span', null, td.steps[i] || ''));
       steps.appendChild(row);
@@ -255,6 +449,12 @@ const View = {
       const name = this.el('div', 'pname', p.alive ? p.name : p.name + ' · ' + p.placement + '등');
       const por = this.portrait(p.strategist, p.isHuman ? 36 : 31);
       por.appendChild(this.el('div', 'hp', p.alive ? p.hp : '✕'));
+      if (human && human.alive && human.currentOpponent === p.id && !p.isHuman) {
+        const sw = this.el('div', 'vs-sword');
+        sw.innerHTML = iconSvg('sword', 14);
+        sw.dataset.tip = human.currentGhost ? '다음 상대 (복제)' : '다음 상대';
+        por.appendChild(sw);
+      }
       row.appendChild(name);
       row.appendChild(por);
       if (p.alive) row.addEventListener('click', () => onClick(p));
@@ -273,13 +473,41 @@ const View = {
     const def = UNITS[id];
     const form = formOf(def, 1, p);
     card.style.setProperty('--cost-color', COST_COLORS[def.cost]);
-    Assets.setCardArt(card, form);
+    Assets.setCardArt(card, form, 90, true);
+    if (card._spr) {
+      card.addEventListener('mouseenter', () => Sprites.hoverPlay(card._spr, true));
+      card.addEventListener('mouseleave', () => Sprites.hoverPlay(card._spr, false));
+    }
     const traits = this.el('div', 'card-traits');
     for (const t of allTraitsOf(def, 1, p)) traits.appendChild(this.miniTrait(t));
     card.appendChild(traits);
-    const owned = p.allUnits().filter(u => u.unitId === id && u.star === 1).length;
-    if (owned >= 2) card.appendChild(this.el('div', 'card-badge', '★★'));
-    else if (p.allUnits().some(u => u.unitId === id)) card.appendChild(this.el('div', 'card-badge', '보유'));
+    const mine = p.allUnits().filter(u => u.unitId === id);
+    const n1 = mine.filter(u => u.star === 1).length;
+    const n2 = mine.filter(u => u.star === 2).length;
+    const up = n1 >= 2 ? (n2 >= 2 ? 3 : 2) : 0;
+    if (up || this.planned.has(id)) {
+      const corner = this.el('div', 'card-corner');
+      if (this.planned.has(id)) {
+        const ball = this.el('div', 'card-plan');
+        ball.innerHTML = iconSvg('ball', 14);
+        ball.dataset.tip = '배치 도구에서 켠 팀의 기물';
+        corner.appendChild(ball);
+      }
+      if (up) corner.appendChild(this.el('div', 'card-badge s' + up, '★'.repeat(up)));
+      card.appendChild(corner);
+    }
+    if (up || mine.length) {
+      card.classList.add('glint', up === 3 ? 'glint-gold' : up === 2 ? 'glint-silver' : 'glint-white');
+      const fx = this.el('div', 'card-glint');
+      for (let i = 0; i < 6; i++) {
+        const sp = this.el('i');
+        sp.style.left = (12 + ((i * 37) % 80)) + '%';
+        sp.style.top = (10 + ((i * 53) % 70)) + '%';
+        sp.style.animationDelay = (i * 0.37).toFixed(2) + 's';
+        fx.appendChild(sp);
+      }
+      card.appendChild(fx);
+    }
     const variant = this.variantLabel(def);
     if (variant) card.appendChild(this.el('div', 'card-variant', variant));
     const bottom = this.el('div', 'card-bottom');
@@ -310,30 +538,69 @@ const View = {
     const def = UNITS[inst.unitId];
     const form = formOf(def, inst.star, owner);
     const stats = instanceStats(inst, owner);
-    return { form, star: inst.star, cost: def.cost, def, traits: allTraitsOf(def, inst.star, owner), stats, hp: stats.hp, maxHp: stats.hp, mana: 0, maxMana: stats.maxMana, inst, owner };
+    const base = computeStats(form, def.cost, inst.star, def.unlockOnly ? UNLOCK_STAT_BONUS : 1, { boost: def.boost });
+    return { form, star: inst.star, cost: def.cost, sell: sellValue(def, inst.star), def, traits: allTraitsOf(def, inst.star, owner), stats, base, hp: stats.hp, maxHp: stats.hp, mana: 0, maxMana: stats.maxMana, inst, owner };
   },
 
   infoFromCombat(cu) {
     const form = cu.form || FORM_INDEX[cu.name];
     const def = cu.unitId ? UNITS[cu.unitId] : null;
     const stats = cu.eff ? Object.assign({}, cu.stats, cu.eff) : cu.stats;
-    return { form, star: cu.star, cost: cu.cost, def, traits: cu.traits, stats, hp: cu.hp, maxHp: Math.round(cu.maxHp), shield: cu.shield, mana: cu.mana, maxMana: cu.maxMana, combat: cu, creep: cu.creep };
+    const base = def && !cu.ditto ? computeStats(form, def.cost, cu.star, def.unlockOnly ? UNLOCK_STAT_BONUS : 1, { boost: def.boost }) : cu.stats;
+    const sell = def && cu.iid && !cu.ditto ? sellValue(def, cu.star) : cu.cost;
+    return { form, star: cu.star, cost: cu.cost, sell, def, traits: cu.traits, stats, base, hp: cu.hp, maxHp: Math.round(cu.maxHp), shield: cu.shield, mana: cu.mana, maxMana: cu.maxMana, combat: cu, creep: cu.creep };
   },
 
   infoFromCreep(spec) {
     return { form: spec.form, star: spec.star, cost: spec.cost, def: null, traits: spec.form.types.slice(), stats: spec.stats, hp: spec.stats.hp, maxHp: spec.stats.hp, mana: 0, maxMana: spec.stats.maxMana, creep: true };
   },
 
-  renderInfo(container, t) {
+  statParts(t) {
+    const s = t.stats;
+    const b = t.base || s;
+    const pct = v => (v < 0.1 && v > 0 ? (v * 100).toFixed(1) : Math.round(v * 100)) + '%';
+    return [
+      ['pa', '물리공격력', s.pa, b.pa, v => Math.round(v)],
+      ['sa', '특수공격력', s.sa, b.sa, v => Math.round(v)],
+      ['armor', '물리방어력', s.armor, b.armor, v => Math.round(v)],
+      ['mr', '특수방어력', s.mr, b.mr, v => Math.round(v)],
+      ['as', '공격속도 (초당 기본 공격 횟수)', s.as, b.as, v => v.toFixed(2)],
+      ['crit', '급소율', s.crit, b.crit, pct],
+      ['vamp', '모든 피해 흡혈', s.omnivamp || 0, b.omnivamp || 0, pct],
+      ['amp', '피해증폭', s.amp || 0, 0, pct],
+      ['dura', '내구력 (받는 피해 감소)', s.dura || 0, 0, pct],
+      ['basic', '기본공격 (' + (s.special ? '특수' : '물리') + ')', s.basic, b.basic, v => Math.round(v)]
+    ];
+  },
+
+  renderInfo(container, t, hooks) {
     container.innerHTML = '';
     if (!t) return;
     const s = t.stats;
-    container.appendChild(this.el('div', 'ip-stars', '★'.repeat(t.star)));
+    hooks = hooks || {};
+    container.appendChild(this.el('div', 'ip-stars s' + Math.min(3, t.star), '★'.repeat(t.star)));
+    if (t.def && hooks.evo) {
+      const evo = this.el('button', 'ip-evo');
+      evo.innerHTML = iconSvg('evo', 16);
+      evo.dataset.tip = '진화 계보';
+      evo.addEventListener('click', e => {
+        e.stopPropagation();
+        hooks.evo(t, evo);
+      });
+      container.appendChild(evo);
+    }
     const art = this.el('div', 'ip-art');
     art.style.setProperty('--cost-color', t.creep ? '#b0b0b0' : COST_COLORS[t.cost]);
     Assets.setCardArt(art, t.form, 100);
     const traits = this.el('div', 'ip-traits');
-    for (const id of t.traits) traits.appendChild(this.miniTrait(id));
+    for (const id of t.traits) {
+      const mt = this.miniTrait(id);
+      if (hooks.traitEnter) {
+        mt.addEventListener('mouseenter', () => hooks.traitEnter(mt, id, t));
+        mt.addEventListener('mouseleave', () => hooks.traitLeave());
+      }
+      traits.appendChild(mt);
+    }
     art.appendChild(traits);
     const name = this.el('div', 'ip-name');
     const nm = this.el('b', null, t.form.name);
@@ -341,7 +608,9 @@ const View = {
     if (!t.creep) {
       const cost = this.el('div', 'ip-cost');
       cost.innerHTML = iconSvg('coin', 12);
-      cost.appendChild(document.createTextNode(t.cost));
+      const price = t.sell != null ? t.sell : t.cost;
+      cost.appendChild(document.createTextNode(price));
+      cost.dataset.tip = '판매 가격 ' + price + '골드';
       name.appendChild(cost);
     } else {
       name.appendChild(this.el('span', 'chip', '야생'));
@@ -363,7 +632,7 @@ const View = {
     const row = this.el('div', 'ip-row');
     const st = !t.creep && t.form ? SKILL_TEXT[t.form.name] : null;
     const skill = this.el('div', 'ip-skill', st ? st.name : t.creep ? '야생' : '스킬');
-    if (st) skill.dataset.tip = st.name + ' (' + st.type + ')\n' + st.text;
+    if (st) skill.dataset.tip = st.name + ' (' + st.type + ')\n' + st.text + (hooks.skillNote ? hooks.skillNote(t) : '');
     const skillUrl = Assets.skillUrl(t.form);
     if (Assets.ready(skillUrl)) {
       skill.style.backgroundImage = 'url("' + skillUrl + '")';
@@ -388,24 +657,107 @@ const View = {
     role.appendChild(this.el('span', null, roleOf(t.form, s)));
     container.appendChild(role);
     const grid = this.el('div', 'ip-stats');
-    const rows = [
-      ['pa', '물리공격력', s.pa],
-      ['sa', '특수공격력', s.sa],
-      ['armor', '물리방어력', s.armor],
-      ['mr', '특수방어력', s.mr],
-      ['basic', '기본공격 (' + (s.special ? '특수' : '물리') + ')', s.basic],
-      ['as', '공격속도', s.as.toFixed(2)],
-      ['crit', '급소율', (s.crit < 0.1 ? (s.crit * 100).toFixed(1) : Math.round(s.crit * 100)) + '%'],
-      ['vamp', '모든 피해 흡혈', Math.round(s.omnivamp * 100) + '%']
-    ];
-    for (const [ico, label, value] of rows) {
+    for (const [ico, label, value, base, fmt] of this.statParts(t)) {
       const cell = this.el('div', 'ip-stat');
-      cell.dataset.tip = label;
+      const diff = value - base;
+      const eps = ico === 'as' ? 0.005 : ico === 'crit' || ico === 'vamp' || ico === 'amp' || ico === 'dura' ? 0.0005 : 0.5;
+      const up = diff > eps;
+      const down = diff < -eps;
+      let tip = label + ' ' + fmt(value);
+      if (up) tip += ' (' + fmt(base) + ' + ⟦' + fmt(diff) + '⟧)';
+      else if (down) tip += ' (' + fmt(base) + ' - ' + fmt(-diff) + ')';
+      cell.dataset.tip = tip;
       cell.innerHTML = iconSvg(ico, 16);
-      cell.appendChild(this.el('b', null, value));
+      cell.appendChild(this.el('b', up ? 'up' : down ? 'down' : null, fmt(value)));
       grid.appendChild(cell);
     }
     container.appendChild(grid);
+  },
+
+  evoLinks() {
+    const u = CONFIG.unlock;
+    return [
+      ['잉어킹', '갸라도스', '잉어킹 3성으로 전투 ' + u.magikarpBattles + '번 참여'],
+      ['미뇽', '신뇽', '2성 이상으로 승리 ' + u.dratiniWins + '번'],
+      ['신뇽', '망나뇽', '2성 이상으로 승리 ' + u.dragonairWins + '번'],
+      ['고오스', '팬텀', '2성 이상으로 처치 관여 ' + u.gastlyTakedowns + '번'],
+      ['캐이시', '후딘', '최면 누적 ' + u.hypnosisSeconds + '초 + 윤겔라 전투 참여'],
+      ['핑복', '해피너스', '치유 스택 ' + u.healStack + ' + 럭키 전투 참여'],
+      ['망키', '저승갓숭', '2성 이상이 PvP 전투에서 쓰러짐'],
+      ['야돈', '야도란', '2성 야돈 아래 칸에 2성 셀러'],
+      ['야돈', '야도킹', '2성 야돈 위 칸에 2성 셀러'],
+      ['암나이트', '투구', '해금: 2성으로 연속 승리 ' + u.kabutoWins + '번'],
+      ['투구', '프테라', '해금: 2성으로 연속 패배 ' + u.aerodactylLosses + '번'],
+      ['뮤', '뮤츠', '해금: 유전자 ' + u.geneStack]
+    ];
+  },
+
+  renderEvo(container, def, owner, opts) {
+    container.innerHTML = '';
+    const pic = (opts && opts.size) || 34;
+    const links = this.evoLinks();
+    const chain = [def.id];
+    for (let i = 0; i < chain.length; i++) {
+      for (const [a, b] of links) {
+        if (a === chain[i] && !chain.includes(b)) chain.push(b);
+        if (b === chain[i] && !chain.includes(a)) chain.push(a);
+      }
+    }
+    const order = [];
+    const visit = id => {
+      if (order.includes(id)) return;
+      for (const [a, b] of links) if (b === id && chain.includes(a)) visit(a);
+      order.push(id);
+    };
+    for (const id of chain) visit(id);
+    container.appendChild(this.el('div', 'evo-title', '진화 계보'));
+    order.forEach((id, idx) => {
+      const d = UNITS[id];
+      if (!d) return;
+      if (idx) {
+        const via = links.filter(([a, b]) => b === id && order.includes(a));
+        for (const [a, , text] of via) container.appendChild(this.el('div', 'evo-link', '↓ ' + (a !== order[idx - 1] ? a + ' → ' : '') + text));
+      }
+      const box = this.el('div', 'evo-unit' + (id === def.id ? ' cur' : ''));
+      box.appendChild(this.el('div', 'evo-name', id + ' · ' + d.cost + '코스트' + (d.unlockOnly ? ' · 해금' : '')));
+      const row = this.el('div', 'evo-forms');
+      const stages = [];
+      if (d.stageForms) d.stageForms.forEach((f, i) => stages.push([f, i === 0 ? '기본' : '다운로드 ' + (i === 1 ? CONFIG.unlock.downloadStage1 : CONFIG.unlock.downloadStage2)]));
+      else {
+        d.forms.forEach((f, i) => {
+          const last = stages[stages.length - 1];
+          if (last && last[0].name === f.name) last[1] = last[1].replace(/성$/, '') + '·' + (i + 1) + '성';
+          else stages.push([f, (i + 1) + '성']);
+        });
+      }
+      stages.forEach(([f, label], i) => {
+        if (i) row.appendChild(this.el('span', 'evo-arrow', '›'));
+        const cell = this.el('div', 'evo-form');
+        const box2 = this.el('div', 'evo-pic');
+        const spr = Sprites.portrait(f, pic, { fill: 0.9, max: 2 });
+        if (spr) box2.appendChild(spr);
+        cell.appendChild(box2);
+        cell.appendChild(this.el('div', null, f.name));
+        cell.appendChild(this.el('small', null, label));
+        row.appendChild(cell);
+      });
+      box.appendChild(row);
+      if (d.branches) {
+        const br = this.el('div', 'evo-forms branch');
+        br.appendChild(this.el('span', 'evo-arrow', d.branchStar + '성 갈래'));
+        for (const b of d.branches) {
+          const cell = this.el('div', 'evo-form' + (owner && owner.branch && owner.branch[d.id] === b.key ? ' pick' : ''));
+          const box2 = this.el('div', 'evo-pic');
+          const spr = Sprites.portrait(b.form, pic, { fill: 0.9, max: 2 });
+          if (spr) box2.appendChild(spr);
+          cell.appendChild(box2);
+          cell.appendChild(this.el('div', null, b.form.name));
+          br.appendChild(cell);
+        }
+        box.appendChild(br);
+      }
+      container.appendChild(box);
+    });
   },
 
   damageRows(units, tab) {

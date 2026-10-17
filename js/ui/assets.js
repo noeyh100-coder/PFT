@@ -42,7 +42,7 @@ const Assets = {
     return 'img/dot/leader/' + id + '.png';
   },
 
-  setCardArt(el, form, size) {
+  setCardArt(el, form, size, still) {
     const url = this.cardUrl(form);
     if (this.ready(url)) {
       el.style.backgroundImage = 'url("' + url + '")';
@@ -50,8 +50,10 @@ const Assets = {
       return;
     }
     const px = size || 90;
-    const spr = Sprites.portrait(form, px, { fill: 0.85, max: 3, animate: true, bottom: 0.92 });
+    const spr = Sprites.portrait(form, px, { fill: 0.85, max: 3, animate: !still, bottom: 0.92 });
     if (!spr) return;
+    el._spr = spr._spr;
+    if (still) Sprites.hoverPlay(spr._spr, false);
     const box = document.createElement('div');
     box.className = 'card-spr';
     box.style.width = px + 'px';
@@ -68,6 +70,16 @@ const ICON_PAL = {
 };
 
 const ICON_BITMAPS = {
+  plan: ['....LLLL....', '.WWLKKKKLWW.', '.W.LLLLLL.W.', '.W........W.', '.W.RR.WWW.W.', '.W.RR.....W.', '.W........W.', '.W.BB.WWW.W.', '.W.BB.....W.', '.W........W.', '.WWWWWWWWWW.', '............'],
+  back: ['............', '....W.......', '...WW.......', '..WWW.......', '.WWWWWWWWWW.', 'WWWWWWWWWWW.', '.WWWWWWWWWW.', '..WWW.......', '...WW.......', '....W.......', '............', '............'],
+  close: ['............', '.WW......WW.', '.WWW....WWW.', '..WWW..WWW..', '...WWWWWW...', '....WWWW....', '....WWWW....', '...WWWWWW...', '..WWW..WWW..', '.WWW....WWW.', '.WW......WW.', '............'],
+  plus: ['............', '.....WW.....', '.....WW.....', '.....WW.....', '.....WW.....', '.WWWWWWWWWW.', '.WWWWWWWWWW.', '.....WW.....', '.....WW.....', '.....WW.....', '.....WW.....', '............'],
+  pencil: ['.........WW.', '........WRRW', '.......WYWRW', '......WYYYW.', '.....WYYYW..', '....WYYYW...', '...WYYYW....', '..WYYYW.....', '.WLYYW......', '.WLLW.......', '.WWW........', '............'],
+  filter: ['WWWWWWWWWWWW', '.WWWWWWWWWW.', '..WWWWWWWW..', '...WWWWWW...', '....WWWW....', '....WWWW....', '....WWWW....', '....WWWW....', '....WWWW....', '....WWW.....', '....WW......', '............'],
+  more: ['.....WW.....', '.....WW.....', '............', '............', '.....WW.....', '.....WW.....', '............', '............', '.....WW.....', '.....WW.....', '............', '............'],
+  broom: ['..........NN', '.........NN.', '........NN..', '.......NN...', '......NN....', '...YYNN.....', '..YYYYY.....', '.YYYYYY.....', 'YYYYYY......', 'YYYYY.......', '.Y.Y........', '............'],
+  undo: ['............', '...W........', '..WW........', '.WWWWWWWW...', '..WW.....W..', '...W......W.', '..........W.', '..........W.', '.........W..', '...WWWWWW...', '............', '............'],
+  down: ['............', '............', '............', '.WW......WW.', '..WW....WW..', '...WW..WW...', '....WWWW....', '.....WW.....', '............', '............', '............', '............'],
   sword: ['..........WW', '.........WWW', '........WWW.', '.......WWW..', '......WWW...', '.Y...WWW....', '..Y.WWW.....', '...YWW......', '...NY.......', '..NNNY......', '.NNN..Y.....', 'NNN.........'],
   ball: ['....KKKK....', '..KKRRRRKK..', '.KRRRRRRRRK.', '.KRRRRRRRRK.', 'KRRRRKKRRRRK', 'KKKKKWWKKKKK', 'KWWWWKKWWWWK', '.KWWWWWWWWK.', '.KWWWWWWWWK.', '..KKWWWWKK..', '....KKKK....', '............'],
   sushi: ['............', '............', '...OOOOOO...', '..OOWOOWOO..', '..WWWWWWWW..', '..WWWWWWWW..', '..KKKKKKKK..', '.PPPPPPPPPP.', 'PPPPPPPPPPPP', '.PPPPPPPPPP.', '............', '............'],
@@ -98,6 +110,9 @@ const ICON_BITMAPS = {
   vamp: ['............', '.RRRRRRRRRR.', '.RWRRRRRRWR.', '.RWWRRRRWWR.', '..WWR..RWW..', '..WW....WW..', '...W....W...', '...W....W...', '............', '............', '............', '............'],
   home: ['.....WW.....', '....WWWW....', '...WWWWWW...', '..WWWWWWWW..', '.WWWWWWWWWW.', 'WWWWWWWWWWWW', '.WWWWWWWWWW.', '.WWWNNNWWWW.', '.WWWNNNWWWW.', '.WWWNNNWWWW.', '.WWWNNNWWWW.', '............'],
   info: ['....WWWW....', '..WWWWWWWW..', '.WWWWKKWWWW.', '.WWWWKKWWWW.', 'WWWWWWWWWWWW', 'WWWWKKKWWWWW', 'WWWWWKKWWWWW', 'WWWWWKKWWWWW', '.WWWWKKWWWW.', '.WWWKKKKWWW.', '..WWWWWWWW..', '....WWWW....'],
+  evo: ['....GG......', '...GGGG.....', '..GG.GGG....', '.....GG.....', '.....GG.....', '..WWWWWWWW..', '..W......W..', '..W.YYYY.W..', '..W.YYYY.W..', '..W......W..', '..WWWWWWWW..', '............'],
+  amp: ['.....R......', '....RRR.....', '...RRRRR....', '..RR.R.RR...', '.....R......', '.....R......', '..O..R..O...', '..OO.R.OO...', '..OOOROOO...', '...OOOOO....', '....OOO.....', '............'],
+  dura: ['.LLLLLLLLLL.', '.LBBBBBBBBL.', '.LBBBWWBBBL.', '.LBBBWWBBBL.', '.LBWWWWWWBL.', '.LBWWWWWWBL.', '..LBBWWBBL..', '..LBBWWBBL..', '...LBBBBL...', '....LBBL....', '.....LL.....', '............'],
   role: ['....WWWW....', '...WWWWWW...', '...WWWWWW...', '....WWWW....', '............', '..WWWWWWWW..', '.WWWWWWWWWW.', '.WWWWWWWWWW.', '.WWWWWWWWWW.', '............', '............', '............']
 };
 

@@ -4,7 +4,8 @@ const HOME_BOTTOM = { x: 117, y: 482 };
 const HOME_TOP = { x: 675, y: 48 };
 const VISIT_SPOT = { x: 160, y: 405 };
 const CAROUSEL_CENTER = { x: 396, y: 272 };
-const WALK_SPEED = 180;
+const WALK_SPEED = 90;
+const ORB_RUN = 3;
 const DIR_ROW = { down: 0, left: 1, right: 2, up: 3 };
 const UNIT_ORIGIN = { x: 22, y: 40 };
 const UNIT_SCALE = 1.3;
@@ -345,7 +346,12 @@ class Arena {
   placeToken(el, r, c) {
     const p = View.cellCenter(r, c);
     placeSprite(el, p.x, p.y, UNIT_ORIGIN.x, UNIT_ORIGIN.y, UNIT_SCALE);
-    if (el._spr) Sprites.face(el._spr, r >= 4 ? SPRITE_DIR.up : SPRITE_DIR.down);
+    if (el._spr) Sprites.face(el._spr, SPRITE_DIR.down);
+    if (el._maxHp && !el.querySelector('.bars')) {
+      View.unitBars(el, el._maxHp);
+      el.classList.add('planbar');
+      if (el._enemy) el.classList.add('enemy');
+    }
     this.unitLayer.appendChild(el);
   }
 
@@ -366,11 +372,13 @@ class Arena {
     }
   }
 
-  renderBoardCount(text) {
+  renderBoardCount(text, free) {
     this.boardCount.textContent = text || '';
+    this.boardCount.classList.toggle('free', !!(text && free));
   }
 
-  startCombat(sim, flip) {
+  startCombat(sim, flip, allySide) {
+    this.allySide = allySide || (flip ? 'B' : 'A');
     this.unitLayer.querySelectorAll('.unit:not(.bench-top):not(.bench-bottom)').forEach(el => el.remove());
     this.clearFieldFx();
     this.fx.innerHTML = '';
@@ -511,8 +519,7 @@ class Arena {
   }
 
   isEnemySide(u) {
-    const bottomSide = this.flip ? 'B' : 'A';
-    return u.side !== bottomSide;
+    return u.side !== (this.allySide || (this.flip ? 'B' : 'A'));
   }
 
   createCombatUnit(u) {
@@ -526,24 +533,10 @@ class Arena {
       cost: u.cost,
       badge: View.badgeFor(def),
       ditto: u.ditto,
-      dir: this.isEnemySide(u) ? SPRITE_DIR.down : SPRITE_DIR.up
+      dir: this.isFoeSide(u.side) ? SPRITE_DIR.down : SPRITE_DIR.up
     });
-    const bars = document.createElement('div');
-    bars.className = 'bars';
-    const hp = document.createElement('div');
-    hp.className = 'bar hp';
-    const hpFill = document.createElement('i');
-    const shFill = document.createElement('i');
-    shFill.className = 'sh';
-    hp.appendChild(hpFill);
-    hp.appendChild(shFill);
-    const mana = document.createElement('div');
-    mana.className = 'bar mana';
-    const manaFill = document.createElement('i');
-    mana.appendChild(manaFill);
-    bars.appendChild(hp);
-    bars.appendChild(mana);
-    el.appendChild(bars);
+    const barSet = View.unitBars(el, u.maxHp);
+    const { hpFill, shFill, manaFill } = barSet;
     const status = document.createElement('div');
     status.className = 'status';
     el.appendChild(status);
@@ -552,7 +545,7 @@ class Arena {
     placeSprite(el, f.x, f.y, UNIT_ORIGIN.x, UNIT_ORIGIN.y, UNIT_SCALE);
     el.addEventListener('pointerdown', e => this.app.onTokenPointerDown(e, { combat: u }, el));
     this.unitLayer.appendChild(el);
-    this.cunits[u.uid] = { el, hpFill, shFill, manaFill, flags: '', pos: Proj.toScreen(f.x, f.y), walkUntil: 0, walkDir: null };
+    this.cunits[u.uid] = { el, hpFill, shFill, manaFill, barSet, flags: '', pos: Proj.toScreen(f.x, f.y), walkUntil: 0, walkDir: null };
     if (u.serpent) {
       el.classList.add('serpent-head');
       if (el._spr) Sprites.setScale(el._spr, 0.62);
@@ -568,6 +561,7 @@ class Arena {
       const e = this.cunits[u.uid];
       if (!e) continue;
       const total = Math.max(u.maxHp, u.hp + u.shield);
+      View.setTicks(e.barSet, total);
       e.hpFill.style.width = Math.max(0, (u.hp / total) * 100) + '%';
       e.shFill.style.left = Math.max(0, (u.hp / total) * 100) + '%';
       e.shFill.style.width = Math.max(0, (u.shield / total) * 100) + '%';
@@ -775,7 +769,7 @@ class Arena {
       } else if (ev.type === 'freeze') {
         this.floatText(ev.target, '빙결', 'ice');
       } else if (ev.type === 'buff') {
-        const label = { endure: '버티기', warrior: '학살자의 각오', bug: '회복', harden: '단단해지기', break: '보호막 파괴', thunder: '흡수' }[ev.kind];
+        const label = { endure: '버티기', warrior: '학살자의 각오', bug: '회복', harden: '단단해지기', break: '보호막 파괴', thunder: '흡수', frenzy: '야단법석', cleanse: '정화' }[ev.kind];
         if (label) this.floatText(ev.target, label, 'buff');
       } else if (ev.type === 'death') {
         const e = this.cunits[ev.uid];
@@ -819,8 +813,73 @@ class Arena {
       } else if (ev.type === 'wave') {
         const u = this.sim && this.sim.byUid[ev.uid];
         if (u) this.cellFx(u.r, u.c, 'fx-wave', 2.6, 550);
+      } else if (ev.type === 'supernova') {
+        this.supernova(ev);
       }
     }
+  }
+
+  supernova(ev) {
+    const p = this.unitPos(ev.uid);
+    if (!p) return;
+    const T = 1100 / this.app.speed;
+    const colors = (ev.types && ev.types.length ? ev.types : ['에스퍼']).map(t => TYPE_COLORS[t] || '#ffffff');
+    const top = { x: p.x, y: p.y - 78 };
+    const n = colors.length;
+    colors.forEach((col, i) => {
+      const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+      const sx = p.x + Math.cos(a) * 36;
+      const sy = p.y - 26 + Math.sin(a) * 22;
+      const o = document.createElement('div');
+      o.className = 'fx-nova-orb';
+      o.style.setProperty('--c', col);
+      o.style.left = sx + 'px';
+      o.style.top = sy + 'px';
+      this.fx.appendChild(o);
+      const dx = top.x - sx;
+      const dy = top.y - sy;
+      o.animate([
+        { transform: 'translate(-50%, -50%) scale(0)', opacity: 0 },
+        { transform: 'translate(-50%, -50%) scale(1.1)', opacity: 1, offset: 0.3 },
+        { transform: 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px)) scale(0.5)', opacity: 0.9 }
+      ], { duration: T * 0.58, delay: i * T * 0.03, easing: 'ease-in', fill: 'forwards' });
+      setTimeout(() => o.remove(), T * 0.62 + i * T * 0.03);
+    });
+    const ring = colors.concat(colors[0]).join(', ');
+    const core = document.createElement('div');
+    core.className = 'fx-nova-core';
+    core.style.background = 'radial-gradient(circle, #ffffff 0 22%, rgba(255, 255, 255, 0) 60%), conic-gradient(' + ring + ')';
+    core.style.left = top.x + 'px';
+    core.style.top = top.y + 'px';
+    this.fx.appendChild(core);
+    const box = this.cellBox(ev.r, ev.c, 1);
+    const tx = box.x - top.x;
+    const ty = box.y - 16 - top.y;
+    core.animate([
+      { transform: 'translate(-50%, -50%) scale(0.1) rotate(0deg)', opacity: 0 },
+      { transform: 'translate(-50%, -50%) scale(0.2) rotate(60deg)', opacity: 0, offset: 0.45 },
+      { transform: 'translate(-50%, -50%) scale(1.15) rotate(240deg)', opacity: 1, offset: 0.66 },
+      { transform: 'translate(-50%, -50%) scale(1) rotate(300deg)', opacity: 1, offset: 0.74 },
+      { transform: 'translate(calc(-50% + ' + tx + 'px), calc(-50% + ' + ty + 'px)) scale(1.35) rotate(520deg)', opacity: 1 }
+    ], { duration: T, easing: 'linear', fill: 'forwards' });
+    setTimeout(() => {
+      core.remove();
+      const u = this.sim && this.sim.byUid[ev.uid];
+      if (!u || !u.alive) return;
+      const blast = this.cellFx(ev.r, ev.c, 'fx-nova-blast', Math.min(ev.radius * 2 + 1.6, 13), 750);
+      blast.style.setProperty('--ring', 'conic-gradient(' + ring + ')');
+      blast.style.setProperty('--c0', colors[0]);
+      this.flash(this.root, 'shake', 420);
+    }, T);
+  }
+
+  goldPop(sprite) {
+    if (!sprite || !sprite.el || sprite.el.style.display === 'none') return;
+    const el = document.createElement('div');
+    el.className = 'strat-gold';
+    el.textContent = '+1G';
+    sprite.el.appendChild(el);
+    setTimeout(() => el.remove(), 1400);
   }
 
   isFoeSide(side) {

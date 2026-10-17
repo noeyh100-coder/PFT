@@ -236,7 +236,23 @@ class CombatSim {
       thunderAcc: -1,
       experiment: false,
       mew: false,
-      mewUsed: null,
+      mewTypes: null,
+      mewCasts: 0,
+      ghostNext: 0,
+      darkAcc: 0,
+      ccImmuneUntil: 0,
+      antiHealUntil: 0,
+      antiHeal: 0,
+      shockUntil: 0,
+      shockAt: 0,
+      shockSrc: null,
+      shockDmg: 0,
+      dura: 0,
+      bugAmp: 0,
+      bugDura: 0,
+      bugFrenzy: 0,
+      bugStacks: 0,
+      frenzyUntil: 0,
       download: false,
       heart: false,
       shadowCaster: false,
@@ -261,8 +277,6 @@ class CombatSim {
       endure: 0,
       endureUsed: false,
       endureUntil: 0,
-      bugHeal: 0,
-      bugHealed: false,
       warriorShield: 0,
       warriorAmp: 0,
       warriorUsed: false,
@@ -307,9 +321,9 @@ class CombatSim {
     if (tr.includes('치유의 마음')) u.heart = true;
     if (tr.includes('다운로드')) u.download = true;
     if (tr.includes('최상위 포식자')) u.serpent = {};
-    if (u.form && u.form.skill === '모든 기술') {
+    if (u.unitId === '뮤' || (u.form && u.form.skill === '오리진즈슈퍼노바')) {
       u.mew = true;
-      u.mewUsed = new Set();
+      u.ghostNext = 10;
     }
     const sk = u.form && u.form.skill;
     const P0 = (u.form && typeof SKILL_P !== 'undefined' && SKILL_P[u.form.name]) || {};
@@ -347,8 +361,11 @@ class CombatSim {
         }
       }
       const scales = T.scales || 0;
+      st.scales = scales;
+      st.training = T.training || 0;
+      if (!st.mewTypes) st.mewTypes = ALL_TYPES.filter(id => t(id) > 0);
       for (const u of units) {
-        const ty = id => u.types.includes(id);
+        const ty = id => u.types.includes(id) || (u.mew && t(id) > 0);
         const cl = id => u.traits.includes(id);
         if (ty('강철') && t('강철')) {
           u.rk.def += v('강철', 'def');
@@ -371,7 +388,10 @@ class CombatSim {
           u.rk.def += 1;
           u.rk.spd += 1;
         }
-        if (ty('풀')) u.pct.hp += v('풀', 'hp');
+        if (ty('풀') && t('풀')) {
+          u.pct.hp += v('풀', 'hp');
+          u.flatHp += v('풀', 'flat');
+        }
         if (ty('불꽃') && t('불꽃') >= 2) {
           u.rk.atk += 1;
           u.rk.spa += 1;
@@ -386,16 +406,25 @@ class CombatSim {
         if (ty('벌레')) {
           const bt = t('벌레');
           if (bt >= 1) {
-            u.rk.atk += 1;
-            u.rk.spa += 1;
             u.rk.spe += 1;
+            u.rk.acc += 1;
+            u.rk.eva += 1;
           }
           if (bt >= 2) {
+            u.rk.atk += 1;
+            u.rk.spa += 1;
+            u.rk.acc += 1;
+            u.rk.spe += 1;
+          }
+          if (bt >= 3) {
             u.rk.def += 1;
             u.rk.spd += 1;
+            u.rk.eva += 1;
           }
-          u.bugHeal = v('벌레', 'heal');
-          u.pct.hp += v('벌레', 'hp');
+          if (bt >= 4) {
+            u.rk.eva += 1;
+            u.bugFrenzy = bt >= 5 ? 2 : 1;
+          }
         }
         if (t('드래곤')) u.amp += v('드래곤', 'amp') + v('드래곤', 'ampPerScale') * scales;
         if (ty('드래곤') && t('드래곤') >= 2) {
@@ -602,13 +631,18 @@ class CombatSim {
     return Math.max(-6, Math.min(6, n));
   }
 
+  otMult(k) {
+    if (!this.overtime) return 1;
+    return k === 'atk' ? 4.5 : k === 'def' ? 3 : k === 'as' ? 4 : k === 'move' ? 2 : k === 'cc' ? 0.34 : k === 'heal' ? 0.34 : 1;
+  }
+
   atkStat(u) {
-    return u.base.pa * (1 + u.pct.pa) * rankMult(this.rank(u, 'atk'));
+    return u.base.pa * (1 + u.pct.pa) * rankMult(this.rank(u, 'atk')) * this.otMult('atk');
   }
 
   spaStat(u) {
     const extra = u.experiment ? Math.max(0, u.pct.pa) + Math.max(0, u.pct.as) : 0;
-    return u.base.sa * (1 + u.pct.sa + extra) * rankMult(this.rank(u, 'spa'));
+    return u.base.sa * (1 + u.pct.sa + extra) * rankMult(this.rank(u, 'spa')) * this.otMult('atk');
   }
 
   offense(u) {
@@ -619,17 +653,18 @@ class CombatSim {
     let r = this.rank(u, special ? 'spd' : 'def');
     if (ignoreUp && r > 0) r = 0;
     const b = special ? u.base.mr * (1 + u.pct.mr) : u.base.armor * (1 + u.pct.armor);
-    return b * rankMult(r);
+    return b * rankMult(r) * this.otMult('def');
   }
 
   attackSpeed(u) {
-    if (u.experiment) return 0.55;
+    if (u.experiment) return 0.55 * this.otMult('as');
     let a = u.base.as * (1 + u.pct.as) * rankMult(this.rank(u, 'spe'));
     if (u.chalPer) a *= 1 + u.chal * u.chalPer;
     if (u.chill > 0 && u.chillUntil > this.time) a *= Math.max(0.1, 1 - u.chill * u.chillPer);
     if (u.paraUntil > this.time) a *= 0.8;
     if (this.side[this.enemyOf(u.side)].frost) a *= 0.65;
-    return Math.max(0.1, a);
+    if (u.frenzyUntil > this.time) a *= u.bugFrenzy >= 2 ? 2 : 1.5;
+    return Math.max(0.1, a) * this.otMult('as');
   }
 
   critChance(u) {
@@ -646,6 +681,8 @@ class CombatSim {
       basic: Math.round(this.offense(u)),
       as: Math.round(this.attackSpeed(u) * 100) / 100,
       crit: this.critChance(u),
+      amp: u.amp + u.bugAmp + (u.warriorOn ? u.warriorAmp : 0),
+      dura: Math.min(0.9, 1 - u.taken * (1 - Math.min(0.9, u.dura + u.bugDura))),
       omnivamp: u.vamp,
       special: u.special,
       range: u.range,
@@ -670,7 +707,8 @@ class CombatSim {
 
   heal(t, amount, src) {
     if (!t.alive || amount <= 0) return 0;
-    let a = amount * (1 + t.healMod);
+    let a = amount * (1 + t.healMod) * this.otMult('heal');
+    if (t.antiHealUntil > this.time) a *= 1 - t.antiHeal;
     const red = this.fireReduction(t);
     if (red && !t.fairyImmune) a *= 1 - red;
     const real = Math.min(a, t.maxHp - t.hp);
@@ -684,7 +722,7 @@ class CombatSim {
 
   addShield(u, amount) {
     if (!u.alive || amount <= 0) return;
-    let a = amount * (1 + u.shieldMod);
+    let a = amount * (1 + u.shieldMod) * this.otMult('heal');
     const red = this.fireReduction(u);
     if (red) a *= 1 - red;
     u.shield += a;
@@ -693,7 +731,8 @@ class CombatSim {
 
   stun(t, dur, bySide, kind) {
     if (!t.alive || dur <= 0) return;
-    const d = dur + (bySide ? this.side[bySide].cc : 0);
+    if (t.ccImmuneUntil > this.time && bySide && bySide !== t.side) return;
+    const d = (dur + (bySide ? this.side[bySide].cc : 0)) * this.otMult('cc');
     t.stunUntil = Math.max(t.stunUntil, this.time + d);
     this.emit({ type: 'stun', target: t.uid, kind: kind || 'stun', duration: d });
   }
@@ -703,6 +742,7 @@ class CombatSim {
     const fc = u.c;
     let d = duration || CONFIG.combat.moveTime;
     if (this.side[this.enemyOf(u.side)].frost) d /= 0.65;
+    if (!duration) d /= this.otMult('move');
     if (this.grid[u.r][u.c] === u.uid) this.grid[u.r][u.c] = 0;
     u.r = r;
     u.c = c;
@@ -717,7 +757,7 @@ class CombatSim {
     }
   }
 
-  nextStep(u, t) {
+  pathStep(u, t) {
     const [tr, tc] = this.aimCell(u, t);
     const C = BOARD_COLS;
     const start = u.r * C + u.c;
@@ -734,7 +774,8 @@ class CombatSim {
         while (prev[cur] !== start) cur = prev[cur];
         return [Math.floor(cur / C), cur % C];
       }
-      for (const [nr, nc] of Hex.neighbors(r, c)) {
+      const nb = Hex.neighbors(r, c).sort((a, b) => Hex.dist(a[0], a[1], tr, tc) - Hex.dist(b[0], b[1], tr, tc));
+      for (const [nr, nc] of nb) {
         const nk = nr * C + nc;
         if (prev[nk] !== -1) continue;
         if (this.grid[nr][nc] !== 0) continue;
@@ -742,6 +783,11 @@ class CombatSim {
         queue.push(nk);
       }
     }
+    return null;
+  }
+
+  greedyStep(u, t) {
+    const [tr, tc] = this.aimCell(u, t);
     let best = null;
     let bestD = Hex.dist(u.r, u.c, tr, tc);
     for (const [nr, nc] of Hex.neighbors(u.r, u.c)) {
@@ -753,6 +799,22 @@ class CombatSim {
       }
     }
     return best;
+  }
+
+  nextStep(u, t) {
+    return this.pathStep(u, t) || this.greedyStep(u, t);
+  }
+
+  reachableFoe(u, skip) {
+    const list = [];
+    for (const o of this.units) if (o !== skip && this.canTarget(u, o)) list.push([this.distTo(u, o), o]);
+    list.sort((a, b) => a[0] - b[0] || a[1].uid - b[1].uid);
+    for (const [d, o] of list) {
+      if (d <= u.range) return { o, step: null };
+      const st = this.pathStep(u, o);
+      if (st) return { o, step: st };
+    }
+    return null;
   }
 
   dash(u, t) {
@@ -799,6 +861,7 @@ class CombatSim {
         this.emit({ type: 'miss', target: t.uid });
         u.lastMissed = true;
         if (!skill && t.dodgePP) this.gainPP(t, t.dodgePP);
+        if (t.bugFrenzy) this.bugFrenzy(t);
         return 0;
       }
     }
@@ -845,7 +908,6 @@ class CombatSim {
     const used = u.maxMana;
     u.mana = 0;
     u.skillCount += 1;
-    if (u.mew) this.mewPick(u, t);
     if (u.shadowCaster) this.summonShadows(u);
     this.skillScale = 1;
     this.shadowIndex = 0;
@@ -895,7 +957,9 @@ class CombatSim {
       dmg *= tm;
     }
     if (typed && src && !o.special && src.burnUntil > this.time) dmg *= 0.8;
-    if (src && src.side !== t.side) dmg *= 1 + src.amp + (src.warriorOn ? src.warriorAmp : 0);
+    if (src && src.side !== t.side) dmg *= 1 + src.amp + src.bugAmp + (src.warriorOn ? src.warriorAmp : 0);
+    const dura = Math.min(0.9, (t.dura || 0) + (t.bugDura || 0));
+    if (dura > 0) dmg *= 1 - dura;
     if (t.frozenUntil > this.time && t.frozenBy && t.frozenBy !== t.side) dmg *= 1 + traitVal('얼음', 'frozenAmp', this.tier(t.frozenBy, '얼음'));
     dmg *= t.taken;
     const red = this.damageReduction(t, o.special);
@@ -983,11 +1047,6 @@ class CombatSim {
         else if (k === 1) this.addPoison(src, t, 3, false);
         else this.addPara(src, 2);
       }
-    }
-    if (t.bugHeal && !t.bugHealed && t.hp <= t.maxHp / 2) {
-      t.bugHealed = true;
-      this.heal(t, (t.maxHp - t.hp) * t.bugHeal, t);
-      this.emit({ type: 'buff', target: t.uid, kind: 'bug' });
     }
     if (t.warriorShield && !t.warriorUsed && t.hp <= t.maxHp * 0.4) {
       t.warriorUsed = true;
@@ -1093,8 +1152,8 @@ class CombatSim {
     t.chill = Math.min(max, t.chill + n);
     t.chillUntil = this.time + traitVal('얼음', 'duration', tier);
     t.chillPer = traitVal('얼음', 'asPerStack', tier);
-    if (t.chill >= max && this.time >= t.freezeCdUntil) {
-      const d = traitVal('얼음', 'freeze', tier) + this.side[side].cc;
+    if (t.chill >= max && this.time >= t.freezeCdUntil && !(t.ccImmuneUntil > this.time)) {
+      const d = (traitVal('얼음', 'freeze', tier) + this.side[side].cc) * this.otMult('cc');
       t.frozenUntil = this.time + d;
       t.frozenBy = side;
       t.freezeCdUntil = this.time + traitVal('얼음', 'cooldown', tier);
@@ -1150,14 +1209,27 @@ class CombatSim {
 
   addPara(t, dur) {
     if (!t.alive || t.egg) return;
-    t.paraUntil = Math.max(t.paraUntil, this.time + (dur || 3));
+    if (t.ccImmuneUntil > this.time) return;
+    t.paraUntil = Math.max(t.paraUntil, this.time + (dur || 3) * this.otMult('cc'));
     this.emit({ type: 'status', target: t.uid, kind: 'para' });
   }
 
   addConfuse(t, dur) {
     if (!t.alive || t.egg) return;
-    t.confUntil = Math.max(t.confUntil, this.time + (dur || 3));
+    if (t.ccImmuneUntil > this.time) return;
+    t.confUntil = Math.max(t.confUntil, this.time + (dur || 3) * this.otMult('cc'));
     this.emit({ type: 'status', target: t.uid, kind: 'confuse' });
+  }
+
+  bugFrenzy(t) {
+    const k = t.bugFrenzy >= 2 ? 2 : 1;
+    if (t.bugStacks < 10) {
+      t.bugStacks += 1;
+      t.bugAmp += 0.03 * k;
+      t.bugDura += 0.03 * k;
+      this.emit({ type: 'buff', target: t.uid, kind: 'frenzy' });
+    }
+    t.frenzyUntil = this.time + 2;
   }
 
   heartBurst(t) {
@@ -1175,23 +1247,6 @@ class CombatSim {
     if (add <= 0) return;
     st.shadows += add;
     this.emit({ type: 'shadow', side: u.side, uid: u.uid, count: st.shadows });
-  }
-
-  mewPick(u, t) {
-    if (u.mewUsed.size >= ALL_TYPES.length) u.mewUsed.clear();
-    let best = null;
-    let bestM = -1;
-    for (const ty of ALL_TYPES) {
-      if (u.mewUsed.has(ty)) continue;
-      const m = typeMult(ty, t.defTypes) + this.rng.next() * 0.01;
-      if (m > bestM) {
-        bestM = m;
-        best = ty;
-      }
-    }
-    u.mewUsed.add(best);
-    u.skillType = best;
-    this.emit({ type: 'retype', uid: u.uid, kind: 'mew', value: best, move: MEW_MOVES[best] });
   }
 
   psychoBreak(u) {
@@ -1509,8 +1564,9 @@ class CombatSim {
         let total = 0;
         const pct = traitVal('풀', 'drain', gt);
         for (const e of this.aliveOf(foe)) total += this.dealDamage(null, e, e.maxHp * pct, { trueDmg: true, kind: 'seed' });
-        const a = this.lowestRatioAlly(side);
-        if (a && total > 0) this.heal(a, total, null);
+        const grass = this.aliveOf(side).filter(a => a.types.includes('풀') || a.mew);
+        const heirs = grass.length ? grass : [this.lowestRatioAlly(side)].filter(Boolean);
+        if (heirs.length && total > 0) for (const a of heirs) this.heal(a, total / heirs.length, null);
       }
     }
     if (st.regen) {
@@ -1619,6 +1675,25 @@ class CombatSim {
       if (u.reviving && this.time >= u.reviveAt) this.revive(u);
       if (!u.alive) continue;
       if (u.egg && this.time >= u.eggUntil) this.hatch(u);
+      if (u.mew && this.time >= u.ghostNext) {
+        u.ghostNext += 10;
+        const mt = this.side[u.side].mewTypes || [];
+        if (mt.includes('고스트')) {
+          const pool = ALL_TYPES.filter(x => !mt.includes(x) && !(u.mewExtra || []).includes(x));
+          if (pool.length) {
+            const pick = pool[Math.floor(this.rng.next() * pool.length)];
+            (u.mewExtra = u.mewExtra || []).push(pick);
+            this.emit({ type: 'retype', uid: u.uid, kind: 'mew', value: pick, move: '고스트: ' + pick });
+          }
+        }
+      }
+      if (u.shockUntil > this.time && this.time >= u.shockAt) {
+        u.shockAt += 2;
+        const src = u.shockSrc && u.shockSrc.alive ? u.shockSrc : null;
+        this.emit({ type: 'hitfx', target: u.uid, kind: '전기' });
+        this.dealDamage(src, u, u.shockDmg, { special: true, kind: 'shock' });
+        if (!u.alive) continue;
+      }
       if (u.shieldTimed.length) {
         const keep = [];
         for (const s of u.shieldTimed) {
@@ -1713,7 +1788,7 @@ class CombatSim {
       let d = this.distTo(u, t);
       if (d > u.range) {
         const n = this.nearestEnemy(u);
-        if (n && n !== t) {
+        if (n && n !== t && this.distTo(u, n) < d) {
           this.setTarget(u, n);
           t = n;
           d = this.distTo(u, t);
@@ -1732,7 +1807,17 @@ class CombatSim {
           u.atkTimer = 1 / this.attackSpeed(u);
         }
       } else {
-        const s = this.nextStep(u, t);
+        let s = this.pathStep(u, t);
+        if (!s) {
+          const alt = this.reachableFoe(u, t);
+          if (alt) {
+            this.setTarget(u, alt.o);
+            t = alt.o;
+            s = alt.step;
+            if (!s) continue;
+          }
+        }
+        if (!s) s = this.greedyStep(u, t);
         if (s) this.moveTo(u, s[0], s[1]);
       }
     }
@@ -1750,6 +1835,10 @@ class CombatSim {
 
   checkEnd() {
     if (this.over) return;
+    if (!this.overtime && this.time >= CONFIG.combat.overtimeAt) {
+      this.overtime = true;
+      this.emit({ type: 'overtime' });
+    }
     const a = this.standing('A');
     const b = this.standing('B');
     if (a === 0 || b === 0) {

@@ -38,6 +38,7 @@ class App {
     this.setupStatic();
     this.bindControls();
     this.bindGameEvents();
+    this.planner = new Planner(this);
     Assets.onLoad(() => this.requestRender());
     this.fitScreen();
     window.addEventListener('resize', () => this.fitScreen());
@@ -85,7 +86,13 @@ class App {
       this.human.shopLocked = !this.human.shopLocked;
       this.renderHud();
     });
-    this.$('tab-toggle').addEventListener('click', () => this.setRightMode(this.rightMode === 'players' ? 'damage' : 'players'));
+    this.$('tab-toggle').addEventListener('click', () => {
+      if (this.selected) {
+        this.selected = null;
+        this.closeEvo();
+      }
+      this.setRightMode(this.rightMode === 'players' ? 'damage' : 'players');
+    });
     this.gameEl.addEventListener('mouseover', e => {
       const t = e.target.closest('[data-tip]');
       if (t && !this.dragging) this.showTooltip(t, t.dataset.tip);
@@ -93,6 +100,14 @@ class App {
     this.gameEl.addEventListener('mouseout', e => {
       const t = e.target.closest('[data-tip]');
       if (t && (!e.relatedTarget || !t.contains(e.relatedTarget))) this.hideTooltip();
+    });
+    this.gameEl.addEventListener('mouseover', e => {
+      const u = e.target.closest('[data-unit]');
+      if (u && !this.dragging && !(this.planner && this.planner.drag)) this.showUnitTip(u);
+    });
+    this.gameEl.addEventListener('mouseout', e => {
+      const u = e.target.closest('[data-unit]');
+      if (u && (!e.relatedTarget || !u.contains(e.relatedTarget))) this.hideUnitTip();
     });
     for (const b of document.querySelectorAll('[data-dbg]')) {
       b.addEventListener('click', () => {
@@ -132,11 +147,17 @@ class App {
     });
     this.gameEl.addEventListener('pointerdown', e => {
       if (e.button !== 0 || !this.selected) return;
-      if (e.target.closest('#info-panel, .unit, button, .card, .dmg-row, .prow, #modal, #damage, #shop')) return;
+      if (e.target.closest('#info-panel, #evo-pop, .unit, button, .card, .dmg-row, .prow, #modal, #damage, #shop, #planner-wrap')) return;
       this.closeInfo();
     });
     window.addEventListener('keydown', e => {
       if (e.repeat) return;
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+      if (this.planner && this.planner.isOpen) {
+        if (e.code === 'Escape') this.planner.escape();
+        if (e.code === 'Space') e.preventDefault();
+        return;
+      }
       if (e.code === 'KeyD') this.reroll();
       else if (e.code === 'KeyF') this.buyXp();
       else if (e.code === 'KeyE') this.sellHovered();
@@ -153,6 +174,12 @@ class App {
     this.game.on('notify', n => this.toast(n.msg, n.kind));
     this.game.on('branch', () => this.maybeShowBranch());
     this.game.on('update', () => this.requestRender());
+    this.game.on('orbs', () => this.requestRender());
+    this.game.on('wingold', p => {
+      if (!p.isHuman) return;
+      this.arena.goldPop(this.arena.me);
+      this.requestRender();
+    });
   }
 
   requestRender() {
@@ -307,12 +334,14 @@ class App {
       if (m) {
         if (!m.sim.uiId) m.sim.uiId = this.simSeq++;
         const side = g.sideOf(m, V);
-        let other;
-        if (m.kind === 'pve') other = { camp: m.camp };
-        else if (side === 'A') other = { player: m.b, ghost: m.ghost };
-        else other = { player: m.a };
-        if (V.isHuman) return { mode: 'combat', sim: m.sim, flip: false, bottom: { player: V }, top: other, match: m };
-        return { mode: 'combat', sim: m.sim, flip: side === 'A', top: { player: V }, bottom: other, match: m };
+        if (m.kind === 'pve') {
+          if (V.isHuman) return { mode: 'combat', sim: m.sim, flip: false, bottom: { player: V }, top: { camp: m.camp }, match: m, allySide: 'A', mapId: V.mapId };
+          return { mode: 'combat', sim: m.sim, flip: true, top: { player: V }, bottom: { camp: m.camp }, match: m, allySide: 'A', mapId: V.mapId };
+        }
+        const hostRole = { player: m.a };
+        const visitRole = { player: m.b, ghost: m.ghost };
+        const flip = V.isHuman ? side === 'B' : side === 'A';
+        return { mode: 'combat', sim: m.sim, flip, bottom: flip ? visitRole : hostRole, top: flip ? hostRole : visitRole, match: m, allySide: side, mapId: m.a.mapId };
       }
     }
     if (V.isHuman) {
@@ -353,9 +382,16 @@ class App {
       return;
     }
     a.setCarouselMode(false);
-    a.setMap(this.viewed().mapId);
+    a.setMap(sc.mapId || this.viewed().mapId);
     a.showCarouselLayer(false);
-    a.me.el.style.display = sc.carouselField ? 'none' : '';
+    const otherBottom = sc.bottom && sc.bottom.player && !sc.bottom.player.isHuman;
+    a.me.el.style.display = sc.carouselField || otherBottom ? 'none' : '';
+    const meTop = false;
+    if (meTop !== !!this.meTop) {
+      this.meTop = meTop;
+      const home = meTop ? HOME_TOP : HOME_BOTTOM;
+      a.me.place(home.x, home.y);
+    }
     const key = sc.mode + '|' + this.viewId + '|' + (sc.sim ? sc.sim.uiId : '');
     const viewMe = this.viewId === this.human.id;
     const fresh = key !== this.arenaKey;
@@ -387,11 +423,11 @@ class App {
         for (const spec of this.campSpecs()) a.placeToken(this.makeCreepToken(spec), spec.r, spec.c);
       }
     } else if (fresh) {
-      a.startCombat(sc.sim, sc.flip);
+      a.startCombat(sc.sim, sc.flip, sc.allySide);
     }
     a.renderBench(false, sc.bottom && sc.bottom.player, (inst, owner) => this.makeToken(inst, owner));
     a.renderBench(true, sc.top && sc.top.player, (inst, owner) => this.makeToken(inst, owner));
-    a.renderBoardCount(viewMe && sc.mode === 'planning' && this.game.phase === 'planning' ? this.human.boardCount() + '/' + this.human.level : '');
+    a.renderBoardCount(viewMe && sc.mode === 'planning' && this.game.phase === 'planning' ? this.human.boardCount() + ' / ' + this.human.level : '', this.human.boardCount() < this.human.level);
     a.renderOrbs(viewMe && !sc.carouselField ? this.human.orbs || [] : []);
     a.refreshSprites();
     const scout = this.$('scout-label');
@@ -414,6 +450,8 @@ class App {
     const el = View.unitEl(v);
     el._inst = inst;
     el._owner = owner;
+    el._maxHp = instanceStats(inst, owner).hp;
+    el._enemy = owner !== this.human;
     el.addEventListener('pointerdown', e => this.onTokenPointerDown(e, { inst, owner }, el));
     if (owner.isHuman) {
       el.addEventListener('mouseenter', () => { this.hoverInst = inst; });
@@ -424,6 +462,8 @@ class App {
 
   makeCreepToken(spec) {
     const el = View.unitEl({ className: 'unit creep', name: spec.name, form: spec.form, types: spec.types, star: spec.star, cost: spec.cost });
+    el._maxHp = spec.stats.hp;
+    el._enemy = true;
     el.addEventListener('pointerdown', e => this.onTokenPointerDown(e, { creep: spec }, el));
     return el;
   }
@@ -441,14 +481,7 @@ class App {
     if (this.carouselScene) ret.dataset.tip = this.viewCarousel ? '내 필드 보기' : '회전초밥으로 (스페이스바)';
     else ret.dataset.tip = '내 필드로 (스페이스바)';
     this.arena.me.refresh();
-    this.traitPage = View.renderTraits(this.$('traits'), this.viewed(), this.traitPage, pg => {
-      this.traitPage = pg;
-      this.renderHud();
-    }, {
-      enter: (row, id) => this.showTraitTip(row, id),
-      leave: () => this.hideTraitTipSoon()
-    });
-    if (this.tipTrait) this.renderTraitTip();
+    this.renderTraitPanel();
     const playersEl = this.$('players');
     const dmgEl = this.$('damage');
     playersEl.style.display = this.rightMode === 'players' ? 'flex' : 'none';
@@ -484,23 +517,100 @@ class App {
     this.$('encounter-icon').dataset.tip = '조우자: 없음 (준비 중)';
   }
 
-  showTraitTip(row, id) {
+  renderTraitPanel() {
+    this.traitPage = View.renderTraits(this.$('traits'), this.viewed(), this.traitPage, pg => {
+      this.traitPage = pg;
+      this.renderHud();
+    }, {
+      enter: (row, id) => this.showTraitTip(row, id),
+      leave: () => this.hideTraitTipSoon(),
+      stack: id => this.uniqueStack(id)
+    });
+    if (this.tipTrait) this.renderTraitTip();
+  }
+
+  uniqueStack(id) {
+    const p = this.viewed();
+    const g = this.game;
+    const cfg = CONFIG.unlock;
+    const m = g.phase === 'combat' && g.matches.length ? g.matchFor(p) : null;
+    const side = m ? g.sideOf(m, p) : null;
+    const live = fn => (m && side ? fn(m.sim, side) : 0);
+    if (id === '치유의 마음') return '치유 스택 ' + Math.floor(p.counters.heal + live((s, sd) => s.side[sd].stats.heal));
+    if (id === '유전자') return '유전자 ' + Math.floor(p.counters.gene) + ' / ' + cfg.geneStack;
+    if (id === '다운로드') {
+      const next = p.downloadStage === 0 ? cfg.downloadStage1 : p.downloadStage === 1 ? cfg.downloadStage2 : null;
+      return '다운로드 ' + Math.floor(p.counters.download + live(s => s.casts)) + (next ? ' / ' + next : ' (완료)');
+    }
+    if (id === '최하위 포식자') {
+      const k = p.allUnits().find(u => u.unitId === '잉어킹' && u.star === 3);
+      return k ? '전투 참여 ' + (k.battles || 0) + ' / ' + cfg.magikarpBattles : '3성 잉어킹 필요';
+    }
+    if (id === '저주받은 그림자') return '그림자 ' + live((s, sd) => s.side[sd].shadows || 0);
+    if (id === '대식가') {
+      const f = p.allUnits().filter(u => u.unitId === '먹고자' && u.feast).reduce((sum, u) => sum + Object.values(u.feast).reduce((a, b) => a + b, 0), 0);
+      return '삼킨 능력치 +' + Math.round(f * 100) + '%';
+    }
+    if (id === '괴짜') {
+      const tgt = dittoTargetOf(p);
+      return tgt ? '연결: ' + formOf(UNITS[tgt.unitId], tgt.star, p).name : '';
+    }
+    if (id === '천둥의 화신') return '전기 기절 ' + Math.floor(p.counters.stun);
+    if (id === '열기의 화신') return '화상 피해 ' + Math.floor(p.counters.burn);
+    return '';
+  }
+
+  showTraitTip(row, id, where, owner) {
     clearTimeout(this.tipTimer);
     if (this.dragging) return;
     this.hideTooltip();
     const r = row.getBoundingClientRect();
     this.tipTrait = id;
+    this.tipWhere = where || 'left';
+    this.tipOwner = owner || null;
     this.tipTop = this.toGame(r.left, r.top).y;
+    this.tipRight = this.toGame(r.right, r.top).x;
     this.renderTraitTip();
   }
 
   renderTraitTip() {
     const tip = this.$('trait-tip');
     if (!this.tipTrait) return;
-    View.renderTraitTip(tip, this.tipTrait, this.viewed(), this.game.region);
+    View.renderTraitTip(tip, this.tipTrait, this.tipOwner || this.viewed(), this.game.region);
     tip.classList.add('show');
+    tip.style.left = this.tipWhere === 'info' ? (1096 - tip.offsetWidth - 10) + 'px' : this.tipWhere === 'planner' ? (this.tipRight + 8) + 'px' : '';
     const h = tip.offsetHeight;
     tip.style.top = Math.max(8, Math.min(712 - h, this.tipTop - 6)) + 'px';
+  }
+
+  skillNote(t) {
+    if (!t.form || t.form.skill !== '고양이돈받기') return '';
+    let inst = t.inst || null;
+    if (!inst && t.combat && t.combat.iid) inst = this.human.findInstance(t.combat.iid) || this.viewed().findInstance(t.combat.iid);
+    const total = ((inst && inst.payday) || 0) + ((t.combat && t.combat.payday) || 0);
+    return '\n\n지금까지 번 골드: ' + total + '골드';
+  }
+
+  toggleEvo(t) {
+    let pop = this.$('evo-pop');
+    if (!pop) {
+      pop = View.el('div', 'frame');
+      pop.id = 'evo-pop';
+      this.gameEl.appendChild(pop);
+    }
+    if (pop.classList.contains('show') && pop.dataset.unit === t.def.id) {
+      this.closeEvo();
+      return;
+    }
+    pop.dataset.unit = t.def.id;
+    View.renderEvo(pop, t.def, t.owner || this.viewed());
+    pop.classList.add('show');
+    pop.style.left = (1096 - pop.offsetWidth - 10) + 'px';
+  }
+
+  closeEvo() {
+    const pop = this.$('evo-pop');
+    if (pop) pop.classList.remove('show');
   }
 
   hideTraitTipSoon() {
@@ -621,9 +731,17 @@ class App {
       if (this.selected) this.selected = null;
       panel.classList.remove('show');
       panel.innerHTML = '';
+      this.closeEvo();
       return;
     }
-    View.renderInfo(panel, t);
+    View.renderInfo(panel, t, {
+      traitEnter: (el, id) => this.showTraitTip(el, id, 'info'),
+      traitLeave: () => this.hideTraitTipSoon(),
+      evo: tt => this.toggleEvo(tt),
+      skillNote: tt => this.skillNote(tt)
+    });
+    const pop = this.$('evo-pop');
+    if (pop && pop.classList.contains('show') && t.def && pop.dataset.unit !== t.def.id) this.closeEvo();
     if (t.inst && t.owner && !this.selected.preview) {
       const note = Unlocks.progressText(t.inst, t.owner, this.game);
       if (note) panel.appendChild(View.el('div', 'ip-note', note));
@@ -787,6 +905,13 @@ class App {
         y = sp.y + (dy / d) * R;
       }
     }
+    const orbs = !sc && !this.scouting() ? this.human.orbs || [] : [];
+    const near = orbs.find(o => o.x !== undefined && Math.hypot(o.x - p.x, o.y - p.y) < 34);
+    this.arena.me.speed = near ? WALK_SPEED * ORB_RUN : WALK_SPEED;
+    if (near) {
+      x = near.x;
+      y = near.y;
+    }
     this.arena.me.moveTo(x, y);
   }
 
@@ -828,13 +953,22 @@ class App {
     this.combatRunning = true;
     this.ending = false;
     this.acc = 0;
+    this.preCombat = g.matches.some(m => m.kind === 'pvp') ? CONFIG.preCombat : 0;
     this.arenaKey = null;
     this.render();
+    if (this.preCombat > 0) this.toast('매칭 완료! ' + CONFIG.preCombat + '초 뒤 전투가 시작됩니다', 'info');
   }
 
   updateCombat(dt) {
     const g = this.game;
     const tick = CONFIG.combat.tick;
+    if (this.preCombat > 0) {
+      this.preCombat -= dt;
+      this.setTimer(this.preCombat, CONFIG.preCombat);
+      this.$('timer-num').dataset.tip = '전투 시작까지';
+      this.arena.updateBars();
+      return;
+    }
     this.acc += dt * this.speed;
     let steps = 0;
     const viewSim = this.arena.sim;
@@ -854,6 +988,7 @@ class App {
       this.dmgTimer = 0;
       if (this.rightMode === 'damage') this.renderDamage();
       if (this.selected && this.selected.combat) this.renderInfo();
+      this.renderTraitPanel();
     }
     if (g.allCombatOver() && !this.ending) {
       this.ending = true;
@@ -874,9 +1009,9 @@ class App {
     const h = this.human;
     const banner = this.$('banner');
     if (h.lastResult) {
-      const win = h.lastResult === 'win';
-      banner.className = 'show ' + (win ? 'win' : 'loss');
-      banner.innerHTML = (win ? '승리!' : '패배') + (h.lastDamage ? '<small>체력 -' + h.lastDamage + '</small>' : '');
+      const res = h.lastResult;
+      banner.className = 'show ' + res;
+      banner.innerHTML = (res === 'win' ? '승리!' : res === 'draw' ? '무승부' : '패배') + (h.lastDamage ? '<small>체력 -' + h.lastDamage + '</small>' : '');
     }
     this.render();
     setTimeout(() => {
@@ -1060,7 +1195,8 @@ class App {
   showTooltip(anchor, text) {
     if (!text) return;
     const tip = this.$('tooltip');
-    tip.textContent = text;
+    if (text.includes('⟦')) tip.innerHTML = View.esc(text).replace(/⟦(.*?)⟧/g, '<span class="up">$1</span>');
+    else tip.textContent = text;
     tip.classList.toggle('long', text.includes('\n'));
     tip.classList.add('show');
     const r = anchor.getBoundingClientRect();
@@ -1077,6 +1213,35 @@ class App {
 
   hideTooltip() {
     this.$('tooltip').classList.remove('show');
+  }
+
+  showUnitTip(anchor) {
+    let tip = this.$('unit-tip');
+    if (!tip) {
+      tip = View.el('div', 'frame');
+      tip.id = 'unit-tip';
+      this.gameEl.appendChild(tip);
+    }
+    View.renderUnitTip(tip, anchor.dataset.unit, anchor.dataset.form, anchor.dataset.note, this.human);
+    tip.classList.add('show');
+    const r = anchor.getBoundingClientRect();
+    const host = anchor.closest('#trait-tip');
+    const hr = host ? host.getBoundingClientRect() : r;
+    const a = this.toGame(hr.left, r.top);
+    const b = this.toGame(hr.right, r.bottom);
+    const w = tip.offsetWidth;
+    const h = tip.offsetHeight;
+    let x = b.x + 8;
+    if (x + w > 1276) x = a.x - w - 8;
+    x = Math.max(4, x);
+    const y = Math.max(4, Math.min(716 - h, a.y - 4));
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+  }
+
+  hideUnitTip() {
+    const tip = this.$('unit-tip');
+    if (tip) tip.classList.remove('show');
   }
 
   openModal(kind, content) {
