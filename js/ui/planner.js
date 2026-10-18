@@ -182,8 +182,8 @@ class Planner {
       downloadStage: 0,
       region: h ? h.region : null,
       dragonScales: 0,
-      training: 0,
-      psychic: 0,
+      espVariant: h ? h.espVariant : null,
+      encounter: h ? h.encounter : null,
       unlockedShop: h ? h.unlockedShop : new Set()
     };
   }

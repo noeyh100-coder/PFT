@@ -56,6 +56,15 @@ class Game {
     this.humanSim = null;
     this.lastIncome = null;
     this.region = o.region || null;
+    this.espVariant = ESPER_KEYS.includes(o.esp) ? o.esp : this.rng.pick(ESPER_KEYS);
+    for (const p of this.players) p.espVariant = this.espVariant;
+    this.encounter = ENCOUNTER_IDS.includes(o.enc) ? o.enc : this.rng.pick(ENCOUNTER_IDS);
+    const hp = this.encounter === '해피너스' ? 120 : this.encounter === '저승갓숭' ? 90 : CONFIG.startHp;
+    for (const p of this.players) {
+      p.encounter = this.encounter;
+      p.hp = hp;
+      p.maxHp = hp;
+    }
   }
 
   rollSea() {
@@ -71,6 +80,7 @@ class Game {
     const t = synergyTeam(p);
     t.benchFree = CONFIG.benchSize - p.benchUnits().length;
     t.healStack = p.counters.heal;
+    t.esp = this.espVariant;
     t.sea = (p.seaTiles || []).map(k => {
       if (!mirror) return k;
       const [r, c] = Hex.mirror(Math.floor(k / 10), k % 10);
@@ -169,6 +179,7 @@ class Game {
   start() {
     this.stage = 1;
     this.round = 1;
+    for (const p of this.players) this.notify(p, '이번 게임의 에스퍼 효과: ' + this.espVariant, 'info');
     this.beginRound();
   }
 
@@ -186,6 +197,12 @@ class Game {
       p.currentGhost = false;
       p.lastDamage = 0;
     }
+    if (info.type === 'encounter') {
+      this.setupGather();
+      this.phase = 'carousel';
+      this.emit('round', info);
+      return;
+    }
     if (info.type === 'carousel') {
       this.setupCarousel();
       this.phase = 'carousel';
@@ -201,9 +218,12 @@ class Game {
         p.bugRounds = 0;
         p.bugShop = false;
       }
-      if (info.type === 'encounter') {
-        this.giveRandomUnit(p, 1);
-      } else if (!(this.stage === 1 && this.round === 2)) {
+      if (this.encounter === '나옹' && this.round === 1 && encounterGold(this.stage)) {
+        const n = encounterGold(this.stage);
+        p.gold += n;
+        this.notify(p, '나옹: ' + n + '골드를 받았습니다', 'loot');
+      }
+      if (!(this.stage === 1 && this.round === 2)) {
         const inc = this.grantIncome(p, this.stage === 1 ? CONFIG.earlyIncome : CONFIG.baseIncome);
         if (!(this.stage === 1 && this.round <= 2)) p.addXp(CONFIG.passiveXp);
         p.lastIncome = inc;
@@ -751,7 +771,7 @@ class Game {
     const m = this.matchFor(p);
     if (!m || m.sim.over) return;
     const list = (inst.items || []).filter(id => id !== 'magnet' && itemDef(id) && !isConsumable(id));
-    m.sim.swapItems(cu, list, cu.ditto ? false : canEvolveFurther(inst, p), true);
+    m.sim.setOwnItems(cu, list, cu.ditto ? false : canEvolveFurther(inst, p));
   }
 
   useCandy(p, i, inst, d) {
@@ -777,6 +797,7 @@ class Game {
     const d = itemDef(id);
     inst.items = inst.items || [];
     if (d.candy) return this.useCandy(p, i, inst, d);
+    if (d.box) return fail('상자는 클릭해서 여세요');
     if (id === 'magnet') {
       if (!inst.items.length) return fail('아이템이 없는 기물입니다');
       p.items.splice(i, 1);
@@ -953,6 +974,7 @@ class Game {
     const st = sim.side[side].stats;
     p.counters.bolt += st.bolt;
     p.counters.burn += st.burn;
+    p.counters.hypnosis += st.hypno || 0;
     if (!team) return;
     const tier = id => team.tiers[id] || 0;
     if (tier('치유의 마음')) p.counters.heal += st.heal * (p.boardUnits().some(u => u.unitId === '핑복' && u.star >= 3) ? 2 : 1);
@@ -961,24 +983,11 @@ class Game {
       p.counters.gene += sim.units.length;
       this.notify(p, '유전자 +' + sim.units.length + ' (총 ' + p.counters.gene + ')', 'loot');
     }
-    if (tier('격투')) p.training += Math.round(st.training);
     if (tier('드래곤') && won) {
       const n = sim.survivors(side).filter(u => u.types.includes('드래곤')).length;
       if (n) {
         p.dragonScales += n;
         this.notify(p, '용의 비늘 +' + n + ' (총 ' + p.dragonScales + '개)', 'loot');
-      }
-    }
-    const et = tier('에스퍼');
-    if (et) {
-      if (won) {
-        if (p.psychic > 0) this.notify(p, '사이킥 에너지 ' + Math.round(p.psychic) + '로 보상을 얻었습니다 (보상은 준비 중)', 'loot');
-        p.psychic = 0;
-        p.psychicLosses = 0;
-      } else {
-        p.psychicLosses += 1;
-        p.psychic += p.psychicLosses * traitVal('에스퍼', 'energyMult', et);
-        this.notify(p, '사이킥 에너지 ' + Math.round(p.psychic) + ' 충전', 'info');
       }
     }
   }
@@ -1088,7 +1097,7 @@ class Game {
     p.mine -= offer.th;
     p.mineOffer = null;
     for (const e of offer.list) {
-      if (e.k === 'item') p.items.push(e.id);
+      if (e.k === 'item') this.giveItem(p, e.id);
       else if (e.k === 'gold') p.gold += e.n;
       else if (e.k === 'unit') {
         const def = UNITS[e.id];
@@ -1198,6 +1207,7 @@ class Game {
       m.a.history[label] = m.a.lastResult;
       if (m.b && !m.ghost) m.b.history[label] = m.b.lastResult;
     }
+    this.encounterAfterDamage();
     this.handleEliminations();
     this.phase = this.alivePlayers().length <= 1 || (this.solo && this.human && !this.human.alive) ? 'over' : 'result';
     this.emit('result');
@@ -1223,6 +1233,17 @@ class Game {
       this.emit('eliminated', p);
     }
     const alive = this.alivePlayers();
+    if (this.encounter === '썬더') {
+      const pot = dying.reduce((s, p) => s + p.gold, 0);
+      for (const p of dying) p.gold = 0;
+      const each = alive.length ? Math.floor(pot / alive.length) : 0;
+      if (each > 0) {
+        for (const q of alive) {
+          q.gold += each;
+          this.notify(q, '썬더: 탈락한 플레이어의 골드 ' + each + '을(를) 나눠 받았습니다', 'loot');
+        }
+      }
+    }
     if (alive.length === 1) alive[0].placement = 1;
   }
 
@@ -1256,6 +1277,111 @@ class Game {
     order.forEach((p, i) => { release[p.id] = cfg.firstRelease + Math.floor(i / 2) * cfg.releaseGap; });
     const lastRelease = cfg.firstRelease + Math.floor((order.length - 1) / 2) * cfg.releaseGap;
     this.carousel = { items, order, release, picked: {}, time: 0, duration: lastRelease + cfg.lastWindow, done: false };
+  }
+
+  setupGather() {
+    const order = this.alivePlayers().slice();
+    const release = {};
+    for (const p of order) release[p.id] = 0;
+    this.carousel = { items: [], order, release, picked: {}, time: 0, duration: CONFIG.encounterTime, done: false, encounter: this.encounter };
+  }
+
+  applyEncounterStart() {
+    const e = this.encounter;
+    for (const p of this.alivePlayers()) {
+      this.giveRandomUnit(p, 1);
+      if (e === '피카츄') this.giveRandomUnit(p, 2);
+      if (e === '이브이') this.giveRandomUnit(p, 3);
+      if (e === '폴리곤') {
+        this.giveBox(p, 'poke-box');
+        this.giveBox(p, 'poke-box');
+      }
+    }
+  }
+
+  encounterAfterDamage() {
+    const e = this.encounter;
+    for (const p of this.players) {
+      if (!p.alive) continue;
+      if (e === '프리져' && !p.frzUsed && p.lastDamage > 0 && p.hp <= 1) {
+        p.frzUsed = true;
+        p.hp = 1;
+        this.notify(p, '프리져: 이번 라운드를 체력 1로 버텼습니다', 'loot');
+      }
+      if (e === '파이어' && !p.fireUsed && p.hp > 0 && p.hp < 30) {
+        p.fireUsed = true;
+        for (let i = 0; i < 3; i++) this.giveBox(p, 'great-box');
+        p.gold += 20;
+        this.notify(p, '파이어: 슈퍼볼 아이템 상자 3개와 20골드를 받았습니다', 'loot');
+      }
+    }
+  }
+
+  pickDistinct(list, n) {
+    const pool = list.slice();
+    const out = [];
+    while (out.length < n && pool.length) out.push(pool.splice(this.rng.int(pool.length), 1)[0]);
+    return out;
+  }
+
+  boxChoices(id) {
+    const d = itemDef(id);
+    return this.pickDistinct(d && d.box === 'completed' ? ITEMS.completed : ITEMS.components, 4);
+  }
+
+  giveItem(p, id) {
+    const d = itemDef(id);
+    if (d && d.box) this.giveBox(p, id);
+    else p.items.push(id);
+  }
+
+  giveBox(p, id) {
+    if (p.isHuman) {
+      p.items.push(id);
+      return;
+    }
+    const ch = this.boxChoices(id);
+    if (ch.length) p.items.push(ch[this.rng.int(ch.length)]);
+  }
+
+  openBox(p, i) {
+    const id = p.items[i];
+    const d = itemDef(id);
+    if (!d || !d.box) return { ok: false, reason: '' };
+    if (p.boxOpen) return { ok: false, reason: '먼저 열어 둔 상자에서 아이템을 고르세요' };
+    p.items.splice(i, 1);
+    p.boxOpen = { id, choices: this.boxChoices(id), left: CONFIG.boxTime };
+    this.emit('update');
+    return { ok: true, reason: '' };
+  }
+
+  pickBox(p, n) {
+    const b = p.boxOpen;
+    const it = b ? b.choices[n] : null;
+    if (!it) return { ok: false, reason: '' };
+    p.boxOpen = null;
+    p.items.push(it);
+    this.notify(p, itemDef(it).name + '을(를) 골랐습니다', 'loot');
+    this.emit('update');
+    return { ok: true, reason: '' };
+  }
+
+  tickBoxes(dt) {
+    for (const p of this.players) {
+      const b = p.boxOpen;
+      if (!b) continue;
+      b.left -= dt;
+      if (b.left <= 0) this.pickBox(p, this.rng.int(b.choices.length));
+    }
+  }
+
+  autoOpenBoxes(p) {
+    if (p.boxOpen) this.pickBox(p, this.rng.int(p.boxOpen.choices.length));
+    let i;
+    while ((i = p.items.findIndex(x => itemDef(x) && itemDef(x).box)) >= 0) {
+      if (!this.openBox(p, i).ok) break;
+      this.pickBox(p, this.rng.int(p.boxOpen.choices.length));
+    }
   }
 
   carouselReleased(p) {
@@ -1316,6 +1442,7 @@ class Game {
       const idx = this.carouselRandomChoice(p);
       if (idx !== null) this.carouselPick(p, idx);
     }
+    if (car.encounter) this.applyEncounterStart();
     car.done = true;
     this.phase = 'result';
   }
@@ -1336,9 +1463,21 @@ class Game {
     else if (key === 'itemdone') for (let i = 0; i < amount; i++) p.items.push(this.randomCompleted());
     else if (key === 'treasure') p.items.push(this.rng.pick(ITEMS.treasures[Math.max(0, Math.min(3, amount))]));
     else if (key === 'candy') p.items.push(['candy-s', 'candy-m', 'rare-candy'][Math.max(0, Math.min(2, amount))]);
+    else if (key === 'pokebox') p.items.push('poke-box');
+    else if (key === 'greatbox') p.items.push('great-box');
+    else if (key === 'enc') {
+      this.encounter = ENCOUNTER_IDS[(ENCOUNTER_IDS.indexOf(this.encounter) + 1) % ENCOUNTER_IDS.length];
+      for (const q of this.players) q.encounter = this.encounter;
+      this.notify(p, '조우자 변경: ' + this.encounter, 'info');
+    }
     else if (key === 'mine') {
       p.mine += amount;
       if (this.phase === 'planning') this.refreshMineOffer(p);
+    }
+    else if (key === 'esper') {
+      this.espVariant = ESPER_KEYS[(ESPER_KEYS.indexOf(this.espVariant) + 1) % ESPER_KEYS.length];
+      for (const q of this.players) q.espVariant = this.espVariant;
+      this.notify(p, '에스퍼 효과 변경: ' + this.espVariant, 'info');
     }
     else if (key in p.counters) p.counters[key] += amount;
     this.emit('update');

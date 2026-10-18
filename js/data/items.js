@@ -58,6 +58,11 @@ const ITEM_CANDIES = [
   { id: 'rare-candy', name: '이상한사탕', icon: 'rare-candy', maxCost: 5, desc: '기물에게 쓰면 별이 1 오릅니다.' }
 ];
 
+const ITEM_BOXES = [
+  { id: 'poke-box', name: '몬스터볼 아이템 상자', icon: 'poke-ball', box: 'component', desc: '클릭해서 열면 서로 다른 조합 아이템 4개 중 하나를 고릅니다.' },
+  { id: 'great-box', name: '슈퍼볼 아이템 상자', icon: 'great-ball', box: 'completed', desc: '클릭해서 열면 서로 다른 완성 아이템 4개 중 하나를 고릅니다.' }
+];
+
 const TREASURE_TIER_NAME = ['0티어', '1티어', '2티어', '3티어'];
 
 const ITEM_TREASURES = [
@@ -98,6 +103,7 @@ const ITEMS = (function () {
   }
   map[ITEM_MAGNET.id] = Object.assign({ stats: {} }, ITEM_MAGNET);
   for (const c of ITEM_CANDIES) map[c.id] = Object.assign({ kind: 'consumable', candy: true, stats: {} }, c);
+  for (const b of ITEM_BOXES) map[b.id] = Object.assign({ kind: 'consumable', stats: {} }, b);
   for (const t of ITEM_TREASURES) map[t.id] = Object.assign({ kind: 'treasure', stats: {} }, t);
   const tiers = [[], [], [], []];
   for (const t of ITEM_TREASURES) tiers[t.tier].push(t.id);

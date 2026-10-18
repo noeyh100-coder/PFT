@@ -99,22 +99,29 @@ class App {
 
   setupItemTip() {
     const tip = this.$('item-tip');
+    const tip2 = this.$('item-tip2');
     this.itemTip = null;
     this.mouse = { x: 0, y: 0 };
-    tip.addEventListener('mouseenter', () => clearTimeout(this.itemTipTimer));
-    tip.addEventListener('mouseleave', () => this.hideItemTipSoon());
-    tip.addEventListener('click', e => {
-      const t = e.target.closest('[data-pick]');
-      if (!t || !this.itemTip || this.itemTip.preview) return;
-      this.itemTip.id = t.dataset.pick;
-      this.itemTip.mode = 'info';
-      this.renderItemTip();
-    });
+    for (const el of [tip, tip2]) {
+      el.addEventListener('mouseenter', () => clearTimeout(this.itemTipTimer));
+      el.addEventListener('mouseleave', () => this.hideItemTipSoon());
+      el.addEventListener('click', e => {
+        const t = e.target.closest('[data-pick]');
+        if (!t || !this.itemTip || this.itemTip.preview) return;
+        this.itemTip.side = t.dataset.pick;
+        this.renderItemTip();
+      });
+    }
     tip.addEventListener('pointerdown', e => {
       if (e.button !== 2) return;
       e.preventDefault();
       e.stopPropagation();
       this.toggleItemRecipe(null);
+    });
+    tip2.addEventListener('pointerdown', e => {
+      if (e.button !== 2) return;
+      e.preventDefault();
+      e.stopPropagation();
     });
     this.gameEl.addEventListener('pointermove', e => {
       this.mouse.x = e.clientX;
@@ -122,11 +129,26 @@ class App {
     });
   }
 
+  inItemTipZone() {
+    const t = this.itemTip;
+    if (!t) return false;
+    const els = [this.$('item-tip'), this.$('item-tip2')];
+    if (t.anchor && document.contains(t.anchor)) els.push(t.anchor);
+    const m = 8 * (this.scale || 1);
+    const { x, y } = this.mouse;
+    for (const el of els) {
+      if (el.id && !el.classList.contains('show')) continue;
+      const r = el.getBoundingClientRect();
+      if (x >= r.left - m && x <= r.right + m && y >= r.top - m && y <= r.bottom + m) return true;
+    }
+    return false;
+  }
+
   showItemTip(anchor, id) {
     clearTimeout(this.itemTipTimer);
     this.hideTooltip();
     const t = this.itemTip;
-    if (!t || t.preview || t.anchor !== anchor || t.anchorId !== id) this.itemTip = { id, anchorId: id, mode: 'info', anchor };
+    if (!t || t.preview || t.anchor !== anchor || t.anchorId !== id) this.itemTip = { id, anchorId: id, mode: 'info', anchor, side: null };
     this.placeItemTip();
   }
 
@@ -141,8 +163,10 @@ class App {
   renderItemTip() {
     const t = this.itemTip;
     const tip = this.$('item-tip');
+    const tip2 = this.$('item-tip2');
     if (!t) {
       tip.classList.remove('show');
+      tip2.classList.remove('show');
       return;
     }
     View.renderItemTip(tip, t.id, t.mode, { pick: !t.preview, preview: !!t.preview });
@@ -152,6 +176,7 @@ class App {
     const h = tip.offsetHeight;
     let x;
     let y;
+    let flip = false;
     if (t.preview) {
       x = t.at.x + 26;
       y = t.at.y - h / 2;
@@ -159,24 +184,52 @@ class App {
     } else {
       x = t.rect.r.x + 8;
       y = t.rect.l.y - 4;
-      if (x + w > 1276) x = t.rect.l.x - w - 8;
+      if (x + w > 1276) {
+        x = t.rect.l.x - w - 8;
+        flip = true;
+      }
     }
-    tip.style.left = Math.max(4, x) + 'px';
-    tip.style.top = Math.max(4, Math.min(716 - h, y)) + 'px';
+    x = Math.max(4, x);
+    y = Math.max(4, Math.min(716 - h, y));
+    if (t.side && !t.preview) {
+      View.renderItemTip(tip2, t.side, 'info', { pick: true });
+      tip2.classList.add('show');
+      const w2 = tip2.offsetWidth;
+      const h2 = tip2.offsetHeight;
+      let x2 = flip ? x - w2 + 2 : x + w - 2;
+      if (!flip && x2 + w2 > 1276) {
+        if (x - w2 + 2 >= 4) x2 = x - w2 + 2;
+        else {
+          x = Math.max(4, 1276 - w - w2 + 2);
+          x2 = x + w - 2;
+        }
+      }
+      if (flip && x2 < 4) {
+        x2 = 4;
+        x = x2 + w2 - 2;
+      }
+      tip2.style.left = x2 + 'px';
+      tip2.style.top = Math.max(4, Math.min(716 - h2, y)) + 'px';
+    } else tip2.classList.remove('show');
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
   }
 
   hideItemTipSoon() {
     if (this.itemTip && this.itemTip.preview) return;
     clearTimeout(this.itemTipTimer);
     this.itemTipTimer = setTimeout(() => {
-      if (!(this.itemTip && this.itemTip.preview)) this.hideItemTip();
-    }, 140);
+      if (this.itemTip && this.itemTip.preview) return;
+      if (this.inItemTipZone()) this.hideItemTipSoon();
+      else this.hideItemTip();
+    }, 300);
   }
 
   hideItemTip() {
     clearTimeout(this.itemTipTimer);
     this.itemTip = null;
     this.$('item-tip').classList.remove('show');
+    this.$('item-tip2').classList.remove('show');
   }
 
   toggleItemRecipe(anchor) {
@@ -216,14 +269,16 @@ class App {
     if (!t || t.preview || !t.anchor || document.contains(t.anchor)) return;
     const el = document.elementFromPoint(this.mouse.x, this.mouse.y);
     const tipEl = this.$('item-tip');
-    if (el && tipEl.contains(el)) return;
+    const tip2 = this.$('item-tip2');
+    if (el && (tipEl.contains(el) || tip2.contains(el))) return;
     const a = el ? el.closest('[data-item]') : null;
-    if (a && !tipEl.contains(a)) {
+    if (a && !tipEl.contains(a) && !tip2.contains(a)) {
       t.anchor = a;
       if (a.dataset.item !== t.anchorId) {
         t.id = a.dataset.item;
         t.anchorId = t.id;
         t.mode = 'info';
+        t.side = null;
       }
       this.placeItemTip();
     } else this.hideItemTip();
@@ -265,16 +320,16 @@ class App {
       const u = e.target.closest('[data-unit]');
       if (u && !this.dragging && !(this.planner && this.planner.drag)) this.showUnitTip(u);
       const it = e.target.closest('[data-item]');
-      if (it && !this.dragging && !it.closest('#item-tip')) this.showItemTip(it, it.dataset.item);
+      if (it && !this.dragging && !it.closest('#item-tip, #item-tip2')) this.showItemTip(it, it.dataset.item);
     });
     this.gameEl.addEventListener('mouseout', e => {
       const it = e.target.closest('[data-item]');
-      if (it && !it.closest('#item-tip') && (!e.relatedTarget || !it.contains(e.relatedTarget))) this.hideItemTipSoon();
+      if (it && !it.closest('#item-tip, #item-tip2') && (!e.relatedTarget || !it.contains(e.relatedTarget))) this.hideItemTipSoon();
     });
     this.gameEl.addEventListener('pointerdown', e => {
       if (e.button !== 2) return;
       const it = e.target.closest('[data-item]');
-      if (!it || it.closest('#item-tip')) return;
+      if (!it || it.closest('#item-tip, #item-tip2')) return;
       e.stopPropagation();
       this.toggleItemRecipe(it);
     }, true);
@@ -559,7 +614,6 @@ class App {
         if (inc.streak) msg += ' · ' + (this.human.streak > 0 ? '연승' : '연패') + ' +' + inc.streak;
         this.toast(msg, 'info');
       }
-      if (info.type === 'encounter') this.toast('1-1 조우자는 아직 준비 중입니다. 대신 1코스트 기물 하나를 받았습니다.', 'info');
       this.render();
       this.maybeShowBranch();
     } else if (this.game.phase === 'carousel') {
@@ -734,6 +788,7 @@ class App {
     else this.renderDamage();
     this.renderInfo();
     this.renderMine();
+    this.renderBox();
     this.renderDebug();
     if (h.pendingBranch.length) this.maybeShowBranch();
     const rb = this.$('btn-ready');
@@ -758,7 +813,16 @@ class App {
       icons.appendChild(d);
     }
     this.$('timer-num').dataset.tip = PHASE_LABEL[g.phase] || '';
-    this.$('encounter-icon').dataset.tip = '조우자: 없음 (준비 중)';
+    const enc = encounterDef(g.encounter);
+    const ei = this.$('encounter-icon');
+    ei.dataset.tip = enc ? '조우자 · ' + enc.id + '\n' + enc.desc : '조우자: 없음';
+    if (ei.dataset.enc !== (g.encounter || '')) {
+      ei.dataset.enc = g.encounter || '';
+      const por = enc ? Sprites.portrait({ en: enc.en }, 24, { fill: 0.95 }) : null;
+      ei.innerHTML = '';
+      if (por) ei.appendChild(por);
+      else ei.innerHTML = iconSvg('encounter', 16);
+    }
   }
 
   renderTraitPanel() {
@@ -808,6 +872,33 @@ class App {
       this.mineKey = key;
     }
     box.classList.add('show');
+  }
+
+  renderBox() {
+    const box = this.$('box-pick');
+    const b = this.human.boxOpen;
+    const show = !!b && this.human.alive && !this.scouting() && !this.replaying;
+    if (!show) {
+      if (this.boxKey) {
+        box.classList.remove('show');
+        box.innerHTML = '';
+        this.boxKey = null;
+      }
+      return;
+    }
+    const key = b.id + '|' + b.choices.join(',');
+    if (key !== this.boxKey) {
+      View.renderBoxPick(box, b, n => this.act({ t: 'box', k: 'pick', n }));
+      this.boxKey = key;
+    }
+    box.classList.add('show');
+    this.updateBoxTimer();
+  }
+
+  updateBoxTimer() {
+    const b = this.human.boxOpen;
+    const el = this.boxKey && b ? this.$('box-pick').querySelector('.box-timer') : null;
+    if (el) el.textContent = Math.max(0, Math.ceil(b.left)) + '초 뒤 자동 선택';
   }
 
   itemSlotAt(x, y, srcEl) {
@@ -887,7 +978,10 @@ class App {
     const up = ev => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
-      if (!ghost) return;
+      if (!ghost) {
+        if (itemDef(id) && itemDef(id).box) this.act({ t: 'box', k: 'open', i: idx, id });
+        return;
+      }
       ghost.remove();
       srcEl.classList.remove('dragging');
       this.arena.drawOverlay(null);
@@ -1061,7 +1155,8 @@ class App {
     if (m.kind === 'pve') oppTitle = m.camp.leader ? '체육관' : (m.camp === CONFIG.pve.default ? '아르세우스' : '야생 포켓몬');
     else oppTitle = side === 'A' ? m.b.name + (m.ghost ? ' (복제)' : '') : m.a.name;
     const pick = s => m.sim.units.filter(u => u.side === s);
-    return { mine: { title: V.name, units: pick(side) }, opp: { title: oppTitle, units: pick(other) } };
+    const syn = s => m.sim.side[s].synDmg || {};
+    return { mine: { title: V.name, units: pick(side), syn: syn(side) }, opp: { title: oppTitle, units: pick(other), syn: syn(other) } };
   }
 
   renderDamage() {
@@ -1394,8 +1489,9 @@ class App {
       tn.dataset.tip = PHASE_LABEL.combat;
     } else if (d.state === 'carousel' && g.carousel) {
       this.setTimer(g.carousel.duration - g.carousel.time, g.carousel.duration);
-      tn.dataset.tip = PHASE_LABEL.carousel;
+      tn.dataset.tip = g.carousel.encounter ? '조우자' : PHASE_LABEL.carousel;
     }
+    if (this.boxKey) this.updateBoxTimer();
     this.syncMe(dt);
     if (this.combatRunning) {
       this.arena.updateBars();
@@ -1561,6 +1657,20 @@ class App {
       a.carLayer.appendChild(el);
       sc.items[idx] = el;
     });
+    const enc = car.encounter ? encounterDef(car.encounter) : null;
+    if (enc) {
+      const el = View.unitEl({ className: 'unit', name: enc.id, form: { en: enc.en }, types: [], star: 3, cost: 5 });
+      el.classList.add('car-item', 'enc-mon');
+      a.carLayer.appendChild(el);
+      placeSprite(el, CAROUSEL_CENTER.x, CAROUSEL_CENTER.y, UNIT_ORIGIN.x, UNIT_ORIGIN.y, UNIT_SCALE * 1.5);
+      sc.enc = el;
+      const card = this.$('enc-card');
+      card.innerHTML = '';
+      card.appendChild(View.el('div', 'enc-kicker', '조우자'));
+      card.appendChild(View.el('b', 'enc-name', enc.id));
+      card.appendChild(View.el('div', 'enc-desc', enc.desc));
+      card.classList.add('show');
+    }
     this.carouselScene = sc;
     this.viewId = this.human.id;
     this.viewCarousel = true;
@@ -1568,7 +1678,7 @@ class App {
     for (const p of car.order) if (this.driver.strats[p.id].carry) this.onCarry(p.id);
     if (this.replaying) return;
     this.render();
-    this.toast('회전초밥! 체력이 낮은 순서로 두 명씩 결계가 풀립니다', 'info');
+    if (!enc) this.toast('회전초밥! 체력이 낮은 순서로 두 명씩 결계가 풀립니다', 'info');
   }
 
   carriedToken(unitId) {
@@ -1622,6 +1732,7 @@ class App {
     if (!sc) return;
     for (const id in sc.sprites) sc.sprites[id].el.remove();
     a.carLayer.innerHTML = '';
+    this.$('enc-card').classList.remove('show');
     a.drawOverlay(null);
     a.me.carry(null);
     a.me.place(HOME_BOTTOM.x, HOME_BOTTOM.y);
@@ -1837,7 +1948,7 @@ class App {
     const u = CONFIG.unlock;
     const c = h.counters;
     const lines = [
-      '최면 누적 ' + Math.floor(c.hypnosis) + ' / ' + u.hypnosisSeconds + '초 (후딘)',
+      '윤겔라가 재운 시간 ' + Math.floor(c.hypnosis) + ' / ' + u.hypnosisSeconds + '초 (후딘)',
       '치유 스택 ' + Math.floor(c.heal) + ' / ' + u.healStack + ' (해피너스)',
       '유전자 ' + Math.floor(c.gene) + ' / ' + u.geneStack + ' (뮤츠)',
       '다운로드 ' + Math.floor(c.download) + ' / ' + u.downloadStage1 + ', ' + u.downloadStage2 + ' (현재 ' + UNITS['폴리곤'].stageForms[h.downloadStage].name + ')',
@@ -1845,7 +1956,7 @@ class App {
       '화상 피해 ' + Math.floor(c.burn) + ' / ' + u.burnDamage + ' (파이어)',
       '얼음 별 합계 ' + u.iceStarTotal + ' 이상으로 전투 시작 (프리져)',
       '화석 연승 ' + h.fossilWins + ' / ' + u.kabutoWins + ' (투구) · 연패 ' + h.fossilLosses + ' / ' + u.aerodactylLosses + ' (프테라)',
-      '용의 비늘 ' + h.dragonScales + ' · 수련 스택 ' + Math.floor(h.training) + ' · 사이킥 에너지 ' + Math.round(h.psychic),
+      '용의 비늘 ' + h.dragonScales + ' · 에스퍼 효과 ' + this.game.espVariant,
       '조우 지역: ' + (this.game.region || '없음'),
       '해금: ' + (h.unlockedShop.size ? Array.from(h.unlockedShop).join(', ') : '없음'),
       '상점 제외: ' + (h.excluded.size ? Array.from(h.excluded).join(', ') : '없음'),

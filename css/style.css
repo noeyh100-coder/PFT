@@ -403,7 +403,7 @@ button:disabled {
   position: absolute;
   left: 63px;
   top: 128px;
-  width: 140px;
+  width: 156px;
   height: 418px;
   overflow: hidden;
   display: flex;
@@ -2184,7 +2184,7 @@ button:disabled {
 
 #trait-tip {
   position: absolute;
-  left: 212px;
+  left: 228px;
   top: 128px;
   width: 300px;
   display: none;
@@ -5052,7 +5052,8 @@ button:disabled {
   box-shadow: 0 0 0 3px var(--hover-col);
 }
 
-#item-tip {
+#item-tip,
+#item-tip2 {
   display: none;
   z-index: 96;
   width: 236px;
@@ -5061,7 +5062,8 @@ button:disabled {
   box-shadow: 0 0 0 2px var(--edge), inset 0 0 0 2px #4a5180;
 }
 
-#item-tip.show {
+#item-tip.show,
+#item-tip2.show {
   display: block;
 }
 
@@ -5175,14 +5177,16 @@ button:disabled {
   white-space: nowrap;
 }
 
-#item-tip .item-ico.pick {
+#item-tip .item-ico.pick,
+#item-tip2 .item-ico.pick {
   cursor: pointer;
   pointer-events: auto;
   background-color: #121320;
   box-shadow: 0 0 0 1px var(--edge);
 }
 
-#item-tip .item-ico.pick:hover {
+#item-tip .item-ico.pick:hover,
+#item-tip2 .item-ico.pick:hover {
   box-shadow: 0 0 0 2px var(--accent);
 }
 
@@ -5295,7 +5299,195 @@ button:disabled {
   color: #e6b872;
 }
 
+.trait-name .esp-var {
+  margin-left: 3px;
+  font-family: 'Galmuri9', monospace;
+  font-size: 9px;
+  color: #f19aa8;
+}
+
+.trait-name .ditto-bonus {
+  margin-left: 3px;
+  font-family: 'Galmuri9', monospace;
+  font-size: 9px;
+  color: #cfa8f0;
+}
+
+.trait:not(.active) .trait-name .esp-var {
+  color: #a4727a;
+}
+
+.fx-room {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1280px;
+  height: 720px;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%, rgba(255, 130, 200, 0.32), rgba(170, 70, 200, 0.2) 70%);
+  animation: hatchBurst 0.9s ease-out forwards;
+}
+
 button.gold {
   background: #6a5a1e;
   color: var(--accent);
+}
+
+#box-pick {
+  display: none;
+  left: 400px;
+  top: 190px;
+  width: 480px;
+  padding: 10px 12px 12px;
+  z-index: 60;
+  background: linear-gradient(180deg, rgba(38, 44, 78, 0.98), rgba(22, 24, 44, 0.98));
+  box-shadow: 0 0 0 3px var(--edge), inset 0 0 0 2px #5a68b0, 0 0 20px 2px rgba(120, 150, 255, 0.35);
+}
+
+#box-pick.show {
+  display: block;
+}
+
+.box-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.box-head b {
+  font-size: 15px;
+  color: #dfe6ff;
+}
+
+.box-timer {
+  margin-left: auto;
+  font-family: 'Galmuri9', monospace;
+  font-size: 10px;
+  color: #ffd27a;
+}
+
+.box-sub {
+  margin: 4px 0 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.box-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.box-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 108px;
+  padding: 8px 4px;
+  background: #1a1d33;
+  border: none;
+  box-shadow: 0 0 0 2px var(--edge);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.box-card:hover {
+  box-shadow: 0 0 0 2px var(--accent);
+  background: #24294a;
+}
+
+.box-card .item-ico {
+  background-color: #121320;
+}
+
+.box-name {
+  font-size: 11px;
+  text-align: center;
+  word-break: keep-all;
+}
+
+.box-stat {
+  font-family: 'Galmuri9', monospace;
+  font-size: 9px;
+  color: #a9b6e8;
+  text-align: center;
+}
+
+#enc-card {
+  display: none;
+  left: 470px;
+  top: 64px;
+  width: 340px;
+  padding: 8px 12px 10px;
+  z-index: 45;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(46, 34, 72, 0.97), rgba(26, 20, 44, 0.97));
+  box-shadow: 0 0 0 3px var(--edge), inset 0 0 0 2px #8a6cc8, 0 0 18px 2px rgba(190, 150, 255, 0.35);
+}
+
+#enc-card.show {
+  display: block;
+}
+
+.enc-kicker {
+  font-family: 'Galmuri9', monospace;
+  font-size: 10px;
+  color: #c9b2f0;
+}
+
+.enc-name {
+  display: block;
+  margin: 2px 0 4px;
+  font-size: 18px;
+  color: #ffe9a8;
+}
+
+.enc-desc {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text);
+  word-break: keep-all;
+}
+
+.unit.enc-mon .stars,
+.unit.enc-mon .cost-ring {
+  display: none;
+}
+
+.unit.enc-mon {
+  pointer-events: none;
+}
+
+.dmg-syn-title {
+  margin: 6px 0 2px;
+  font-family: 'Galmuri9', monospace;
+  font-size: 9px;
+  color: var(--muted);
+}
+
+.dmg-face.dmg-syn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+}
+
+.dmg-row.syn {
+  cursor: default;
+}
+
+.dmg-syn-name {
+  margin-left: 5px;
+  font-family: 'Galmuri9', monospace;
+  font-size: 9px;
+  color: var(--muted);
+}
+
+.dmg-face.dmg-syn .hex {
+  transform: scale(0.72);
+  transform-origin: center;
 }

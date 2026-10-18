@@ -80,6 +80,11 @@ const ITEM_FX = {
     u.redHits = 0;
     u.redAs = 0;
     u.blueSa = 0;
+    u.blueMana = 0;
+    u.grisFlat = 0;
+    u.wpFired = false;
+    u.sashFired = false;
+    u.herbUntil = 0;
     const list = (spec.items || []).filter(id => id !== 'magnet' && typeof itemDef === 'function' && itemDef(id) && !isConsumable(id));
     this.swapItems(u, list, !!spec.evolvable, false);
     u.itemPP = this.itemStatic(list, !!spec.evolvable).pp;
@@ -104,9 +109,14 @@ const ITEM_FX = {
       u.ranged = u.range > 1;
     }
     if (B.herb && !A.herb) {
+      u.herbUntil = 18;
       u.ccImmuneUntil = Math.max(u.ccImmuneUntil, 18);
       u.herbGuard = true;
-    } else if (!B.herb) u.herbGuard = false;
+    } else if (!B.herb) {
+      if (A.herb && live && u.ccImmuneUntil <= u.herbUntil) u.ccImmuneUntil = Math.min(u.ccImmuneUntil, this.time);
+      u.herbGuard = false;
+    }
+    if (live) this.itemRevert(u, A.it, B.it);
     u.skillCritPa = B.critPa;
     u.skillCritSa = B.critSa;
     u.alwaysCrit = B.alwaysCrit;
@@ -136,6 +146,65 @@ const ITEM_FX = {
     }
     if (B.pp > A.pp && !u.experiment) u.mana = Math.min(u.maxMana, u.mana + (B.pp - A.pp));
     this.snapshot(u);
+  },
+
+  itemRevert(u, a, b) {
+    const gone = id => (a[id] || 0) > 0 && !(b[id] || 0);
+    const goneAll = base => [1, 2, 3].some(k => a[base + '-' + k]) && ![1, 2, 3].some(k => b[base + '-' + k]);
+    if (gone('soul-dew') && u.dewPct) {
+      u.pct.sa -= u.dewPct / 100;
+      u.dewPct = 0;
+    }
+    if (gone('assault-vest') && u.vestRanks) {
+      u.rk.atk -= u.vestRanks;
+      u.rk.spa -= u.vestRanks;
+      u.vestRanks = 0;
+    }
+    if (gone('absorb-bulb') && u.bulbPct) {
+      u.amp -= u.bulbPct / 100;
+      u.bulbPct = 0;
+    }
+    if (gone('choice-scarf') && u.scarfPct) {
+      u.pct.as -= u.scarfPct / 100;
+      u.scarfPct = 0;
+    }
+    if (gone('booster-energy') && u.boostStacks) {
+      u.pct.pa -= 0.03 * u.boostStacks;
+      u.pct.sa -= 0.03 * u.boostStacks;
+      if (u.boostStacks >= 25) {
+        u.rk.def -= 2;
+        u.rk.spd -= 2;
+      }
+      u.boostStacks = 0;
+    }
+    if (gone('kings-rock')) u.kingN = 0;
+    if (gone('weakness-policy') && u.wpFired) {
+      u.pct.pa -= 0.3;
+      u.pct.sa -= 0.3;
+      u.wpFired = false;
+    }
+    if (gone('focus-sash') && u.sashFired) {
+      u.pct.pa -= 0.2;
+      u.pct.sa -= 0.2;
+      u.sashFired = false;
+    }
+    if (gone('red-orb-3') && u.redAs) {
+      u.pct.as -= u.redAs / 100;
+      u.redAs = 0;
+    }
+    if (goneAll('red-orb')) u.redHits = 0;
+    if (goneAll('blue-orb')) {
+      if (u.blueSa) u.pct.sa -= u.blueSa / 100;
+      if (u.blueMana) u.maxMana += u.blueMana;
+      u.blueSa = 0;
+      u.blueMana = 0;
+    }
+    if (goneAll('griseous-orb')) {
+      u.flatArmor -= u.grisFlat;
+      u.flatMr -= u.grisFlat;
+      u.grisFlat = 0;
+      u.grisStacks = 0;
+    }
   },
 
   itemsInitSide(side) {
@@ -276,6 +345,7 @@ const ITEM_FX = {
         this.emit({ type: 'buff', target: t.uid, kind: 'endure' });
       } else if (t.sashReady) {
         t.sashReady = false;
+        t.sashFired = true;
         t.endureUntil = this.time + 2;
         hpDmg = Math.max(0, t.hp - 1);
         t.pct.pa += 0.2;
@@ -353,6 +423,7 @@ const ITEM_FX = {
           const v = treasureSum(g, TR_GRIS_STACK);
           t.flatArmor += v;
           t.flatMr += v;
+          t.grisFlat += v;
         } else {
           const best = Math.max(this.defense(t, false), this.defense(t, true));
           if (this.time >= t.grisCd) {
@@ -378,6 +449,7 @@ const ITEM_FX = {
     const top = treasureTop(n);
     if (!top || !t.alive || t.egg || t.hp > t.maxHp * TR_SWORD_THR[top]) return false;
     this.emit({ type: 'freeze', target: t.uid, duration: 0.3 });
+    t.killedBy = src;
     this.execute(t, src.side);
     if (n[3]) {
       this.side[src.side].swordGold = (this.side[src.side].swordGold || 0) + 3 * n[3];
@@ -444,7 +516,11 @@ const ITEM_FX = {
     const sa = treasureSum(n, TR_BLUE_SA);
     u.pct.sa += sa;
     u.blueSa += Math.round(sa * 100);
-    if (n[3]) u.maxMana = Math.max(8, u.maxMana - 2 * n[3]);
+    if (n[3]) {
+      const before = u.maxMana;
+      u.maxMana = Math.max(8, u.maxMana - 2 * n[3]);
+      u.blueMana += before - u.maxMana;
+    }
   },
 
   itemDamageMult(src, t, o) {
@@ -483,6 +559,7 @@ const ITEM_FX = {
     if (ti['booster-energy']) this.boostStack(t);
     if (ti['weakness-policy'] && t.wpReady && typeMult(src.skillType, t.defTypes) > 1) {
       t.wpReady = false;
+      t.wpFired = true;
       this.addShield(t, t.maxHp * 0.3);
       t.pct.pa += 0.3;
       t.pct.sa += 0.3;

@@ -121,6 +121,7 @@ const Bot = {
   itemOk(g, p, inst, id) {
     const d = itemDef(id);
     if (!d) return false;
+    if (d.box) return false;
     if (d.candy) return inst.star < 3 && UNITS[inst.unitId].cost <= d.maxCost;
     const comp = (inst.items || []).find(x => itemDef(x) && itemDef(x).kind === 'component');
     const res = d.kind === 'component' && comp ? combineItems(comp, id) : id;
@@ -130,6 +131,7 @@ const Bot = {
   },
 
   useItems(g, p) {
+    g.autoOpenBoxes(p);
     if (g.phase !== 'planning') return;
     for (const u of p.benchUnits()) {
       if (!u.items || !u.items.length) continue;

@@ -3277,7 +3277,7 @@ const UNIT_DATA = [
   "id": "캐이시",
   "family": "캐이시",
   "variant": "원종",
-  "cost": 2,
+  "cost": 3,
   "shop": true,
   "unlockOnly": false,
   "traits": [

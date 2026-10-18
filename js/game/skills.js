@@ -88,8 +88,8 @@ const SKILL_P = {
   '시라소몬': { m: 2.0 },
   '홍수몬': { m: 3.0 },
   '카포에라': { m: [0.6, 1.2, 1.8] },
-  '캐이시': { m: 1.8, ring: 0 },
-  '윤겔라': { m: 2.1, ring: 1 },
+  '캐이시': { m: 2.0, ring: 0, sleep: 0 },
+  '윤겔라': { m: 2.3, ring: 1, sleep: 1.5 },
   '이상해씨': { m: 2.0, line: 2, shield: 0.15, buff: 0, charge: 1 },
   '이상해풀': { m: 2.3, line: 3, shield: 0.2, buff: 0, charge: 1 },
   '이상해꽃': { m: 2.65, line: 4, shield: 0.3, buff: 2, charge: 1 },
@@ -277,7 +277,7 @@ const SKILL_HELPERS = {
     }
     if (has('바위') && d > 0) this.dealDamage(u, o, d * 0.3 * k, { trueDmg: true, kind: 'true' });
     if (has('풀') && o.alive) this.dealDamage(u, o, o.maxHp * 0.04 * k, { special: true, kind: 'grass' });
-    if (has('격투') && o.alive) this.dealDamage(u, o, Math.min(400, 20 + (st.training || 0) * 0.002) * k, { special: false, kind: 'fight' });
+    if (has('격투') && o.alive) this.dealDamage(u, o, this.atkStat(u) * 0.6 * k, { special: false, kind: 'fight' });
     if (has('에스퍼') && d > 0) {
       let from = o;
       for (let i = 0; i < 2; i++) {
@@ -429,6 +429,12 @@ const SKILL_HELPERS = {
 
   chance(p) {
     return p > 0 && this.rng.next() < p;
+  },
+
+  hypnotize(u, t, dur) {
+    if (!t || !t.alive) return;
+    const d = this.stun(t, dur * this.durMul(u), u.side, 'sleep');
+    if (d > 0 && u.form && u.form.name === '윤겔라') this.side[u.side].stats.hypno += d;
   },
 
   status(u, t, kind, dur, p) {
@@ -1046,7 +1052,7 @@ const SKILLS = {
   '염동력'(S, u, t, P) {
     const list = P.ring ? S.ring(u, t.r, t.c, 1) : [t];
     if (P.ring) S.ringFx(u, t.r, t.c, 1);
-    S.hitAll(u, list, P.m, { onHit: o => S.status(u, o, 'confuse', 2, 0.3) });
+    S.hitAll(u, list, P.m, { onHit: o => { if (P.sleep) S.hypnotize(u, o, P.sleep); } });
   },
   '솔라빔'(S, u, t, P) {
     S.shieldPct(u, P.shield, 0);

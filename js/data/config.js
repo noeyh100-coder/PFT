@@ -34,6 +34,8 @@ const CONFIG = {
   },
   stageDamage: { 1: 0, 2: 2, 3: 5, 4: 8, 5: 10, 6: 12, 7: 17, 8: 25 },
   unitDamage: { 1: 1, 2: 2, 3: 3 },
+  encounterTime: 8,
+  boxTime: 20,
   planningTime: { encounter: 10, pve: 10, early: 20, normal: 30, carousel: 15 },
   pveScale: 0.8,
   preCombat: 5,
@@ -77,11 +79,11 @@ const CONFIG = {
     rewards: {
       100: [{ item: 't0' }, { pick: [[{ unit: 1 }, { unit: 1 }], [{ unit: 2 }]] }],
       200: [{ item: 't0' }, { item: 't1' }, { unit: 3 }, { gold: 2 }],
-      300: [{ item: 't1' }, { item: 't1' }, { item: 'candy-s' }, { unit: 3, star: 2 }, { gold: 5 }],
+      300: [{ item: 't1' }, { item: 't1' }, { item: 'poke-box' }, { item: 'candy-s' }, { unit: 3, star: 2 }, { gold: 5 }],
       400: [{ item: 't1' }, { item: 't2' }, { item: 'candy-m' }, { unit: 4 }, { gold: 10 }],
-      500: [{ item: 't2' }, { item: 't3' }, { item: 'candy-s' }, { item: 'candy-m' }, { unit: 4 }, { unit: 4 }, { gold: 20 }],
+      500: [{ item: 't2' }, { item: 't3' }, { item: 'great-box' }, { item: 'candy-s' }, { item: 'candy-m' }, { unit: 4 }, { unit: 4 }, { gold: 20 }],
       600: [{ item: 't3' }, { item: 't3' }, { item: 'candy-m' }, { item: 'candy-m' }, { unit: 4, star: 2 }, { gold: 30 }],
-      700: [{ item: 't3' }, { item: 't3' }, { item: 't3' }, { item: 'rare-candy' }, { gold: 40 }]
+      700: [{ item: 't3' }, { item: 't3' }, { item: 't3' }, { item: 'great-box' }, { item: 'rare-candy' }, { gold: 40 }]
     }
   },
   regions: ['알로라', '가라르', '히스이', '팔데아'],

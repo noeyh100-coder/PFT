@@ -165,7 +165,7 @@ const Unlocks = {
     if (id === '잉어킹') return inst.star === 3 ? '갸라도스 진화: 전투 참여 ' + (inst.battles || 0) + '/' + cfg.magikarpBattles : '3성이 되면 전투 참여 횟수를 셉니다 (갸라도스)';
     if (id === '고오스') return inst.star >= 2 ? '팬텀 진화: 처치 관여 ' + inst.takedowns + '/' + cfg.gastlyTakedowns : '고우스트가 되면 처치 관여를 셉니다 (팬텀)';
     if (id === '망키') return inst.star >= 2 ? '저승갓숭 진화: PvP 전투에서 쓰러지면 진화' : '성원숭이 되면 조건이 열립니다 (저승갓숭)';
-    if (id === '캐이시') return '후딘 진화: 최면 누적 ' + Math.floor(p.counters.hypnosis) + '/' + cfg.hypnosisSeconds + '초 + 윤겔라 전투 참여';
+    if (id === '캐이시') return '후딘 진화: 윤겔라가 재운 시간 ' + Math.floor(p.counters.hypnosis) + '/' + cfg.hypnosisSeconds + '초 + 윤겔라 전투 참여';
     if (id === '핑복') return '치유 스택 ' + Math.floor(p.counters.heal) + (p.counters.heal >= cfg.healStack ? ' · 럭키가 전투에 참여하면 해피너스 진화' : '/' + cfg.healStack + ' (해피너스)');
     if (id === '해피너스') return '치유 스택 ' + Math.floor(p.counters.heal);
     if (id === '야돈') return '앞 칸에 셀러 → 야도킹 / 뒤 칸에 셀러 → 야도란 (둘 중 낮은 별로 진화)';

@@ -56,7 +56,7 @@ class StratSprite {
     this.suffix = suffix || this.suffix || '';
     this.plateName.textContent = player.name + this.suffix;
     this.plateLv.textContent = player.level;
-    this.plateHp.style.width = Math.max(0, Math.min(100, player.hp)) + '%';
+    this.plateHp.style.width = Math.max(0, Math.min(100, (player.hp / (player.maxHp || 100)) * 100)) + '%';
     this.plateHp.classList.toggle('low', player.hp <= 30);
   }
 
@@ -582,7 +582,7 @@ class Arena {
     const row = document.createElement('div');
     row.className = 'unit-items';
     for (const id of u.items) {
-      const ico = View.itemIcon(id, 16);
+      const ico = View.itemIcon(id, u.items.length > 3 ? 12 : 16);
       row.appendChild(ico);
       if (View.itemStack(u, id, 0) === null) continue;
       const b = document.createElement('b');
@@ -722,7 +722,7 @@ class Arena {
       } else if (ev.type === 'heal') {
         if (ev.amount >= 3) this.floatText(ev.target, '+' + Math.round(ev.amount), 'heal');
       } else if (ev.type === 'stun') {
-        const label = { flinch: '풀죽음', airborne: '공중', quake: '기절', stun: '기절', lightning: '기절', sleep: '잠듦', recharge: '반동' }[ev.kind];
+        const label = { flinch: '풀죽음', airborne: '공중', quake: '기절', stun: '기절', lightning: '기절', sleep: '잠듦', recharge: '반동', seal: '봉인' }[ev.kind];
         if (label) this.floatText(ev.target, label, 'cc');
       } else if (ev.type === 'skillfx') {
         const cells = ev.radius * 2 + 1.2;
@@ -816,7 +816,7 @@ class Arena {
       } else if (ev.type === 'freeze') {
         this.floatText(ev.target, '빙결', 'ice');
       } else if (ev.type === 'buff') {
-        const label = { endure: '버티기', warrior: '학살자의 각오', bug: '회복', harden: '단단해지기', break: '보호막 파괴', thunder: '흡수', frenzy: '야단법석', cleanse: '정화', sash: '기합의띠', cloak: '은밀망토', policy: '약점보험', boost: '부스트 완료', tshield: '녹슨방패', lifeorb: '생명의구슬' }[ev.kind];
+        const label = { endure: '버티기', warrior: '학살자의 각오', bug: '회복', harden: '단단해지기', break: '보호막 파괴', thunder: '흡수', frenzy: '야단법석', cleanse: '정화', sash: '기합의띠', cloak: '은밀망토', policy: '약점보험', boost: '부스트 완료', tshield: '녹슨방패', lifeorb: '생명의구슬', room: '매직룸', steal: '도구 강탈', mirror: '미러코트', wish: '치유소원', bulk: '벌크업', bulkon: '벌크업 완료' }[ev.kind];
         if (label) this.floatText(ev.target, label, 'buff');
       } else if (ev.type === 'death') {
         const e = this.cunits[ev.uid];
@@ -868,6 +868,12 @@ class Arena {
         if (u) this.cellFx(u.r, u.c, 'fx-wave', 2.6, 550);
       } else if (ev.type === 'supernova') {
         this.supernova(ev);
+      } else if (ev.type === 'magicroom') {
+        const el = document.createElement('div');
+        el.className = 'fx-room';
+        el.style.clipPath = this.fieldPolygon();
+        this.fx.appendChild(el);
+        setTimeout(() => el.remove(), 900);
       }
     }
   }

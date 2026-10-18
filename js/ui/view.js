@@ -223,6 +223,7 @@ const View = {
     if (d.kind === 'component') return '조합 아이템';
     if (d.kind === 'completed') return d.unique ? '완성 아이템 · 고유' : '완성 아이템';
     if (d.kind === 'treasure') return '채굴 보물 · ' + TREASURE_TIER_NAME[d.tier];
+    if (d.box) return '아이템 상자';
     return '소모품';
   },
 
@@ -278,6 +279,31 @@ const View = {
       from.appendChild(icon(d.from[1], 26));
       box.appendChild(from);
     }
+  },
+
+  renderBoxPick(box, b, pick) {
+    box.innerHTML = '';
+    const d = itemDef(b.id);
+    const head = this.el('div', 'box-head');
+    head.appendChild(this.itemIcon(b.id, 24));
+    head.appendChild(this.el('b', null, d ? d.name : '아이템 상자'));
+    head.appendChild(this.el('span', 'box-timer', ''));
+    box.appendChild(head);
+    box.appendChild(this.el('div', 'box-sub', '아이템 하나를 고르세요'));
+    const row = this.el('div', 'box-row');
+    b.choices.forEach((id, n) => {
+      const it = itemDef(id);
+      const card = this.el('button', 'box-card');
+      const ico = this.itemIcon(id, 40);
+      ico.dataset.item = id;
+      card.appendChild(ico);
+      card.appendChild(this.el('div', 'box-name', it ? it.name : id));
+      const st = itemStatText(id);
+      if (st) card.appendChild(this.el('div', 'box-stat', st));
+      card.addEventListener('click', () => pick(n));
+      row.appendChild(card);
+    });
+    box.appendChild(row);
   },
 
   renderMine(box, game, p, hooks) {
@@ -465,6 +491,8 @@ const View = {
       const text = this.el('div', 'trait-text');
       const name = this.el('div', 'trait-name', t.id);
       if (t.id === '땅' && owner && (owner.mine || t.active)) name.appendChild(this.el('span', 'mine-stack', '채굴 ' + Math.floor(owner.mine || 0)));
+      if (t.id === '에스퍼' && owner && owner.espVariant) name.appendChild(this.el('span', 'esp-var', owner.espVariant));
+      if (t.bonus) name.appendChild(this.el('span', 'ditto-bonus', '+' + t.bonus));
       text.appendChild(name);
       const steps = this.el('div', 'trait-steps');
       const td = TRAIT_DATA.map[t.id];
@@ -509,11 +537,10 @@ const View = {
     const lines = [];
     if (!owner) return lines;
     if (id === '드래곤') lines.push('보유한 용의 비늘: ' + (owner.dragonScales || 0) + '개');
-    if (id === '격투') lines.push('수련 스택: ' + Math.floor(owner.training || 0));
-    if (id === '에스퍼') lines.push('사이킥 에너지: ' + Math.round(owner.psychic || 0));
     if (id === '땅') lines.push('채굴 스택: ' + Math.floor(owner.mine || 0));
     if (id === '물') lines.push(entry && entry.pairCosts.length ? '짝을 이룬 가격: ' + entry.pairCosts.map(c => c + '코').join(', ') : '짝을 이룬 가격이 없습니다');
     if (id === '벌레') lines.push('필드의 3성 벌레: ' + (entry ? entry.count : 0) + '마리');
+    if (entry && entry.bonus) lines.push('조우자 메타몽: 기물 수 +' + entry.bonus);
     return lines;
   },
 
@@ -554,7 +581,7 @@ const View = {
       '갸라도스': '잉어킹 3성으로 전투에 ' + u.magikarpBattles + '번 참여하면 진화',
       '해피너스': '치유 스택 ' + u.healStack + ' 이상에서 럭키가 전투에 참여하면 진화 (럭키 3성이면 스택 2배)',
       '팬텀': '고우스트(고오스 2성 이상)로 처치 관여 ' + u.gastlyTakedowns + '번이면 진화',
-      '후딘': '최면 누적 ' + u.hypnosisSeconds + '초를 채운 뒤 윤겔라가 전투에 참여하면 진화',
+      '후딘': '윤겔라가 스킬로 적을 재운 시간 합계 ' + u.hypnosisSeconds + '초를 채운 뒤 윤겔라가 전투에 참여하면 진화',
       '뮤': '한 전투에서 서로 다른 타입 시너지 ' + u.mewTypes + '개 켜기',
       '뮤츠': '뮤가 참여한 PvP 전투로 유전자 ' + u.geneStack + ' 모으기',
       '프리져': '필드의 얼음 타입 포켓몬 별 합계 ' + u.iceStarTotal + ' 이상으로 전투 시작',
@@ -635,20 +662,34 @@ const View = {
     const tier = entry ? entry.tier : 0;
     const head = this.el('div', 'tt-head');
     head.appendChild(this.hex(id, entry || { active: false }));
-    head.appendChild(this.el('b', null, id));
+    const esp = id === '에스퍼' ? (owner && owner.espVariant) || null : null;
+    const vd = esp ? ESPER_VARIANTS[esp] : null;
+    head.appendChild(this.el('b', null, esp ? id + ' · ' + esp : id));
     head.appendChild(this.el('span', 'tt-kind', td.kind === 'type' ? '타입' : td.kind === 'class' ? '직업' : '고유'));
     container.appendChild(head);
-    container.appendChild(this.el('div', 'tt-desc', td.desc));
+    container.appendChild(this.el('div', 'tt-desc', vd ? '에스퍼의 효과는 게임마다 바뀝니다. 이번 게임: ' + esp + '. ' + vd.desc : td.desc));
     for (const line of this.traitExtra(id, owner, entry)) container.appendChild(this.el('div', 'tt-extra', line));
-    const steps = this.el('div', 'tt-steps');
-    (td.stepLabels || td.tiers).forEach((n, i) => {
-      const row = this.el('div', 'tt-step' + (i + 1 === tier ? ' on' : i + 1 < tier ? ' got' : ''));
-      const label = td.stepLabels ? n : td.countLabel === '짝' ? n + '짝' : td.countLabel === '가격 종류' ? n + '종류' : n;
-      row.appendChild(this.el('span', 'tt-n', '(' + label + ')'));
-      row.appendChild(this.el('span', null, td.steps[i] || ''));
-      steps.appendChild(row);
-    });
-    container.appendChild(steps);
+    if (id === '에스퍼' && !vd) {
+      const list = this.el('div', 'tt-steps');
+      for (const k of ESPER_KEYS) {
+        const row = this.el('div', 'tt-step');
+        row.appendChild(this.el('span', 'tt-n', k));
+        row.appendChild(this.el('span', null, ESPER_VARIANTS[k].desc));
+        list.appendChild(row);
+      }
+      container.appendChild(list);
+    } else {
+      const stepText = vd ? vd.steps : td.steps;
+      const steps = this.el('div', 'tt-steps');
+      (td.stepLabels || td.tiers).forEach((n, i) => {
+        const row = this.el('div', 'tt-step' + (i + 1 === tier ? ' on' : i + 1 < tier ? ' got' : ''));
+        const label = td.stepLabels ? n : td.countLabel === '짝' ? n + '짝' : td.countLabel === '가격 종류' ? n + '종류' : n;
+        row.appendChild(this.el('span', 'tt-n', '(' + label + ')'));
+        row.appendChild(this.el('span', null, stepText[i] || ''));
+        steps.appendChild(row);
+      });
+      container.appendChild(steps);
+    }
     if (id === '노말') {
       const list = this.el('div', 'tt-normal');
       const active = entry && entry.active ? entry.unitIds : [];
@@ -924,7 +965,7 @@ const View = {
       ['미뇽', '신뇽', '2성 이상으로 승리 ' + u.dratiniWins + '번'],
       ['신뇽', '망나뇽', '2성 이상으로 승리 ' + u.dragonairWins + '번'],
       ['고오스', '팬텀', '2성 이상으로 처치 관여 ' + u.gastlyTakedowns + '번'],
-      ['캐이시', '후딘', '최면 누적 ' + u.hypnosisSeconds + '초 + 윤겔라 전투 참여'],
+      ['캐이시', '후딘', '윤겔라가 재운 시간 ' + u.hypnosisSeconds + '초 + 윤겔라 전투 참여'],
       ['핑복', '해피너스', '치유 스택 ' + u.healStack + ' + 럭키 전투 참여'],
       ['망키', '저승갓숭', '2성 이상이 PvP 전투에서 쓰러짐'],
       ['야돈', '야도란', '야돈 뒤 칸에 셀러 (낮은 별로)'],
@@ -1061,8 +1102,10 @@ const View = {
     const cols = this.el('div', 'dmg-cols');
     const groups = state.expanded ? [data.opp, data.mine] : [data.mine];
     const allRows = groups.map(g => this.damageRows(g.units, state.tab));
+    const synRows = groups.map(g => state.tab === 'dealt' ? Object.keys(g.syn || {}).map(id => ({ id, p: g.syn[id].p, s: g.syn[id].s, total: g.syn[id].p + g.syn[id].s })).filter(r => r.total >= 1).sort((a, b) => (b.total - a.total) || (a.id < b.id ? -1 : 1)) : []);
     let max = 1;
     for (const rows of allRows) for (const r of rows) max = Math.max(max, r.total);
+    for (const rows of synRows) for (const r of rows) max = Math.max(max, r.total);
     groups.forEach((g, gi) => {
       const col = this.el('div', 'dmg-col');
       const title = this.el('div', 'dmg-col-title', g.title);
@@ -1102,6 +1145,28 @@ const View = {
         col.appendChild(row);
       }
       if (!allRows[gi].length) col.appendChild(this.el('div', 'dmg-empty', '기물 없음'));
+      if (synRows[gi].length) col.appendChild(this.el('div', 'dmg-syn-title', '시너지 피해'));
+      for (const r of synRows[gi]) {
+        const row = this.el('div', 'dmg-row syn');
+        const face = this.el('div', 'dmg-face dmg-syn');
+        face.appendChild(this.hex(r.id, null, true));
+        const wrap = this.el('div', 'dmg-bar-wrap');
+        const num = this.el('div', 'dmg-num', Math.round(r.total));
+        num.appendChild(this.el('span', 'dmg-syn-name', r.id));
+        row.dataset.tip = r.id + ' 시너지';
+        const bar = this.el('div', 'dmg-bar');
+        const p = this.el('i', 'p');
+        p.style.width = (r.p / max) * 100 + '%';
+        const sp = this.el('i', 's');
+        sp.style.width = (r.s / max) * 100 + '%';
+        bar.appendChild(p);
+        bar.appendChild(sp);
+        wrap.appendChild(num);
+        wrap.appendChild(bar);
+        row.appendChild(face);
+        row.appendChild(wrap);
+        col.appendChild(row);
+      }
       cols.appendChild(col);
     });
     container.appendChild(cols);

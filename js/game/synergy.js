@@ -51,10 +51,24 @@ function computeSynergies(owner, insts) {
     }
   }
   const out = [];
+  let dittoBonus = null;
+  if (owner && owner.encounter === '메타몽') {
+    let best = null;
+    for (const id in groups) {
+      const td = TRAIT_DATA.map[id];
+      if ((td.kind !== 'type' && td.kind !== 'class') || (td.mode !== 'count' && td.mode !== 'normal')) continue;
+      const n = groups[id].length;
+      const t = tierFor(td, n);
+      const gap = td.tiers[t] != null ? td.tiers[t] - n : 99;
+      const cand = { id, n, gap };
+      if (!best || n > best.n || (n === best.n && (gap < best.gap || (gap === best.gap && id < best.id)))) best = cand;
+    }
+    if (best) dittoBonus = best.id;
+  }
   for (const id in groups) {
     const td = TRAIT_DATA.map[id];
     const g = groups[id];
-    let count = g.length;
+    let count = g.length + (id === dittoBonus ? 1 : 0);
     let pairCosts = [];
     let star3 = 0;
     if (td.mode === 'star3') count = g.filter(m => m.inst.star >= 3).length;
@@ -79,7 +93,8 @@ function computeSynergies(owner, insts) {
       members: g.map(m => m.form.name),
       unitIds: g.map(m => m.def.id),
       pairCosts,
-      star3
+      star3,
+      bonus: id === dittoBonus ? 1 : 0
     });
   }
   const kindRank = { type: 1, class: 1, unique: 0 };
@@ -101,8 +116,7 @@ function synergyTeam(owner) {
     tiers,
     waterPairCosts: water,
     normals,
-    scales: owner.dragonScales || 0,
-    training: owner.training || 0
+    scales: owner.dragonScales || 0
   };
 }
 

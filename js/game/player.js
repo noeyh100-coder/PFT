@@ -4,6 +4,11 @@ class Player {
     this.name = name;
     this.isHuman = isHuman;
     this.hp = CONFIG.startHp;
+    this.maxHp = CONFIG.startHp;
+    this.boxOpen = null;
+    this.encounter = null;
+    this.frzUsed = false;
+    this.fireUsed = false;
     this.gold = 0;
     this.level = 1;
     this.xp = 0;
@@ -29,9 +34,6 @@ class Player {
     this.pendingDownload = 0;
     this.counters = { hypnosis: 0, heal: 0, gene: 0, download: 0, bolt: 0, burn: 0 };
     this.dragonScales = 0;
-    this.training = 0;
-    this.psychic = 0;
-    this.psychicLosses = 0;
     this.mine = 0;
     this.mineOffer = null;
     this.mineSkip = false;

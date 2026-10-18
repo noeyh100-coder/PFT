@@ -60,6 +60,11 @@ class Driver {
         s.y = s.ty = sp.y;
         s.carry = null;
         s.speed = p.isHuman && !p.afk ? WALK_SPEED : CONFIG.carousel.moveSpeed;
+        if (g.carousel.encounter && !(p.isHuman && !p.afk)) {
+          s.tx = CAROUSEL_CENTER.x + (sp.x - CAROUSEL_CENTER.x) * 0.45;
+          s.ty = CAROUSEL_CENTER.y + (sp.y - CAROUSEL_CENTER.y) * 0.45;
+          s.speed = WALK_SPEED * 0.6;
+        }
       }
     }
   }
@@ -89,6 +94,7 @@ class Driver {
     if (actions) for (const [pid, a] of actions) this.apply(pid, a);
     const g = this.game;
     const T = DRIVER_TICK;
+    g.tickBoxes(T);
     if (this.state === 'planning') {
       this.timeLeft -= T;
       if (this.timeLeft <= 0 || this.allReady()) this.beginCombat();
@@ -352,6 +358,20 @@ class Driver {
         res = g.combineBench(p, i, j);
         break;
       }
+      case 'box': {
+        if (ph === 'over') return;
+        if (a.k === 'open') {
+          let i = Math.floor(Number(a.i));
+          if (typeof a.id === 'string' && p.items[i] !== a.id) i = p.items.indexOf(a.id);
+          if (i < 0) return;
+          res = g.openBox(p, i);
+        } else {
+          const n = this.num(a.n, 0, 3);
+          if (n === null) return;
+          res = g.pickBox(p, Math.floor(n));
+        }
+        break;
+      }
       case 'mine':
         if (ph !== 'planning') return;
         res = a.k === 'take' ? g.takeMine(p) : g.skipMine(p);
@@ -428,7 +448,7 @@ class Driver {
     };
     mix(g.stage + '-' + g.round + g.phase + this.state);
     for (const p of g.players) {
-      mix(p.hp + '|' + p.gold + '|' + p.level + '|' + p.xp + '|' + p.alive + '|' + p.mine + '|' + p.shop.join(',') + '|' + p.items.join(','));
+      mix(p.hp + '|' + p.gold + '|' + p.level + '|' + p.xp + '|' + p.alive + '|' + p.mine + '|' + p.shop.join(',') + '|' + p.items.join(',') + '|' + (p.boxOpen ? p.boxOpen.choices.join(',') : ''));
       for (const u of p.allUnits()) mix(u.iid + u.unitId + u.star + (u.loc ? u.loc.zone + (u.loc.r != null ? u.loc.r + ',' + u.loc.c : u.loc.i) : '') + (u.items || []).join(','));
     }
     return h.toString(16);

@@ -80,11 +80,11 @@ index.html
 css/style.css
 fonts/            Galmuri 도트 폰트 (OFL 라이선스)
 img/              그림 파일. 넣을 파일 이름은 img/파일목록.md 참고. img/dot/pokemon/영어이름/ 에 포켓몬 도트 시트
-js/data/          units.js(기물·야생 포켓몬 데이터), config.js(수치, 채굴 보상표 mine), traits.js(시너지 목록), items.js(아이템 이름·조합·능력치·설명, 채굴 보물, 이상한사탕), traiticons.js(시너지 도트 아이콘), sprites.js(도트 시트 정보·제작자), regional.js(리전폼 데이터 보관용, 게임에서 불러오지 않음)
+js/data/          units.js(기물·야생 포켓몬 데이터), config.js(수치, 채굴 보상표 mine), traits.js(시너지 목록, 에스퍼 효과 5종 ESPER_VARIANTS), items.js(아이템 이름·조합·능력치·설명, 채굴 보물, 이상한사탕), traiticons.js(시너지 도트 아이콘), sprites.js(도트 시트 정보·제작자), regional.js(리전폼 데이터 보관용, 게임에서 불러오지 않음)
 docs/             스킬목록.md(기물별 스킬), 시너지.md(용어·타입 상성·독 시너지·고유 시너지), 아이템.md(아이템 효과·조합표·얻는 방법·PP)
 img/item/         아이템 아이콘 (PokeAPI 아이템 도트, 투명 여백을 잘라 정사각형으로 맞춤. 자석·조가비갑옷·불구슬플레이트는 사용자 그림). 새 그림을 넣을 때도 여백 없이 정사각형 PNG로 넣으면 칸을 꽉 채웁니다
 js/core/          rng.js(시드 난수), hex.js(육각 좌표)
-js/game/          게임 로직 (화면과 분리). 아이템 전투 효과는 itemfx.js
+js/game/          게임 로직 (화면과 분리). 아이템 전투 효과는 itemfx.js, 에스퍼 효과(매직룸·미러코트·신통력·치유소원·봉인)는 esper.js
 server/           server.js(파일 제공 + 방·행동 기록 중계 웹소켓 서버)
 js/ui/            net.js(서버 연결), lobby.js(로그인·메인·파티·설정), driver.js(시간 흐름·행동 적용, 혼자/온라인 공용), assets.js(그림·아이콘), sprites.js(도트 애니메이션), mapkit.js(맵 그리기 도구), maps.js(지방별 전장 9종), view.js(패널·카드), projection.js(2.5D 카메라·바닥), arena.js(결투장·전략가), planner.js(배치 도구), app.js(진행)
 ```
@@ -111,6 +111,8 @@ js/ui/            net.js(서버 연결), lobby.js(로그인·메인·파티·설
 | 기물·전략가 크기 | `js/ui/arena.js`의 `UNIT_SCALE`, `STRAT_SCALE` |
 | 도트 크기, 별 등급별 크기 | `js/ui/sprites.js`의 `SPRITE_SCALE`(기본 1.5배), `SPRITE_STAR`(1성 1, 2성 1.15, 3성 1.3) |
 | 시너지 단계와 효과 수치 | `js/data/traits.js`의 `TRAIT_DEFS` (`tiers` 단계, `steps` 설명, `vals` 실제 수치). 노말 기물별 효과는 `NORMAL_EFFECTS` |
+| 에스퍼 효과 수치 | `js/data/traits.js`의 `ESPER_VARIANTS` (효과마다 `desc`, `steps`, `vals`. 단계 3/5/7/10 순서) |
+| 후딘 진화 조건 (윤겔라가 재운 시간) | `unlock`의 `hypnosisSeconds` (60초). 윤겔라 최면 시간은 `js/game/skills.js`의 `SKILL_P` 윤겔라 `sleep` (1.5초) |
 | 스킬 배율, 급소 확률, 랭크 배율, 명중 보너스 | `js/data/config.js`의 `combat` (`skillMult`, `critTable`, `critMult`, `rankStep`, `hitBonus`) |
 | 기물별 최대 PP | `js/game/units.js`의 `PP_ROLE`(역할군별 기본값과 코스트당 증가), `PP_ADJUST`(기물별 가감) |
 | 아이템 이름·조합·능력치·설명 | `js/data/items.js` (`bonus`는 완성 아이템에만 붙는 추가 능력치) |
@@ -156,7 +158,8 @@ js/ui/            net.js(서버 연결), lobby.js(로그인·메인·파티·설
 - 급소는 0랭크 4.17%, 1랭크 12.5%, 2랭크 50%, 3랭크 이상 100%이며, 1.5배 피해에 상대의 방어 랭크 상승을 무시합니다.
 - 명중 랭크에서 회피 랭크를 뺀 값이 0 이상이면 반드시 맞고, 1 이상이면 피해가 10% 늘어납니다. 음수면 -1에 86%, -6에 50% 확률로 맞습니다.
 - 시너지는 필드에 있는 기물만 세고, 같은 기물은 진화 계열까지 묶어 1마리로 셉니다(야돈·야도란, 핑복·해피너스 등). 이때는 코스트가 높은 쪽, 같으면 별이 높은 쪽의 시너지를 셉니다. 메타몽의 복사본은 예외로 따로 셉니다. 야생 포켓몬은 시너지가 없습니다.
-- 용의 비늘, 격투 수련 스택, 사이킥 에너지는 게임이 끝날 때까지 쌓입니다 (개발 도구에서 확인 가능). 격투·에스퍼 보상은 아직 비어 있습니다.
+- 용의 비늘, 격투 수련 스택은 게임이 끝날 때까지 쌓입니다 (개발 도구에서 확인 가능). 격투 보상은 아직 비어 있습니다.
+- 에스퍼 효과(매직룸·미러코트·신통력·치유소원·봉인)는 게임 시작 때 무작위로 하나 정해지고 모든 플레이어가 같이 씁니다. 개발 도구의 "에스퍼 효과 변경"으로 바꿔 볼 수 있습니다.
 
 ## 전장 맵
 
