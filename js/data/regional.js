@@ -350,7 +350,7 @@ const REGIONAL_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "기병대"
+   "파수꾼"
   ],
   "uniques": [],
   "forms": [
@@ -1163,7 +1163,7 @@ const REGIONAL_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "흡수자"
+   "약탈자"
   ],
   "uniques": [],
   "forms": [
@@ -1370,7 +1370,7 @@ const REGIONAL_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "기병대"
+   "타격대"
   ],
   "uniques": [],
   "forms": [
@@ -1436,7 +1436,7 @@ const REGIONAL_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "기병대"
+   "타격대"
   ],
   "uniques": [],
   "forms": [
@@ -1505,7 +1505,7 @@ const REGIONAL_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "기병대"
+   "타격대"
   ],
   "uniques": [],
   "forms": [

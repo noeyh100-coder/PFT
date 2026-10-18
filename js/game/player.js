@@ -6,6 +6,18 @@ class Player {
     this.hp = CONFIG.startHp;
     this.maxHp = CONFIG.startHp;
     this.boxOpen = null;
+    this.augs = [];
+    this.augOffer = null;
+    this.augTraits = {};
+    this.augState = { pump: 0, losses: 0, reckon: 0, rolled: false, buried: 0 };
+    this.freeRolls = 0;
+    this.roundRolls = 0;
+    this.interestBonus = 0;
+    this.extraSlots = 0;
+    this.augLevel = 0;
+    this.xpCut = 0;
+    this.boxSize = 4;
+    this.levelUps = [];
     this.encounter = null;
     this.frzUsed = false;
     this.fireUsed = false;
@@ -113,17 +125,26 @@ class Player {
     this.setAt({ zone: 'board', r, c }, inst);
   }
 
+  maxLevel() {
+    return CONFIG.maxLevel + (this.augLevel || 0);
+  }
+
+  boardLimit() {
+    return this.level + (this.extraSlots || 0);
+  }
+
   xpNeeded() {
-    return CONFIG.xpToNext[this.level] || 0;
+    return Math.max(1, (CONFIG.xpToNext[this.level] || 80) - (this.xpCut || 0));
   }
 
   addXp(n) {
-    if (this.level >= CONFIG.maxLevel) return;
+    if (this.level >= this.maxLevel() || n <= 0) return;
     this.xp += n;
-    while (this.level < CONFIG.maxLevel && this.xp >= this.xpNeeded()) {
+    while (this.level < this.maxLevel() && this.xp >= this.xpNeeded()) {
       this.xp -= this.xpNeeded();
       this.level += 1;
+      this.levelUps.push(this.level);
     }
-    if (this.level >= CONFIG.maxLevel) this.xp = 0;
+    if (this.level >= this.maxLevel()) this.xp = 0;
   }
 }

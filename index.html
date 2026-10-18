@@ -84,12 +84,19 @@
           <button data-dbg="itemdone" data-amt="1">완성 아이템 +1</button>
           <button data-dbg="treasure" data-amt="1">1티어 보물 +1</button>
           <button data-dbg="treasure" data-amt="3">3티어 보물 +1</button>
-          <button data-dbg="candy" data-amt="2">이상한사탕 +1</button>
+          <button data-dbg="candy" data-amt="0">경험사탕S +1</button>
+          <button data-dbg="candy" data-amt="1">경험사탕M +1</button>
+          <button data-dbg="candy" data-amt="2">경험사탕L +1</button>
+          <button data-dbg="candy" data-amt="3">이상한사탕 +1</button>
+          <button data-dbg="dice" data-amt="1">속임수주사위 +1</button>
           <button data-dbg="mine" data-amt="100">채굴 스택 +100</button>
           <button data-dbg="esper" data-amt="0">에스퍼 효과 변경</button>
           <button data-dbg="pokebox" data-amt="1">몬스터볼 상자 +1</button>
           <button data-dbg="greatbox" data-amt="1">슈퍼볼 상자 +1</button>
           <button data-dbg="enc" data-amt="0">조우자 변경</button>
+          <button data-dbg="aug" data-amt="1">실버 증강 선택</button>
+          <button data-dbg="aug" data-amt="2">골드 증강 선택</button>
+          <button data-dbg="aug" data-amt="3">프리즘 증강 선택</button>
         </div>
         <div class="dbg-state" id="dbg-state"></div>
       </div>
@@ -97,6 +104,11 @@
       <div id="mine-box" class="frame"></div>
       <div id="box-pick" class="frame"></div>
       <div id="enc-card" class="frame"></div>
+      <div id="aug-pick" class="frame"></div>
+      <button id="aug-toggle"></button>
+      <div id="aug-balls"><div class="aug-ball left"></div><div class="aug-ball right"></div></div>
+      <div id="aug-list" class="frame"></div>
+      <div id="aug-desc" class="frame"></div>
       <div id="item-tip" class="frame"></div>
       <div id="item-tip2" class="frame"></div>
       <div id="tooltip"></div>
@@ -110,6 +122,7 @@
   <script src="js/data/traits.js"></script>
   <script src="js/data/items.js"></script>
   <script src="js/data/encounters.js"></script>
+  <script src="js/data/augments.js"></script>
   <script src="js/data/traiticons.js"></script>
   <script src="js/data/skilltext.js"></script>
   <script src="js/data/sprites.js"></script>
@@ -123,9 +136,11 @@
   <script src="js/game/skills.js"></script>
   <script src="js/game/itemfx.js"></script>
   <script src="js/game/esper.js"></script>
+  <script src="js/game/augfx.js"></script>
   <script src="js/game/unlocks.js"></script>
   <script src="js/game/bot.js"></script>
   <script src="js/game/game.js"></script>
+  <script src="js/game/augments.js"></script>
   <script src="js/ui/assets.js"></script>
   <script src="js/ui/sprites.js"></script>
   <script src="js/ui/view.js"></script>

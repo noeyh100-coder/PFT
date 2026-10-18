@@ -65,10 +65,13 @@ function computeSynergies(owner, insts) {
     }
     if (best) dittoBonus = best.id;
   }
+  const augT = (owner && owner.augTraits) || {};
+  for (const id in augT) if (augT[id] && TRAIT_DATA.map[id] && !groups[id]) groups[id] = [];
   for (const id in groups) {
     const td = TRAIT_DATA.map[id];
     const g = groups[id];
-    let count = g.length + (id === dittoBonus ? 1 : 0);
+    const extra = (id === dittoBonus ? 1 : 0) + (augT[id] || 0);
+    let count = g.length + extra;
     let pairCosts = [];
     let star3 = 0;
     if (td.mode === 'star3') count = g.filter(m => m.inst.star >= 3).length;
@@ -94,7 +97,7 @@ function computeSynergies(owner, insts) {
       unitIds: g.map(m => m.def.id),
       pairCosts,
       star3,
-      bonus: id === dittoBonus ? 1 : 0
+      bonus: extra
     });
   }
   const kindRank = { type: 1, class: 1, unique: 0 };

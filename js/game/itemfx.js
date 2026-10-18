@@ -270,8 +270,8 @@ const ITEM_FX = {
     }
     if (it['assault-vest']) {
       T.vest += dt;
-      while (T.vest >= 6) {
-        T.vest -= 6;
+      while (T.vest >= 10) {
+        T.vest -= 10;
         u.rk.atk += it['assault-vest'];
         u.rk.spa += it['assault-vest'];
         u.vestRanks += it['assault-vest'];

@@ -74,7 +74,7 @@ const Bot = {
     const all = p.allUnits();
     for (const u of all) p.remove(u);
     const scored = all.map(u => ({ u, v: this.value(p, u) + g.rng.next() * 0.1 })).sort((a, b) => b.v - a.v);
-    const n = Math.min(p.level, scored.length);
+    const n = Math.min(p.boardLimit(), scored.length);
     const chosen = scored.slice(0, n).map(x => x.u);
     const rest = scored.slice(n).map(x => x.u);
     const used = new Set();
@@ -123,6 +123,8 @@ const Bot = {
     if (!d) return false;
     if (d.box) return false;
     if (d.candy) return inst.star < 3 && UNITS[inst.unitId].cost <= d.maxCost;
+    if (d.reforge) return false;
+    if (d.dup) return inst.star < 3 && UNITS[inst.unitId].cost <= d.maxCost && g.pool.remaining(inst.unitId) > 0 && (p.freeBenchSlot() >= 0 || g.countMergeable(p, inst.unitId, 1) >= 2);
     const comp = (inst.items || []).find(x => itemDef(x) && itemDef(x).kind === 'component');
     const res = d.kind === 'component' && comp ? combineItems(comp, id) : id;
     if (res === 'everstone' && canEvolveFurther(inst, p)) return false;
@@ -161,7 +163,7 @@ const Bot = {
     if (g.canTakeMine(p)) g.takeMine(p);
     const reserve = this.reserve(g, p);
     const target = this.targetLevel(g);
-    while (p.level < CONFIG.maxLevel && p.level < target && p.gold - CONFIG.xpCost >= reserve) {
+    while (p.level < p.maxLevel() && p.level < target && p.gold - CONFIG.xpCost >= reserve) {
       if (!g.buyXp(p)) break;
     }
     const maxRolls = p.hp <= 35 ? 10 : g.stage >= 4 ? 3 : 0;
@@ -176,7 +178,7 @@ const Bot = {
       }
     }
     if (g.stage >= 4) {
-      while (p.level < CONFIG.maxLevel && p.gold - CONFIG.xpCost >= reserve + 10) {
+      while (p.level < p.maxLevel() && p.gold - CONFIG.xpCost >= reserve + 10) {
         if (!g.buyXp(p)) break;
       }
     }

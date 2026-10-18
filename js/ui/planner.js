@@ -580,7 +580,7 @@ class Planner {
     const filter = this.state.filter;
     let shown = 0;
     for (let cost = 1; cost <= 5; cost++) {
-      const defs = this.units().filter(def => def.cost === cost && (!filter.length || allTraitsOf(def, 1, null).some(t => filter.includes(t)) || (def.forms || []).some(f => f.types.some(t => filter.includes(t)))));
+      const defs = this.units().filter(def => def.cost === cost && (!filter.length || filter.every(id => allTraitsOf(def, 1, null).includes(id) || (def.forms || []).some(f => f.types.includes(id)))));
       if (!defs.length) continue;
       const h = this.el('div', 'pl-cost-h');
       h.innerHTML = iconSvg('coin', 14);

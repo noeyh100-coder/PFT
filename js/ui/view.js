@@ -1,7 +1,7 @@
 const CLASS_COLORS = {
   '최면술사': '#c77dff', '난동꾼': '#ff7b54', '감시자': '#5ec4b6', '타격대': '#e05252', '파수꾼': '#7f9cf5',
-  '기병대': '#d9a441', '매복자': '#6b8f71', '주문술사': '#5fa8ff', '선도자': '#f2e394', '도전자': '#ff9f43',
-  '학살자': '#b0413e', '화석': '#a68a64', '흡수자': '#8e5bb5', '전쟁기계': '#8d99ae'
+  '매복자': '#6b8f71', '주문술사': '#5fa8ff', '선도자': '#f2e394', '도전자': '#ff9f43',
+  '학살자': '#b0413e', '화석': '#a68a64', '약탈자': '#8e5bb5', '전쟁기계': '#8d99ae'
 };
 
 const ROUND_ICON = { encounter: 'encounter', pve: 'ball', pvp: 'sword', carousel: 'sushi' };
@@ -224,6 +224,7 @@ const View = {
     if (d.kind === 'completed') return d.unique ? '완성 아이템 · 고유' : '완성 아이템';
     if (d.kind === 'treasure') return '채굴 보물 · ' + TREASURE_TIER_NAME[d.tier];
     if (d.box) return '아이템 상자';
+    if (d.label) return '소모품 · ' + d.label;
     return '소모품';
   },
 
@@ -279,6 +280,59 @@ const View = {
       from.appendChild(icon(d.from[1], 26));
       box.appendChild(from);
     }
+  },
+
+  augIcon(id, size) {
+    const d = augDef(id);
+    const el = this.el('div', 'aug-ico t' + (d ? d.tier : 1));
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    const img = this.el('i');
+    if (d) img.style.backgroundImage = 'url("img/aug/' + d.icon + '.png")';
+    el.appendChild(img);
+    return el;
+  },
+
+  renderAugPick(box, offer, hooks) {
+    box.innerHTML = '';
+    box.className = 'show t' + offer.tier;
+    const title = this.el('div', 'augp-title');
+    title.appendChild(this.el('small', null, AUG_TIER_NAME[offer.tier] + ' 증강'));
+    title.appendChild(this.el('b', null, '증강 선택'));
+    title.appendChild(this.el('span', 'augp-timer', ''));
+    box.appendChild(title);
+    const row = this.el('div', 'augp-row');
+    offer.choices.forEach((c, n) => {
+      const d = augDef(c.id);
+      const col = this.el('div', 'augp-col');
+      const card = this.el('button', 'augc t' + offer.tier);
+      const medal = this.el('div', 'augc-medal');
+      medal.appendChild(this.el('div', 'augc-teeth'));
+      medal.appendChild(this.el('div', 'augc-ring'));
+      const core = this.el('div', 'augc-core');
+      const ico = this.el('i');
+      if (d) ico.style.backgroundImage = 'url("img/aug/' + d.icon + '.png")';
+      core.appendChild(ico);
+      medal.appendChild(core);
+      medal.appendChild(this.el('span', 'augc-gem'));
+      card.appendChild(medal);
+      const body = this.el('div', 'augc-body');
+      body.appendChild(this.el('div', 'augc-name', augLabel(c)));
+      body.appendChild(this.el('div', 'augc-sep'));
+      body.appendChild(this.el('div', 'augc-desc', augText(c)));
+      card.appendChild(body);
+      card.addEventListener('click', () => hooks.pick(n));
+      col.appendChild(card);
+      const used = !!(offer.rerolls && offer.rerolls[n]);
+      const rr = this.el('button', 'augc-reroll' + (used ? ' used' : ''));
+      rr.innerHTML = iconSvg('refresh', 16) + '<span>' + (used ? 0 : 1) + '</span>';
+      rr.disabled = used;
+      rr.dataset.tip = used ? '이미 새로고침했습니다' : '이 증강 새로고침 (1회)';
+      rr.addEventListener('click', () => hooks.reroll(n));
+      col.appendChild(rr);
+      row.appendChild(col);
+    });
+    box.appendChild(row);
   },
 
   renderBoxPick(box, b, pick) {

@@ -368,6 +368,13 @@ class App {
     this.$('arena').addEventListener('pointerdown', e => {
       if (e.button === 2) this.moveStrategist(e.clientX, e.clientY);
     });
+    this.$('aug-toggle').addEventListener('click', () => {
+      this.augHidden = !this.augHidden;
+      this.renderAugPick();
+    });
+    this.gameEl.addEventListener('pointerdown', e => {
+      if (this.augListFor && !e.target.closest('#aug-list, #aug-desc, .aug-ball')) this.closeAugList();
+    });
     this.gameEl.addEventListener('pointerdown', e => {
       if (e.button !== 0 || !this.selected) return;
       if (e.target.closest('#info-panel, #evo-pop, .unit, button, .card, .dmg-row, .prow, #modal, #damage, #shop, #planner-wrap')) return;
@@ -546,8 +553,8 @@ class App {
   buyXp() {
     if (!this.canShop()) return;
     const h = this.human;
-    if (h.level >= CONFIG.maxLevel || h.gold < CONFIG.xpCost) {
-      this.toast(h.level >= CONFIG.maxLevel ? '최대 레벨입니다' : '골드가 부족합니다', 'error');
+    if (h.level >= h.maxLevel() || (h.gold < CONFIG.xpCost && !this.game.hasAug(h, 'cruel'))) {
+      this.toast(h.level >= h.maxLevel() ? '최대 레벨입니다' : '골드가 부족합니다', 'error');
       return;
     }
     this.act({ t: 'xp' });
@@ -555,7 +562,7 @@ class App {
 
   reroll() {
     if (!this.canShop()) return;
-    if (this.human.gold < CONFIG.rerollCost) {
+    if (this.human.gold < this.game.rerollCost(this.human)) {
       this.toast('골드가 부족합니다', 'error');
       return;
     }
@@ -721,7 +728,7 @@ class App {
     }
     a.renderBench(false, sc.bottom && sc.bottom.player, (inst, owner) => this.makeToken(inst, owner));
     a.renderBench(true, sc.top && sc.top.player, (inst, owner) => this.makeToken(inst, owner));
-    a.renderBoardCount(viewMe && sc.mode === 'planning' && this.game.phase === 'planning' ? this.human.boardCount() + ' / ' + this.human.level : '', this.human.boardCount() < this.human.level);
+    a.renderBoardCount(viewMe && sc.mode === 'planning' && this.game.phase === 'planning' ? this.human.boardCount() + ' / ' + this.human.boardLimit() : '', this.human.boardCount() < this.human.boardLimit());
     a.renderOrbs(viewMe && !sc.carouselField ? this.human.orbs || [] : []);
     a.refreshSprites();
     const scout = this.$('scout-label');
@@ -789,6 +796,8 @@ class App {
     this.renderInfo();
     this.renderMine();
     this.renderBox();
+    this.renderAugPick();
+    this.renderAugBalls();
     this.renderDebug();
     if (h.pendingBranch.length) this.maybeShowBranch();
     const rb = this.$('btn-ready');
@@ -872,6 +881,153 @@ class App {
       this.mineKey = key;
     }
     box.classList.add('show');
+  }
+
+  renderAugPick() {
+    const box = this.$('aug-pick');
+    const btn = this.$('aug-toggle');
+    const o = this.human.augOffer;
+    const home = !!o && this.human.alive && !this.scouting() && !this.replaying;
+    if (!o) this.augHidden = false;
+    const show = home && !this.augHidden;
+    btn.classList.toggle('show', home);
+    btn.classList.toggle('closed', home && this.augHidden);
+    if (!show) {
+      if (this.augKey) {
+        box.className = '';
+        box.innerHTML = '';
+        this.augKey = null;
+      }
+      if (home) this.updateAugTimer();
+      return;
+    }
+    const key = o.tier + '|' + o.choices.map(c => c.id + (c.trait || '') + (c.traits || []).join('')).join(',') + '|' + (o.rerolls || []).join(',');
+    if (key !== this.augKey) {
+      View.renderAugPick(box, o, {
+        pick: n => this.act({ t: 'aug', k: 'pick', n }),
+        reroll: n => this.act({ t: 'aug', k: 'reroll', n })
+      });
+      this.augKey = key;
+    }
+    this.updateAugTimer();
+  }
+
+  updateAugTimer() {
+    const left = Math.max(0, Math.ceil(this.driver.timeLeft - CONFIG.augAuto));
+    const el = this.augKey ? this.$('aug-pick').querySelector('.augp-timer') : null;
+    if (el) el.textContent = left + '초 뒤 자동 선택';
+    const btn = this.$('aug-toggle');
+    if (!btn.classList.contains('show')) return;
+    const label = this.augHidden ? '증강 선택 · ' + left + '초' : '필드 보기';
+    if (btn.dataset.label !== label) {
+      btn.dataset.label = label;
+      btn.innerHTML = iconSvg(this.augHidden ? 'crown' : 'home', 14) + '<span>' + label + '</span>';
+    }
+  }
+
+  augBallPlayers() {
+    const sc = this.curScene;
+    if (!sc || this.carouselScene || sc.mode === 'carousel') return [null, null];
+    const bot = sc.bottom && sc.bottom.player ? sc.bottom.player : null;
+    const top = sc.top && sc.top.player ? sc.top.player : null;
+    return [bot, top];
+  }
+
+  renderAugBalls() {
+    const [bot, top] = this.augBallPlayers();
+    const balls = this.$('aug-balls').children;
+    const key = [bot, top].map(p => (p ? p.id + ':' + p.augs.map(a => a.id + (a.trait || '')).join(',') : '-')).join('|');
+    if (key === this.augBallKey) return;
+    this.augBallKey = key;
+    [bot, top].forEach((p, i) => {
+      const el = balls[i];
+      el.innerHTML = '';
+      el.classList.toggle('show', !!p);
+      if (!p) return;
+      const row = View.el('div', 'aug-ball-icons');
+      for (const a of p.augs) row.appendChild(View.augIcon(a.id, 24));
+      el.appendChild(row);
+      el.appendChild(View.el('i', 'aug-ball-img'));
+      el.dataset.tip = p.augs.length ? '' : '선택한 증강 없음';
+      el.onclick = e => {
+        e.stopPropagation();
+        this.toggleAugList(p, el);
+      };
+    });
+    if (this.augListFor && ![bot, top].includes(this.augListFor)) this.closeAugList();
+  }
+
+  toggleAugList(p, anchor) {
+    if (this.augListFor === p) {
+      this.closeAugList();
+      return;
+    }
+    const box = this.$('aug-list');
+    box.innerHTML = '';
+    box.appendChild(View.el('div', 'augl-title', '증강'));
+    if (!p.augs.length) box.appendChild(View.el('div', 'augl-empty', '아직 선택한 증강이 없습니다'));
+    for (const a of p.augs) {
+      const row = View.el('div', 'augl-row');
+      row.appendChild(View.augIcon(a.id, 34));
+      row.appendChild(View.el('span', 'augl-name', augLabel(a)));
+      row.addEventListener('mouseenter', () => this.showAugDesc(a, row));
+      row.addEventListener('mouseleave', () => this.$('aug-desc').classList.remove('show'));
+      box.appendChild(row);
+    }
+    box.classList.add('show');
+    const r = anchor.getBoundingClientRect();
+    const g = this.toGame(r.left, r.top);
+    const g2 = this.toGame(r.right, r.bottom);
+    const w = box.offsetWidth;
+    const h = box.offsetHeight;
+    let x = anchor.classList.contains('right') ? g.x - w - 8 : g2.x + 8;
+    let y = Math.max(8, Math.min(712 - h, (g.y + g2.y) / 2 - h / 2));
+    box.style.left = Math.max(8, x) + 'px';
+    box.style.top = y + 'px';
+    box.dataset.side = anchor.classList.contains('right') ? 'right' : 'left';
+    this.augListFor = p;
+  }
+
+  showAugDesc(a, row) {
+    const box = this.$('aug-desc');
+    box.innerHTML = '';
+    const d = augDef(a.id);
+    const head = View.el('div', 'augd-head');
+    head.appendChild(View.augIcon(a.id, 34));
+    const tt = View.el('div', 'augd-titles');
+    tt.appendChild(View.el('b', null, augLabel(a)));
+    tt.appendChild(View.el('small', 't' + (d ? d.tier : 1), d ? AUG_TIER_NAME[d.tier] + ' 증강' : ''));
+    head.appendChild(tt);
+    box.appendChild(head);
+    box.appendChild(View.el('div', 'augd-text', augText(a)));
+    box.classList.add('show');
+    const list = this.$('aug-list');
+    const lx = parseFloat(list.style.left) || 0;
+    const w = box.offsetWidth;
+    const rr = row.getBoundingClientRect();
+    const gy = this.toGame(rr.left, rr.top).y;
+    const x = list.dataset.side === 'right' ? lx - w + 2 : lx + list.offsetWidth - 2;
+    box.style.left = Math.max(8, Math.min(1272 - w, x)) + 'px';
+    box.style.top = Math.max(8, Math.min(712 - box.offsetHeight, gy - 6)) + 'px';
+  }
+
+  closeAugList() {
+    this.augListFor = null;
+    this.$('aug-list').classList.remove('show');
+    this.$('aug-desc').classList.remove('show');
+  }
+
+  placeAugBalls() {
+    const balls = this.$('aug-balls').children;
+    const L = Proj.toScreen(View.BOARD_X - 58, View.BOARD_Y + 5.6 * View.ROW_STEP);
+    const R = Proj.toScreen(View.BOARD_X + 7.5 * View.CELL_W + 58, View.BOARD_Y + 2.6 * View.ROW_STEP);
+    const k = Math.round(L.x) + ',' + Math.round(L.y) + ',' + Math.round(R.x) + ',' + Math.round(R.y);
+    if (k === this.augBallPos) return;
+    this.augBallPos = k;
+    balls[0].style.left = L.x + 'px';
+    balls[0].style.top = L.y + 'px';
+    balls[1].style.left = R.x + 'px';
+    balls[1].style.top = R.y + 'px';
   }
 
   renderBox() {
@@ -1103,11 +1259,18 @@ class App {
     const can = this.canShop();
     this.$('level-text').textContent = h.level + '레벨';
     const need = h.xpNeeded();
-    this.$('xp-text').textContent = h.level >= CONFIG.maxLevel ? 'MAX' : h.xp + '/' + need;
-    this.$('xp-bar').style.width = (h.level >= CONFIG.maxLevel ? 100 : (h.xp / need) * 100) + '%';
-    this.$('btn-xp').disabled = !can || h.gold < CONFIG.xpCost || h.level >= CONFIG.maxLevel;
-    this.$('btn-reroll').disabled = !can || h.gold < CONFIG.rerollCost;
-    const odds = CONFIG.shopOdds[h.level];
+    this.$('xp-text').textContent = h.level >= h.maxLevel() ? 'MAX' : h.xp + '/' + need;
+    this.$('xp-bar').style.width = (h.level >= h.maxLevel() ? 100 : (h.xp / need) * 100) + '%';
+    this.$('btn-xp').disabled = !can || (h.gold < CONFIG.xpCost && !this.game.hasAug(h, 'cruel')) || h.level >= h.maxLevel();
+    const rc = this.game.rerollCost(h);
+    this.$('btn-reroll').disabled = !can || h.gold < rc;
+    const rk = rc + '|' + (h.roundRolls + h.freeRolls);
+    if (this.rerollKey !== rk) {
+      this.rerollKey = rk;
+      const free = h.roundRolls + h.freeRolls;
+      this.$('btn-reroll').innerHTML = iconSvg('refresh', 20) + '<span class="lbl">새로고침<small>' + (rc ? iconSvg('coin', 10) + rc : '무료' + (free ? ' ' + free : '')) + '</small></span>';
+    }
+    const odds = CONFIG.shopOdds[Math.min(h.level, CONFIG.maxLevel)];
     const oddsEl = this.$('odds');
     oddsEl.innerHTML = '';
     odds.forEach((v, i) => {
@@ -1366,8 +1529,8 @@ class App {
         this.toast('전투 중에는 필드를 바꿀 수 없습니다', 'error');
         return;
       }
-      if (inst.loc && inst.loc.zone === 'bench' && !this.human.unitAt({ zone: 'board', r: t.r, c: t.c }) && this.human.boardCount() >= this.human.level) {
-        this.toast('필드에 놓을 수 있는 기물은 ' + this.human.level + '개입니다', 'error');
+      if (inst.loc && inst.loc.zone === 'bench' && !this.human.unitAt({ zone: 'board', r: t.r, c: t.c }) && this.human.boardCount() >= this.human.boardLimit()) {
+        this.toast('필드에 놓을 수 있는 기물은 ' + this.human.boardLimit() + '개입니다', 'error');
         return;
       }
       this.act({ t: 'move', iid: inst.iid, z: 'board', r: t.r, c: t.c });
@@ -1492,6 +1655,8 @@ class App {
       tn.dataset.tip = g.carousel.encounter ? '조우자' : PHASE_LABEL.carousel;
     }
     if (this.boxKey) this.updateBoxTimer();
+    if (this.augKey || this.$('aug-toggle').classList.contains('show')) this.updateAugTimer();
+    this.placeAugBalls();
     this.syncMe(dt);
     if (this.combatRunning) {
       this.arena.updateBars();

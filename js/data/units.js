@@ -586,7 +586,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "기병대"
+   "타격대"
   ],
   "uniques": [],
   "forms": [
@@ -884,7 +884,7 @@ const UNIT_DATA = [
   "id": "핑복",
   "family": "핑복",
   "variant": "원종",
-  "cost": 1,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -1115,7 +1115,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "흡수자"
+   "약탈자"
   ],
   "uniques": [],
   "forms": [
@@ -1572,7 +1572,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "타격대"
+   "전쟁기계"
   ],
   "uniques": [],
   "forms": [
@@ -1873,7 +1873,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "흡수자"
+   "전쟁기계"
   ],
   "uniques": [],
   "forms": [
@@ -2098,7 +2098,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "흡수자"
+   "약탈자"
   ],
   "uniques": [],
   "forms": [
@@ -2249,7 +2249,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "기병대"
+   "파수꾼"
   ],
   "uniques": [],
   "forms": [
@@ -2261,7 +2261,7 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": true,
-    "role": "특수 전사",
+    "role": "특수 탱커",
     "skill": "니트로차지",
     "skillType": "불꽃",
     "stats": {
@@ -2281,7 +2281,7 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": true,
-    "role": "특수 전사",
+    "role": "특수 탱커",
     "skill": "니트로차지",
     "skillType": "불꽃",
     "stats": {
@@ -2301,7 +2301,7 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": true,
-    "role": "특수 전사",
+    "role": "특수 탱커",
     "skill": "니트로차지",
     "skillType": "불꽃",
     "stats": {
@@ -2788,7 +2788,7 @@ const UNIT_DATA = [
     "range": 2,
     "special": true,
     "role": "특수 전사",
-    "skill": "불대문자",
+    "skill": "화염방사",
     "skillType": "불꽃",
     "stats": {
      "hp": 39,
@@ -2808,7 +2808,7 @@ const UNIT_DATA = [
     "range": 2,
     "special": true,
     "role": "특수 전사",
-    "skill": "불대문자",
+    "skill": "화염방사",
     "skillType": "불꽃",
     "stats": {
      "hp": 58,
@@ -2829,7 +2829,7 @@ const UNIT_DATA = [
     "range": 2,
     "special": true,
     "role": "특수 전사",
-    "skill": "불대문자",
+    "skill": "화염방사",
     "skillType": "불꽃",
     "stats": {
      "hp": 78,
@@ -3355,7 +3355,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "전쟁기계"
+   "학살자"
   ],
   "uniques": [],
   "forms": [
@@ -4136,7 +4136,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "흡수자"
+   "약탈자"
   ],
   "uniques": [],
   "forms": [
@@ -4213,7 +4213,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "흡수자"
+   "약탈자"
   ],
   "uniques": [],
   "forms": [
@@ -5264,7 +5264,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "흡수자"
+   "약탈자"
   ],
   "uniques": [],
   "forms": [
@@ -5406,7 +5406,7 @@ const UNIT_DATA = [
   "id": "야도란",
   "family": "야돈",
   "variant": "원종",
-  "cost": 5,
+  "cost": 4,
   "shop": false,
   "unlockOnly": true,
   "traits": [
@@ -5483,7 +5483,7 @@ const UNIT_DATA = [
   "id": "야도킹",
   "family": "야돈",
   "variant": "원종",
-  "cost": 5,
+  "cost": 4,
   "shop": false,
   "unlockOnly": true,
   "traits": [
@@ -5628,11 +5628,11 @@ const UNIT_DATA = [
   "id": "망키",
   "family": "망키",
   "variant": "원종",
-  "cost": 5,
+  "cost": 4,
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "타격대"
+   "약탈자"
   ],
   "uniques": [],
   "forms": [
@@ -6069,7 +6069,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "기병대"
+   "타격대"
   ],
   "uniques": [],
   "forms": [
@@ -6216,7 +6216,7 @@ const UNIT_DATA = [
   "id": "롱스톤",
   "family": "롱스톤",
   "variant": "원종",
-  "cost": 4,
+  "cost": 5,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -6463,7 +6463,7 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 전사",
-    "skill": "역린",
+    "skill": "용성군",
     "skillType": "드래곤",
     "stats": {
      "hp": 91,
@@ -6484,7 +6484,7 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 전사",
-    "skill": "역린",
+    "skill": "용성군",
     "skillType": "드래곤",
     "stats": {
      "hp": 91,
@@ -6505,7 +6505,7 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 전사",
-    "skill": "역린",
+    "skill": "용성군",
     "skillType": "드래곤",
     "stats": {
      "hp": 91,
@@ -6526,7 +6526,7 @@ const UNIT_DATA = [
   "id": "해피너스",
   "family": "핑복",
   "variant": "원종",
-  "cost": 5,
+  "cost": 4,
   "shop": false,
   "unlockOnly": true,
   "traits": [
@@ -6606,7 +6606,7 @@ const UNIT_DATA = [
   "shop": false,
   "unlockOnly": true,
   "traits": [
-   "흡수자"
+   "약탈자"
   ],
   "uniques": [
    "저주받은 그림자"
@@ -6847,7 +6847,7 @@ const UNIT_DATA = [
     "range": 4,
     "special": true,
     "role": "특수 마법사",
-    "skill": "눈보라",
+    "skill": "절대영도",
     "skillType": "얼음",
     "stats": {
      "hp": 90,
@@ -6868,7 +6868,7 @@ const UNIT_DATA = [
     "range": 4,
     "special": true,
     "role": "특수 마법사",
-    "skill": "눈보라",
+    "skill": "절대영도",
     "skillType": "얼음",
     "stats": {
      "hp": 90,
@@ -6889,7 +6889,7 @@ const UNIT_DATA = [
     "range": 4,
     "special": true,
     "role": "특수 마법사",
-    "skill": "눈보라",
+    "skill": "절대영도",
     "skillType": "얼음",
     "stats": {
      "hp": 90,
@@ -7001,7 +7001,7 @@ const UNIT_DATA = [
     "range": 4,
     "special": true,
     "role": "특수 마법사",
-    "skill": "오버히트",
+    "skill": "불대문자",
     "skillType": "불꽃",
     "stats": {
      "hp": 90,
@@ -7022,7 +7022,7 @@ const UNIT_DATA = [
     "range": 4,
     "special": true,
     "role": "특수 마법사",
-    "skill": "오버히트",
+    "skill": "불대문자",
     "skillType": "불꽃",
     "stats": {
      "hp": 90,
@@ -7043,7 +7043,7 @@ const UNIT_DATA = [
     "range": 4,
     "special": true,
     "role": "특수 마법사",
-    "skill": "오버히트",
+    "skill": "불대문자",
     "skillType": "불꽃",
     "stats": {
      "hp": 90,

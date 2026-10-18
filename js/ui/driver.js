@@ -97,6 +97,7 @@ class Driver {
     g.tickBoxes(T);
     if (this.state === 'planning') {
       this.timeLeft -= T;
+      if (this.timeLeft <= CONFIG.augAuto && g.players.some(p => p.augOffer)) g.autoPickAugs();
       if (this.timeLeft <= 0 || this.allReady()) this.beginCombat();
     } else if (this.state === 'precombat') {
       this.wait -= T;
@@ -309,7 +310,7 @@ class Driver {
         break;
       case 'xp':
         if (!shopPhase) return;
-        res = g.buyXp(p) ? res : { ok: false, reason: p.level >= CONFIG.maxLevel ? '최대 레벨입니다' : '골드가 부족합니다' };
+        res = g.buyXp(p) ? res : { ok: false, reason: p.level >= p.maxLevel() ? '최대 레벨입니다' : '골드가 부족합니다' };
         break;
       case 'lock':
         p.shopLocked = !!a.v;
@@ -372,6 +373,14 @@ class Driver {
         }
         break;
       }
+      case 'aug':
+        if (ph === 'over' || !p.augOffer) return;
+        {
+          const n = this.num(a.n, 0, 2);
+          if (n === null) return;
+          res = a.k === 'reroll' ? g.rerollAug(p, Math.floor(n)) : g.pickAug(p, Math.floor(n));
+        }
+        break;
       case 'mine':
         if (ph !== 'planning') return;
         res = a.k === 'take' ? g.takeMine(p) : g.skipMine(p);
@@ -448,7 +457,7 @@ class Driver {
     };
     mix(g.stage + '-' + g.round + g.phase + this.state);
     for (const p of g.players) {
-      mix(p.hp + '|' + p.gold + '|' + p.level + '|' + p.xp + '|' + p.alive + '|' + p.mine + '|' + p.shop.join(',') + '|' + p.items.join(',') + '|' + (p.boxOpen ? p.boxOpen.choices.join(',') : ''));
+      mix(p.hp + '|' + p.gold + '|' + p.level + '|' + p.xp + '|' + p.alive + '|' + p.mine + '|' + p.shop.join(',') + '|' + p.items.join(',') + '|' + (p.boxOpen ? p.boxOpen.choices.join(',') : '') + '|' + p.augs.map(x => x.id + (x.trait || '')).join(',') + '|' + (p.augOffer ? p.augOffer.choices.map(x => x.id).join(',') : ''));
       for (const u of p.allUnits()) mix(u.iid + u.unitId + u.star + (u.loc ? u.loc.zone + (u.loc.r != null ? u.loc.r + ',' + u.loc.c : u.loc.i) : '') + (u.items || []).join(','));
     }
     return h.toString(16);

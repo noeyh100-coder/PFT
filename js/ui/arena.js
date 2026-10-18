@@ -421,7 +421,7 @@ class Arena {
     const segs = [];
     for (let i = 1; i < SERPENT.segs; i++) {
       const el = document.createElement('div');
-      el.className = 'serpent-seg' + (i === SERPENT.segs - 1 ? ' tail' : '');
+      el.className = 'serpent-seg' + (i === SERPENT.segs - 1 ? ' tail' : i % 2 === 1 && i < SERPENT.segs - 3 ? ' fin' : '');
       this.unitLayer.appendChild(el);
       segs.push(el);
     }
@@ -441,6 +441,12 @@ class Arena {
       const S = u.serpent;
       const segs = S.segs;
       const swim = S.mode === 'swim';
+      const pts = segs.map(g => {
+        const f = this.serpentFlat(g.x, g.y);
+        const p = Proj.toScreen(f.x, f.y);
+        const s = Proj.depthScale(f.y);
+        return { x: p.x, y: p.y - Math.max(0, g.h) * 36 * s, s };
+      });
       for (let i = 1; i < segs.length; i++) {
         const el = sp.segs[i - 1];
         const g = segs[i];
@@ -448,18 +454,21 @@ class Arena {
           el.style.display = 'none';
           continue;
         }
-        const f = this.serpentFlat(g.x, g.y);
-        const p = Proj.toScreen(f.x, f.y);
-        const s = Proj.depthScale(f.y);
-        const size = Math.max(16, 42 - i * 1.3) * s;
-        const lift = Math.max(0, g.h) * 36 * s;
+        const pt = pts[i];
+        const pv = pts[i - 1];
+        const s = pt.s;
+        const size = Math.max(16, 40 - i * 1.2) * s;
+        const ang = Math.atan2(pv.y - pt.y, pv.x - pt.x) * 180 / Math.PI;
+        const w = g.h <= 0 ? size : size * 1.3;
+        const h = g.h <= 0 ? size * 0.45 : size * 0.86;
         el.style.display = '';
         el.classList.toggle('sub', g.h <= 0);
-        el.style.width = size + 'px';
-        el.style.height = (g.h <= 0 ? size * 0.45 : size) + 'px';
-        el.style.left = (p.x - size / 2) + 'px';
-        el.style.top = (p.y - lift - (g.h <= 0 ? size * 0.2 : size * 0.75)) + 'px';
-        el.style.zIndex = String(100 + Math.round(p.y));
+        el.style.width = w + 'px';
+        el.style.height = h + 'px';
+        el.style.left = (pt.x - w / 2) + 'px';
+        el.style.top = (pt.y - h / 2 - (g.h <= 0 ? 0 : size * 0.3)) + 'px';
+        el.style.transform = 'rotate(' + ang.toFixed(1) + 'deg)';
+        el.style.zIndex = String(100 + Math.round(pt.y));
       }
       let hx = S.x;
       let hy = S.y;
@@ -472,13 +481,15 @@ class Arena {
       } else if (S.mode === 'dive') {
         visible = S.modeT < 0.35;
       } else if (S.mode === 'rise') {
-        lift = (S.modeT / 0.6) * 320;
+        lift = Math.sin((S.modeT / 0.6) * Math.PI / 2) * 110;
       } else if (S.mode === 'sky') {
         const m = hexMetric(S.impact[0], S.impact[1]);
-        hx = m.x;
-        hy = m.y;
-        visible = S.modeT > 0.45;
-        lift = Math.max(0, (0.8 - S.modeT) / 0.35) * 320;
+        const c0 = S.center || { x: S.x, y: S.y };
+        const k = Math.min(1, S.modeT / 0.8);
+        hx = c0.x + (m.x - c0.x) * k;
+        hy = c0.y + (m.y - c0.y) * k;
+        lift = 110 * (1 - k) + 60 * Math.sin(k * Math.PI);
+        visible = k < 0.97;
       }
       const f = this.serpentFlat(hx, hy);
       e.el.style.transitionDuration = '0s';
@@ -705,13 +716,16 @@ class Arena {
         const e = this.cunits[ev.uid];
         if (e) this.flash(e.el, 'attack', 110 / speed);
         if (e && e.el._spr) this.spriteAction(ev.uid, ev.target, 'attack');
-        if (ev.ranged) this.projectile(ev.uid, ev.target, (ev.special ? 'special' : '') + (ev.fan ? ' fan' : ''));
+        if (ev.ranged || ev.icicle) this.projectile(ev.uid, ev.target, (ev.special ? 'special' : '') + (ev.fan ? ' fan' : '') + (ev.icicle ? ' icicle' : ''));
+        else if (ev.fan) this.fanBurst(ev.uid, ev.target);
       } else if (ev.type === 'skill') {
         const e = this.cunits[ev.uid];
         if (e) this.flash(e.el, 'casting', 260 / speed);
         if (e && e.el._spr) this.spriteAction(ev.uid, ev.target, ev.special ? 'special' : 'physical');
         this.projectile(ev.uid, ev.target, 'skill' + (ev.special ? ' special' : '') + (ev.enhanced ? ' enhanced' : ''));
         if (ev.enhanced) this.floatText(ev.uid, '강화', 'buff');
+        const cost = this.casterCost(ev.uid);
+        if (cost >= 4) this.ultBurst(ev.uid, cost >= 5);
       } else if (ev.type === 'damage') {
         const e = this.cunits[ev.target];
         if (e && (ev.kind === 'basic' || ev.kind === 'skill')) this.flash(e.el, 'hit', 90);
@@ -729,6 +743,7 @@ class Arena {
         const el = this.cellFx(ev.r, ev.c, 'fx-skill' + (ev.heal ? ' heal' : '') + (ev.slam ? ' slam' : ''), Math.min(cells, 13), 520);
         el.style.setProperty('--fx-color', TYPE_COLORS[ev.kind] || '#ffffff');
         if (ev.slam) this.flash(this.root, 'shake', 420);
+        if (this.casterCost(ev.uid) >= 4 && !ev.heal) this.bigRing(ev.r, ev.c, Math.min(cells, 13), TYPE_COLORS[ev.kind] || '#ffffff');
       } else if (ev.type === 'hitfx') {
         const p = this.unitPos(ev.target);
         if (p) {
@@ -788,10 +803,12 @@ class Arena {
         el.className = 'fx-psy';
         el.style.clipPath = this.fieldPolygon();
         this.fx.appendChild(el);
-        setTimeout(() => el.remove(), 2000 / speed);
+        const pd = (ev.dur || 2) * 1000 / speed;
+        setTimeout(() => el.remove(), pd);
+        this.flash(this.root, 'shake', 420);
         for (const uid of ev.targets) {
           const e = this.cunits[uid];
-          if (e) this.flash(e.el, 'lifted', 2000 / speed);
+          if (e) this.flash(e.el, ev.high ? 'lifted-high' : 'lifted', pd);
         }
       } else if (ev.type === 'slam') {
         this.flash(this.root, 'shake', 420);
@@ -816,7 +833,7 @@ class Arena {
       } else if (ev.type === 'freeze') {
         this.floatText(ev.target, '빙결', 'ice');
       } else if (ev.type === 'buff') {
-        const label = { endure: '버티기', warrior: '학살자의 각오', bug: '회복', harden: '단단해지기', break: '보호막 파괴', thunder: '흡수', frenzy: '야단법석', cleanse: '정화', sash: '기합의띠', cloak: '은밀망토', policy: '약점보험', boost: '부스트 완료', tshield: '녹슨방패', lifeorb: '생명의구슬', room: '매직룸', steal: '도구 강탈', mirror: '미러코트', wish: '치유소원', bulk: '벌크업', bulkon: '벌크업 완료' }[ev.kind];
+        const label = { endure: '버티기', warrior: '학살자의 각오', bug: '회복', harden: '단단해지기', break: '보호막 파괴', thunder: '흡수', frenzy: '야단법석', cleanse: '정화', sash: '기합의띠', cloak: '은밀망토', policy: '약점보험', boost: '부스트 완료', tshield: '녹슨방패', lifeorb: '생명의구슬', room: '매직룸', steal: '도구 강탈', mirror: '미러코트', wish: '치유소원', bulk: '벌크업', bulkon: '벌크업 완료', future: '미래예지' }[ev.kind];
         if (label) this.floatText(ev.target, label, 'buff');
       } else if (ev.type === 'death') {
         const e = this.cunits[ev.uid];
@@ -868,6 +885,65 @@ class Arena {
         if (u) this.cellFx(u.r, u.c, 'fx-wave', 2.6, 550);
       } else if (ev.type === 'supernova') {
         this.supernova(ev);
+      } else if (ev.type === 'flamebeam') {
+        this.flameBeam(ev);
+      } else if (ev.type === 'fireorb') {
+        this.fireOrb(ev);
+      } else if (ev.type === 'firestar') {
+        this.fireStar(ev);
+      } else if (ev.type === 'blizzard') {
+        if (ev.end) {
+          const old = this.fx.querySelector('.fx-blizzard[data-id="' + ev.side + ev.id + '"]');
+          if (old) old.remove();
+        } else {
+          const el = this.cellFx(ev.r, ev.c, 'fx-blizzard', ev.radius * 2 + 1.3, (ev.dur * 1000) / speed + 200);
+          el.dataset.id = ev.side + ev.id;
+          el.appendChild(document.createElement('i'));
+          el.appendChild(document.createElement('b'));
+        }
+      } else if (ev.type === 'glacier') {
+        this.unitFx(ev.target, 'fx-glacier', 800);
+        this.flash(this.root, 'shake', 300);
+      } else if (ev.type === 'giga') {
+        this.floatText(ev.uid, '기가임팩트', 'buff');
+        this.unitFx(ev.uid, 'fx-giga', 600);
+      } else if (ev.type === 'leap') {
+        const e = this.cunits[ev.uid];
+        if (e) this.flash(e.el, 'leaping', (ev.dur * 1000) / speed);
+      } else if (ev.type === 'press') {
+        this.cellFx(ev.r, ev.c, 'fx-press', ev.radius * 2 + 1.4, 700);
+        this.bigRing(ev.r, ev.c, ev.radius * 2 + 2.2, '#f2e3c0');
+        this.flash(this.root, 'shake', 420);
+      } else if (ev.type === 'meteorcall') {
+        this.floatText(ev.uid, '포효', 'execute');
+        const el = document.createElement('div');
+        el.className = 'fx-meteor-sky';
+        el.style.clipPath = this.fieldPolygon();
+        this.fx.appendChild(el);
+        setTimeout(() => el.remove(), (ev.dur * 1000) / speed + 300);
+      } else if (ev.type === 'meteor') {
+        this.meteor(ev);
+      } else if (ev.type === 'vortex') {
+        for (const uid of ev.targets) {
+          const p = this.unitPos(uid);
+          if (!p) continue;
+          const el = document.createElement('div');
+          el.className = 'fx-vortex';
+          el.style.left = p.x + 'px';
+          el.style.top = (p.y - 18) + 'px';
+          el.style.animationDuration = (ev.dur / speed) + 's';
+          this.fx.appendChild(el);
+          setTimeout(() => el.remove(), (ev.dur * 1000) / speed);
+        }
+      } else if (ev.type === 'vortexpop') {
+        this.unitFx(ev.target, 'fx-vortex-pop', 600);
+        this.flash(this.root, 'shake', 300);
+      } else if (ev.type === 'charm') {
+        for (const uid of ev.targets) {
+          this.floatText(uid, '서로 공격', 'cc');
+          const e = this.cunits[uid];
+          if (e) this.flash(e.el, 'charmed', (ev.dur * 1000) / speed);
+        }
       } else if (ev.type === 'magicroom') {
         const el = document.createElement('div');
         el.className = 'fx-room';
@@ -930,6 +1006,145 @@ class Arena {
       blast.style.setProperty('--c0', colors[0]);
       this.flash(this.root, 'shake', 420);
     }, T);
+  }
+
+  casterCost(uid) {
+    const u = this.sim && this.sim.byUid[uid];
+    return u ? u.cost || 0 : 0;
+  }
+
+  fxDiv(cls, x, y) {
+    const el = document.createElement('div');
+    el.className = cls;
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    this.fx.appendChild(el);
+    return el;
+  }
+
+  screenPos(uid) {
+    const e = this.cunits[uid];
+    return e && e.pos ? { x: e.pos.x, y: e.pos.y } : this.unitPos(uid);
+  }
+
+  ultBurst(uid, big) {
+    const u = this.sim && this.sim.byUid[uid];
+    const p = this.screenPos(uid);
+    if (!u || !p) return;
+    const col = TYPE_COLORS[u.skillType] || '#ffffff';
+    const speed = this.app.speed || 1;
+    const ring = this.fxDiv('fx-ult', p.x, p.y - 18);
+    ring.style.setProperty('--c', col);
+    setTimeout(() => ring.remove(), 650 / speed);
+    const n = big ? 14 : 9;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + Math.random() * 0.4;
+      const d = (big ? 46 : 34) + Math.random() * 14;
+      const sp = this.fxDiv('fx-spark', p.x, p.y - 18);
+      sp.style.setProperty('--c', col);
+      sp.animate([
+        { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
+        { transform: 'translate(calc(-50% + ' + (Math.cos(a) * d).toFixed(1) + 'px), calc(-50% + ' + (Math.sin(a) * d * 0.7 - 10).toFixed(1) + 'px)) scale(0.3)', opacity: 0 }
+      ], { duration: 520 / speed, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' });
+      setTimeout(() => sp.remove(), 540 / speed);
+    }
+    if (!big) return;
+    const pil = this.fxDiv('fx-pillar', p.x, p.y);
+    pil.style.setProperty('--c', col);
+    setTimeout(() => pil.remove(), 700 / speed);
+    const vig = document.createElement('div');
+    vig.className = 'fx-vignette';
+    vig.style.setProperty('--c', col);
+    this.fx.appendChild(vig);
+    setTimeout(() => vig.remove(), 700 / speed);
+    this.flash(this.root, 'shake', 420);
+  }
+
+  bigRing(r, c, cells, col) {
+    const el = this.cellFx(r, c, 'fx-shock', cells * 1.25, 700);
+    el.style.setProperty('--c', col);
+  }
+
+  fanBurst(uid, targetUid) {
+    const a = this.unitPos(uid);
+    const b = this.unitPos(targetUid);
+    if (!a || !b) return;
+    const ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+    const len = Math.hypot(b.x - a.x, b.y - a.y) + 46;
+    const el = this.fxDiv('fx-fan', a.x, a.y - 20);
+    el.style.width = len + 'px';
+    el.style.transform = 'translateY(-50%) rotate(' + ang.toFixed(1) + 'deg)';
+    setTimeout(() => el.remove(), 320 / (this.app.speed || 1));
+  }
+
+  flameBeam(ev) {
+    const u = this.sim && this.sim.byUid[ev.uid];
+    const t = this.sim && this.sim.byUid[ev.target];
+    const a = this.screenPos(ev.uid);
+    const b = this.unitPos(ev.target);
+    if (!u || !t || !a || !b) return;
+    const hd = Math.max(1, Hex.dist(u.r, u.c, t.r, t.c));
+    const len = Math.hypot(b.x - a.x, b.y - a.y) * Math.max(1, (ev.len || 3) / hd) + 20;
+    const ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+    const el = this.fxDiv('fx-flame-beam', a.x, a.y - 20);
+    el.style.width = len + 'px';
+    el.style.transform = 'translateY(-50%) rotate(' + ang.toFixed(1) + 'deg)';
+    el.appendChild(document.createElement('i'));
+    setTimeout(() => el.remove(), 560 / (this.app.speed || 1));
+  }
+
+  fireOrb(ev) {
+    const a = this.screenPos(ev.uid);
+    const b = this.combatPos(ev.r, ev.c);
+    if (!a) return;
+    const speed = this.app.speed || 1;
+    const el = this.fxDiv('fx-fire-orb', a.x, a.y - 24);
+    el.animate([
+      { transform: 'translate(-50%, -50%) scale(0.6)' },
+      { transform: 'translate(calc(-50% + ' + (b.x - a.x).toFixed(1) + 'px), calc(-50% + ' + (b.y - a.y).toFixed(1) + 'px)) scale(1.25)' }
+    ], { duration: (ev.dur * 1000) / speed, easing: 'cubic-bezier(.3,.1,.6,1)', fill: 'forwards' });
+    setTimeout(() => el.remove(), (ev.dur * 1000) / speed);
+    const e = this.cunits[ev.uid];
+    if (e) this.flash(e.el, 'soaring', (ev.dur * 1000) / speed);
+  }
+
+  fireStar(ev) {
+    const p = this.combatPos(ev.r, ev.c);
+    const m0 = hexMetric(ev.r, ev.c);
+    const speed = this.app.speed || 1;
+    const core = this.cellFx(ev.r, ev.c, 'fx-fire-core', 4.4, 800);
+    core.style.setProperty('--c', '#ff7a2a');
+    for (let k = 0; k < 6; k++) {
+      const a = (k * Math.PI) / 3;
+      const ex = m0.x + Math.cos(a) * ev.arm;
+      const ey = m0.y + Math.sin(a) * ev.arm;
+      const [er, ec] = metricCell(Math.max(0, Math.min(BOARD_COLS - 0.5, ex)), Math.max(0, ey));
+      const q = this.combatPos(Math.max(0, Math.min(BOARD_ROWS - 1, er)), ec);
+      const len = Math.hypot(q.x - p.x, q.y - p.y);
+      if (len < 8) continue;
+      const ang = Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI;
+      const arm = this.fxDiv('fx-fire-arm', p.x, p.y - 10);
+      arm.style.width = len + 'px';
+      arm.style.transform = 'translateY(-50%) rotate(' + ang.toFixed(1) + 'deg)';
+      setTimeout(() => arm.remove(), 750 / speed);
+    }
+    this.flash(this.root, 'shake', 420);
+  }
+
+  meteor(ev) {
+    const p = this.combatPos(ev.r, ev.c);
+    const speed = this.app.speed || 1;
+    const el = this.fxDiv('fx-meteor', p.x, p.y - 10);
+    const dur = 260 / speed;
+    el.animate([
+      { transform: 'translate(calc(-50% - 70px), calc(-50% - 300px)) rotate(-25deg)', opacity: 0.2 },
+      { transform: 'translate(-50%, -50%) rotate(-25deg)', opacity: 1 }
+    ], { duration: dur, easing: 'ease-in', fill: 'forwards' });
+    setTimeout(() => {
+      el.remove();
+      const hit = this.cellFx(ev.r, ev.c, 'fx-meteor-hit', 2.6, 420);
+      hit.style.setProperty('--c', '#b18cff');
+    }, dur);
   }
 
   goldPop(sprite) {

@@ -164,8 +164,8 @@ const SKILL_P = {
   '롱스톤': { m: 1.8, def: 1, shield: 0.15 },
   '강철톤': { m: 2.2, def: 2, shield: 0.2 },
   '팬텀': { m: 2.5 },
-  '망나뇽': { m: 0.9, dur: 3 },
-  '후딘': { m: 2.65 },
+  '망나뇽': { m: 0.3, n: [20, 30, 100], dur: 2 },
+  '후딘': { m: 4.0, delay: 1.5, charm: 4 },
   '해피너스': { heal: 0.175, shield: 0.14 },
   '망키': { m: 1.8 },
   '성원숭': { m: 2.1 },
@@ -174,15 +174,15 @@ const SKILL_P = {
   '핫삼': { m: 0.8 },
   '사마자르': { m: 2.0, rock: 0.5 },
   '프테라': { m: 2.2 },
-  '먹고자': { shield: 0.3, slam: 1.0, after: 0.15 },
-  '잠만보': { shield: 0.5, slam: 1.5, after: 0.2 },
+  '먹고자': { stock: 0.02, cap: 1, wake: 0.3, heal: 0.4, giga: 1.75, press: 1.05, air: 1.5, again: 0.6, air2: 1, as: 2.0, pp: 15 },
+  '잠만보': { stock: 0.03, cap: 1, wake: 0.3, heal: 0.4, giga: 2.5, press: 1.5, air: 1.5, again: 0.6, air2: 1, as: 2.0, pp: 15 },
   '라프라스': { m: 2.3 },
-  '프리져': { m: 2.5 },
-  '파이어': { m: 2.75 },
+  '프리져': { m: 0.4, radius: 2, dur: 5 },
+  '파이어': { orb: 1.5, blast: 2.0, stun: 1.5, arm: 3, burn: 5, anti: 0.5 },
   '썬더': { dur: 5 }
 };
 
-const SKILL_NOCOPY = new Set(['포자', '잠자기', '오리진즈슈퍼노바', '폭포오르기', '번개', '사이코브레이크', '흉내내기']);
+const SKILL_NOCOPY = new Set(['포자', '잠자기', '오리진즈슈퍼노바', '폭포오르기', '번개', '사이코브레이크', '흉내내기', '불대문자', '절대영도', '용성군', '미래예지']);
 
 const SKILL_HELPERS = {
   durMul(u) {
@@ -406,7 +406,7 @@ const SKILL_HELPERS = {
     const special = opt.special != null ? opt.special : u.special;
     const cr = Math.max(0, Math.min(table.length - 1, this.rank(u, 'crit') + (opt.crit || 0) + ((special ? u.skillCritSa : u.skillCritPa) || 0)));
     const roll = this.rng.next();
-    const crit = roll < table[cr];
+    const crit = roll < table[cr] + (u.critAdd || 0);
     let raw = opt.raw != null ? opt.raw : this.offense(u) * mult;
     raw *= (1 + u.skillAmp) * this.skillScale;
     if (crit) raw *= cfg.critMult;
@@ -656,18 +656,43 @@ const SKILL_HELPERS = {
     S.awake = true;
     const P = S.P;
     this.emit({ type: 'wake', uid: u.uid });
-    this.timedShield(u, (u.maxHp - u.hp) * P.shield, 10);
-    const foes = this.aliveOf(this.enemyOf(u.side)).filter(o => !o.hidden && !o.serpent);
-    if (foes.length) {
-      const c = this.clusterPoint(foes);
-      const [cr, cc] = metricCell(c.x, c.y);
-      const cell = this.grid[cr][cc] === 0 ? [cr, cc] : this.freeNear(cr, cc, u.r, u.c) || this.nearestFree(cr, cc);
-      if (cell) this.moveTo(u, cell[0], cell[1], 0.35);
-      this.emit({ type: 'skillfx', uid: u.uid, r: u.r, c: u.c, radius: 2, kind: '노말', slam: true });
-      const each = (S.stock * P.slam) / foes.length;
-      for (const e of foes) this.dealDamage(u, e, each, { special: false, kind: 'skill' });
-    }
+    u.hidden = true;
+    u.untargetUntil = this.time + 2;
+    this.emit({ type: 'hide', uid: u.uid, on: true });
+    this.cleanse(u);
+    u.stunUntil = Math.min(u.stunUntil, this.time);
+    this.heal(u, u.maxHp * (P.heal || 0.4), u);
     u.role = '물리 전사';
+    u.special = false;
+    u.pct.as += P.as || 2;
+    u.maxMana = P.pp || 15;
+    u.mana = 0;
+    const t = this.nearestEnemy(u);
+    if (t) this.gigaCombo(u, t, 1, P.air || 1.5);
+  },
+
+  gigaCombo(u, t, k, air) {
+    const P = u.sleep ? u.sleep.P : this.skillParams(u);
+    this.channel(u, { dur: 1.5, noHypno: true });
+    this.emit({ type: 'giga', uid: u.uid, target: t.uid });
+    if (Hex.dist(u.r, u.c, t.r, t.c) > 1) {
+      const cell = this.freeNear(t.r, t.c, u.r, u.c);
+      if (cell) this.moveTo(u, cell[0], cell[1], 0.5);
+    }
+    this.later(0.5, () => {
+      if (!u.alive) return;
+      const tg = t.alive && !t.hidden ? t : this.nearestEnemy(u);
+      if (!tg) return;
+      this.skillTarget = tg;
+      this.emit({ type: 'skillfx', uid: u.uid, r: tg.r, c: tg.c, radius: 1, kind: '노말', slam: true });
+      this.hitAll(u, [tg].concat(this.adjOne(u, tg)), (P.giga || 2.5) * k, { special: false });
+      this.emit({ type: 'leap', uid: u.uid, dur: 1 });
+    });
+    this.later(1.5, () => {
+      if (!u.alive) return;
+      this.emit({ type: 'press', uid: u.uid, r: u.r, c: u.c, radius: 2 });
+      this.hitAll(u, this.ring(u, u.r, u.c, 2), (P.press || 1.5) * k, { special: false, onHit: o => this.stun(o, air, u.side, 'airborne') });
+    });
   }
 };
 
@@ -1324,14 +1349,102 @@ const SKILLS = {
     S.hitAll(u, S.ring(u, t.r, t.c, 1), P.m, { onHit: o => S.debuff(u, o, 'spd', -1, 4, 0.5) });
   },
   '미래예지'(S, u, t, P) {
-    const r = t.r;
-    const c = t.c;
-    S.emit({ type: 'mark', uid: u.uid, r, c });
-    S.later(2, () => {
-      S.ringFx(u, r, c, 0);
-      const victim = S.units.find(o => o.alive && o.side !== u.side && o.r === r && o.c === c && !o.hidden);
-      if (victim) S.hit(u, victim, P.m, { sure: true, ignoreUp: true });
+    if (!u.fsArmed) {
+      u.fsArmed = true;
+      S.emit({ type: 'buff', target: u.uid, kind: 'future' });
+      return;
+    }
+    const pool = S.foesOf(u).filter(o => !o.serpent);
+    const picks = [];
+    while (picks.length < 2 && pool.length) picks.push(pool.splice(S.rng.int(pool.length), 1)[0]);
+    if (!picks.length) return;
+    S.skillTarget = picks[0];
+    const delay = P.delay || 1.5;
+    S.emit({ type: 'vortex', uid: u.uid, targets: picks.map(o => o.uid), dur: delay });
+    S.later(delay, () => {
+      for (const o of picks) {
+        if (!o.alive) continue;
+        S.emit({ type: 'vortexpop', target: o.uid });
+        S.hit(u, o, P.m, { sure: true, ignoreUp: true, special: true });
+      }
+      const [a, b] = picks;
+      if (a && b && a.alive && b.alive) {
+        const until = S.time + (P.charm || 4) * S.durMul(u);
+        a.charmTo = b.uid;
+        b.charmTo = a.uid;
+        a.charmUntil = until;
+        b.charmUntil = until;
+        S.emit({ type: 'charm', targets: [a.uid, b.uid], dur: until - S.time });
+      }
     });
+  },
+  '화염방사'(S, u, t, P) {
+    const list = S.line(u, t, 3);
+    S.emit({ type: 'flamebeam', uid: u.uid, target: t.uid, len: 3 });
+    S.hitAll(u, list, P.m, { onHit: o => S.status(u, o, 'burn', 3, P.chance) });
+  },
+  '불대문자'(S, u, t, P) {
+    const dense = S.densestFoe(u, 2) || t;
+    const tr = dense.r;
+    const tc = dense.c;
+    const ax = S.axis(u, dense);
+    const path = S.foesOf(u).filter(o => {
+      const q = S.project(ax, o);
+      return q.along > 0.2 && q.along <= ax.len + 0.3 && q.side <= 0.7;
+    });
+    const hitSet = new Set();
+    const scorch = o => {
+      if (!o.alive) return;
+      S.addBurn(o, u, P.burn || 5);
+      o.antiHeal = Math.max(o.antiHeal || 0, P.anti || 0.5);
+      o.antiHealUntil = S.time + (P.burn || 5);
+    };
+    S.emit({ type: 'fireorb', uid: u.uid, r: tr, c: tc, dur: 1 });
+    for (const o of path) {
+      const q = S.project(ax, o);
+      const at = Math.max(0.05, Math.min(1, q.along / Math.max(0.5, ax.len)));
+      S.later(at, () => {
+        if (!o.alive || o.hidden) return;
+        hitSet.add(o);
+        S.hit(u, o, P.orb || 1.5, { special: true, onHit: scorch });
+      });
+    }
+    S.channel(u, { dur: 1, noHypno: true });
+    const cell = S.grid[tr][tc] === 0 ? [tr, tc] : S.freeNear(tr, tc, u.r, u.c);
+    if (cell) S.moveTo(u, cell[0], cell[1], 1);
+    S.later(1, () => {
+      if (!u.alive) return;
+      const cr = u.r;
+      const cc = u.c;
+      S.emit({ type: 'firestar', uid: u.uid, r: cr, c: cc, arm: P.arm || 3 });
+      for (const o of S.ring(u, cr, cc, 2)) S.stun(o, (P.stun || 1.5) * S.durMul(u), u.side, 'stun');
+      const m0 = hexMetric(cr, cc);
+      const arm = (P.arm || 3) + 0.3;
+      const blast = S.foesOf(u).filter(o => {
+        const m = hexMetric(o.r, o.c);
+        const dx = m.x - m0.x;
+        const dy = m.y - m0.y;
+        const d = Math.hypot(dx, dy);
+        if (d < 0.2) return true;
+        if (d > arm) return false;
+        for (let k = 0; k < 6; k++) {
+          const a = (k * Math.PI) / 3;
+          const along = dx * Math.cos(a) + dy * Math.sin(a);
+          const side = Math.abs(dx * Math.sin(a) - dy * Math.cos(a));
+          if (along > 0 && side <= 0.55) return true;
+        }
+        return false;
+      });
+      S.hitAll(u, blast, P.blast || 2.0, { special: true, onHit: scorch });
+    });
+  },
+  '절대영도'(S, u, t, P) {
+    const dense = S.densestFoe(u, P.radius || 2) || t;
+    const st = S.side[u.side];
+    const id = (st.blizzSeq = (st.blizzSeq || 0) + 1);
+    const dur = (P.dur || 5) * S.durMul(u);
+    st.blizzards.push({ id, src: u, r: dense.r, c: dense.c, radius: P.radius || 2, m: (P.m || 0.4) * S.skillScale, until: S.time + dur, acc: 0.5 });
+    S.emit({ type: 'blizzard', side: u.side, id, r: dense.r, c: dense.c, radius: P.radius || 2, dur });
   },
   '생명의물방울'(S, u, t, P) {
     S.emit({ type: 'skillfx', uid: u.uid, r: u.r, c: u.c, radius: 6, kind: '물', heal: true });
@@ -1371,9 +1484,7 @@ const SKILLS = {
     }
   },
   '잠자기 각성'(S, u, t, P) {
-    const tg = S.highestRatioWithin(u, 3) || t;
-    S.skillTarget = tg;
-    S.hit(u, tg, 0, { raw: u.sleep.stock * P.after, special: false });
+    S.gigaCombo(u, t, P.again || 0.6, P.air2 || 1);
   },
   '물거품아리아'(S, u, t, P) {
     S.ringFx(u, u.r, u.c, 2);
@@ -1398,7 +1509,22 @@ const SKILLS = {
     S.buff(u, 'spa', -2, 5);
   },
   '용성군'(S, u, t, P) {
-    SKILLS['오버히트'](S, u, t, P);
+    const n = Array.isArray(P.n) ? P.n[Math.min(P.n.length, u.star || 1) - 1] : P.n || 20;
+    const dur = P.dur || 2;
+    S.channel(u, { dur, noHypno: true, hidden: true });
+    S.emit({ type: 'meteorcall', uid: u.uid, dur });
+    for (let i = 0; i < n; i++) {
+      S.later(0.15 + (i * (dur - 0.15)) / n, () => {
+        if (!u.alive) return;
+        const foes = S.foesOf(u).filter(o => !o.serpent);
+        if (!foes.length) return;
+        const base = foes[S.rng.int(foes.length)];
+        const cells = [[base.r, base.c]].concat(Hex.neighbors(base.r, base.c));
+        const [r, c] = cells[S.rng.int(cells.length)];
+        S.emit({ type: 'meteor', uid: u.uid, r, c });
+        S.hitAll(u, S.ring(u, r, c, 1), P.m || 0.3, { special: false, burst: false });
+      });
+    }
   },
   '벌레의야단법석'(S, u, t, P) {
     S.ringFx(u, t.r, t.c, 1);

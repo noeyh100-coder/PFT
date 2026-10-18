@@ -21,7 +21,7 @@ const ITEM_COMPLETED = [
   { id: 'shell-bell', name: '조개껍질방울', from: ['x-sp-def', 'muscle-band'], desc: '모든 피해 흡혈 40%.' },
   { id: 'full-incense', name: '만복향로', from: ['x-sp-def', 'wise-glasses'], desc: '2칸 안의 적의 특수방어와 스피드가 1랭크 내려갑니다.' },
   { id: 'kings-rock', name: '왕의징표석', from: ['x-sp-def', 'protective-pads'], bonus: { hp: 150 }, desc: '2칸 안의 적 1명마다 방어·특수방어가 1랭크씩 오릅니다(최대 4). 기본 공격 때 10% 확률로 적을 1.5초 동안 풀죽음(기절) 상태로 만듭니다.' },
-  { id: 'assault-vest', name: '돌격조끼', from: ['x-sp-def', 'x-sp-def'], bonus: { spd: 3, hp: 200 }, desc: '특수방어가 크게 오르고, 6초마다 공격·특수공격이 1랭크씩 오릅니다.' },
+  { id: 'assault-vest', name: '돌격조끼', from: ['x-sp-def', 'x-sp-def'], bonus: { spd: 3, hp: 200 }, desc: '특수방어가 크게 오르고, 10초마다 공격·특수공격이 1랭크씩 오릅니다.' },
   { id: 'weakness-policy', name: '약점보험', from: ['leftovers', 'muscle-band'], desc: '효과가 굉장한 공격을 처음 맞으면 최대 체력 30%의 보호막을 얻고 공격·특수공격이 30% 증가합니다.' },
   { id: 'black-sludge', name: '검은오물', from: ['leftovers', 'wise-glasses'], desc: '피해를 입힌 적의 회복량이 33% 줄고 화상을 입습니다.' },
   { id: 'flame-orb', name: '불구슬플레이트', from: ['leftovers', 'protective-pads'], desc: '바로 옆 칸의 적의 회복량이 33% 줄고 화상을 입습니다.' },
@@ -53,14 +53,21 @@ const ITEM_COMPLETED = [
 const ITEM_MAGNET = { id: 'magnet', name: '자석', kind: 'consumable', desc: '아이템을 가진 기물에게 쓰면 그 기물의 아이템을 모두 빼서 아이템 칸으로 돌려줍니다.' };
 
 const ITEM_CANDIES = [
-  { id: 'candy-s', name: '소형 이상한사탕', icon: 'exp-candy-xs', maxCost: 1, desc: '1코스트 기물에게 쓰면 별이 1 오릅니다.' },
-  { id: 'candy-m', name: '하급 이상한사탕', icon: 'exp-candy-s', maxCost: 3, desc: '3코스트 이하 기물에게 쓰면 별이 1 오릅니다.' },
   { id: 'rare-candy', name: '이상한사탕', icon: 'rare-candy', maxCost: 5, desc: '기물에게 쓰면 별이 1 오릅니다.' }
 ];
 
+const ITEM_DUPLICATORS = [
+  { id: 'exp-s', name: '경험사탕S', icon: 'exp-candy-s', maxCost: 1, label: '소형 챔피언 복제기', desc: '1코스트 기물에게 쓰면 그 기물의 1성 복사본 하나를 대기석에 얻습니다.' },
+  { id: 'exp-m', name: '경험사탕M', icon: 'exp-candy-m', maxCost: 3, label: '하급 챔피언 복제기', desc: '3코스트 이하 기물에게 쓰면 그 기물의 1성 복사본 하나를 대기석에 얻습니다.' },
+  { id: 'exp-l', name: '경험사탕L', icon: 'exp-candy-l', maxCost: 5, label: '챔피언 복제기', desc: '기물에게 쓰면 그 기물의 1성 복사본 하나를 대기석에 얻습니다.' }
+];
+
+const ITEM_DICE = { id: 'loaded-dice', name: '속임수주사위', icon: 'loaded-dice', label: '재조합기', desc: '아이템을 가진 기물에게 쓰면 그 기물의 아이템을 모두 같은 종류의 다른 무작위 아이템으로 바꿔 아이템 칸으로 돌려줍니다. (조합은 조합끼리, 완성은 완성끼리, 보물은 같은 티어끼리)' };
+
 const ITEM_BOXES = [
   { id: 'poke-box', name: '몬스터볼 아이템 상자', icon: 'poke-ball', box: 'component', desc: '클릭해서 열면 서로 다른 조합 아이템 4개 중 하나를 고릅니다.' },
-  { id: 'great-box', name: '슈퍼볼 아이템 상자', icon: 'great-ball', box: 'completed', desc: '클릭해서 열면 서로 다른 완성 아이템 4개 중 하나를 고릅니다.' }
+  { id: 'great-box', name: '슈퍼볼 아이템 상자', icon: 'great-ball', box: 'completed', desc: '클릭해서 열면 서로 다른 완성 아이템 4개 중 하나를 고릅니다.' },
+  { id: 'forge-box', name: '대장간 상자', icon: 'dynite-ore', box: 'treasure3', desc: '클릭해서 열면 서로 다른 3티어 보물 4개 중 하나를 고릅니다.' }
 ];
 
 const TREASURE_TIER_NAME = ['0티어', '1티어', '2티어', '3티어'];
@@ -103,6 +110,8 @@ const ITEMS = (function () {
   }
   map[ITEM_MAGNET.id] = Object.assign({ stats: {} }, ITEM_MAGNET);
   for (const c of ITEM_CANDIES) map[c.id] = Object.assign({ kind: 'consumable', candy: true, stats: {} }, c);
+  for (const c of ITEM_DUPLICATORS) map[c.id] = Object.assign({ kind: 'consumable', dup: true, stats: {} }, c);
+  map[ITEM_DICE.id] = Object.assign({ kind: 'consumable', reforge: true, stats: {} }, ITEM_DICE);
   for (const b of ITEM_BOXES) map[b.id] = Object.assign({ kind: 'consumable', stats: {} }, b);
   for (const t of ITEM_TREASURES) map[t.id] = Object.assign({ kind: 'treasure', stats: {} }, t);
   const tiers = [[], [], [], []];
