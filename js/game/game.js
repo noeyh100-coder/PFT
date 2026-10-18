@@ -211,6 +211,8 @@ class Game {
       }
       if (!p.shopLocked) this.refreshShop(p);
       else p.shopLocked = false;
+      p.mineSkip = false;
+      this.refreshMineOffer(p);
     }
     if (info.type === 'pvp') this.makePairings();
     this.phase = 'planning';
@@ -736,20 +738,51 @@ class Game {
     return out;
   }
 
+  combatUnitOf(p, inst) {
+    if (this.phase !== 'combat' || !inst || !inst.loc || inst.loc.zone !== 'board') return null;
+    const m = this.matchFor(p);
+    const side = this.sideOf(m, p);
+    if (!m || !side || !m.sim) return null;
+    return m.sim.units.find(u => u.side === side && u.iid === inst.iid) || null;
+  }
+
+  syncCombatItems(p, inst, cu) {
+    if (!cu) return;
+    const m = this.matchFor(p);
+    if (!m || m.sim.over) return;
+    const list = (inst.items || []).filter(id => id !== 'magnet' && itemDef(id) && !isConsumable(id));
+    m.sim.swapItems(cu, list, cu.ditto ? false : canEvolveFurther(inst, p), true);
+  }
+
+  useCandy(p, i, inst, d) {
+    const def = UNITS[inst.unitId];
+    if (inst.star >= 3) return { ok: false, reason: '이미 3성인 기물입니다' };
+    if (def.cost > d.maxCost) return { ok: false, reason: d.name + '은(는) ' + d.maxCost + '코스트' + (d.maxCost > 1 ? ' 이하' : '') + ' 기물에게만 쓸 수 있습니다' };
+    p.items.splice(i, 1);
+    inst.star += 1;
+    this.onStarUp(p, inst);
+    this.mergeAll(p);
+    this.emit('update');
+    return { ok: true, reason: '' };
+  }
+
   equipItem(p, index, inst) {
     const fail = reason => ({ ok: false, reason });
     const i = Math.floor(Number(index));
     const id = p.items[i];
     if (!id || !itemDef(id)) return fail('');
     if (!inst || !inst.loc || p.findInstance(inst.iid) !== inst) return fail('');
-    if (inst.loc.zone === 'board' && this.phase !== 'planning') return fail('전투 중에는 필드의 기물에 아이템을 쓸 수 없습니다');
+    const cu = this.combatUnitOf(p, inst);
+    if (cu && !cu.alive) return fail('쓰러진 기물에는 아이템을 쓸 수 없습니다');
     const d = itemDef(id);
     inst.items = inst.items || [];
+    if (d.candy) return this.useCandy(p, i, inst, d);
     if (id === 'magnet') {
       if (!inst.items.length) return fail('아이템이 없는 기물입니다');
       p.items.splice(i, 1);
       const out = inst.items.splice(0);
       for (const x of out) p.items.push(x);
+      this.syncCombatItems(p, inst, cu);
       this.notify(p, '자석: 아이템 ' + out.length + '개를 뺐습니다', 'info');
       this.emit('update');
       return { ok: true, reason: '' };
@@ -763,6 +796,7 @@ class Game {
         inst.items[ci] = res;
         p.items.splice(i, 1);
         this.notify(p, itemDef(res).name + ' 완성!', 'merge');
+        this.syncCombatItems(p, inst, cu);
         this.onItemsChanged(p, inst);
         return { ok: true, reason: '' };
       }
@@ -771,7 +805,25 @@ class Game {
     if (d.unique && inst.items.includes(id)) return fail(d.name + '은(는) 한 기물에 하나만 장착할 수 있습니다');
     inst.items.push(id);
     p.items.splice(i, 1);
+    this.syncCombatItems(p, inst, cu);
     this.onItemsChanged(p, inst);
+    return { ok: true, reason: '' };
+  }
+
+  combineBench(p, i, j) {
+    const fail = reason => ({ ok: false, reason });
+    const a = Math.floor(Number(i));
+    const b = Math.floor(Number(j));
+    if (a === b || !p.items[a] || !p.items[b]) return fail('');
+    const da = itemDef(p.items[a]);
+    const db = itemDef(p.items[b]);
+    if (!da || !db || da.kind !== 'component' || db.kind !== 'component') return fail('조합 아이템끼리만 합칠 수 있습니다');
+    const res = combineItems(p.items[a], p.items[b]);
+    if (!res) return fail('');
+    p.items[b] = res;
+    p.items.splice(a, 1);
+    this.notify(p, itemDef(res).name + ' 완성!', 'merge');
+    this.emit('update');
     return { ok: true, reason: '' };
   }
 
@@ -938,9 +990,129 @@ class Game {
       if (inst) inst.payday = (inst.payday || 0) + u.payday;
     }
     const g = sim.side[side].gold;
-    if (!g) return;
-    p.gold += g;
-    this.notify(p, '고양이돈받기: ' + g + '골드', 'loot');
+    if (g) {
+      p.gold += g;
+      this.notify(p, '고양이돈받기: ' + g + '골드', 'loot');
+    }
+    const sg = sim.side[side].swordGold;
+    if (sg) {
+      p.gold += sg;
+      this.notify(p, '완벽한 녹슨검: ' + sg + '골드', 'loot');
+    }
+  }
+
+  isGroundDef(def) {
+    const forms = (def.stageForms || def.forms).concat((def.branches || []).map(b => b.form));
+    return forms.some(f => f.types.includes('땅'));
+  }
+
+  groundTier(p) {
+    return synergyTeam(p).tiers['땅'] || 0;
+  }
+
+  mining(p, team, res) {
+    const tier = team && team.tiers ? team.tiers['땅'] || 0 : 0;
+    if (!tier) return;
+    const cfg = CONFIG.mine;
+    if (res === 'loss') {
+      const n = Math.max(1, -p.streak);
+      const gain = Math.round((cfg.base + cfg.step * (n - 1)) * traitVal('땅', 'gain', tier));
+      p.mine += gain;
+      this.notify(p, '땅굴을 팠습니다: 채굴 스택 +' + gain + ' (현재 ' + p.mine + ')', 'loot');
+    } else if (res === 'win') {
+      const cut = Math.floor(p.mine * cfg.winCut);
+      if (cut > 0) {
+        p.mine -= cut;
+        this.notify(p, '승리: 채굴 스택 -' + cut + ' (현재 ' + p.mine + ')', 'info');
+      }
+    }
+  }
+
+  mineThreshold(p) {
+    const th = Math.min(700, Math.floor((p.mine || 0) / 100) * 100);
+    return th >= 100 ? th : 0;
+  }
+
+  refreshMineOffer(p) {
+    const th = this.mineThreshold(p);
+    if (!th) {
+      p.mineOffer = null;
+      return;
+    }
+    if (p.mineOffer && p.mineOffer.th === th) return;
+    p.mineOffer = { th, list: this.rollMineRewards(p, th) };
+  }
+
+  pickGroundUnit(p, cost, star) {
+    const locked = this.lockedVariants(p);
+    const copies = copiesForStar(star);
+    const list = UNIT_DATA.filter(d => d.shop && d.cost === cost && this.isGroundDef(d) && this.isEligible(p, d) && !locked.has(d.id) && this.pool.remaining(d.id) >= copies);
+    return list.length ? this.rng.pick(list).id : null;
+  }
+
+  rollMineRewards(p, th) {
+    const out = [];
+    const add = e => {
+      if (e.pick) {
+        const branch = e.pick[this.rng.int(e.pick.length)];
+        for (const x of branch) add(x);
+        return;
+      }
+      if (e.item) {
+        const m = /^t(\d)$/.exec(e.item);
+        out.push({ k: 'item', id: m ? this.rng.pick(ITEMS.treasures[Number(m[1])]) : e.item });
+        return;
+      }
+      if (e.unit) {
+        const star = e.star || 1;
+        const id = this.pickGroundUnit(p, e.unit, star);
+        if (id) out.push({ k: 'unit', id, star });
+        else out.push({ k: 'gold', n: e.unit * copiesForStar(star) });
+        return;
+      }
+      if (e.gold) out.push({ k: 'gold', n: e.gold });
+    };
+    for (const e of CONFIG.mine.rewards[th] || []) add(e);
+    return out;
+  }
+
+  canTakeMine(p) {
+    return this.phase === 'planning' && !!p.mineOffer && !p.mineSkip && p.mine >= p.mineOffer.th && this.groundTier(p) >= 1;
+  }
+
+  takeMine(p) {
+    if (!p.mineOffer) return { ok: false, reason: '' };
+    if (this.groundTier(p) < 1) return { ok: false, reason: '땅 시너지가 켜져 있어야 채굴 보상을 받을 수 있습니다' };
+    if (!this.canTakeMine(p)) return { ok: false, reason: '' };
+    const offer = p.mineOffer;
+    p.mine -= offer.th;
+    p.mineOffer = null;
+    for (const e of offer.list) {
+      if (e.k === 'item') p.items.push(e.id);
+      else if (e.k === 'gold') p.gold += e.n;
+      else if (e.k === 'unit') {
+        const def = UNITS[e.id];
+        const copies = copiesForStar(e.star);
+        if (this.pool.remaining(e.id) >= copies) {
+          this.pool.take(e.id, copies);
+          if (!this.addUnit(p, e.id, e.star)) {
+            this.pool.give(e.id, copies);
+            p.gold += def.cost * copies;
+          }
+        } else p.gold += def.cost * copies;
+      }
+    }
+    this.notify(p, '채굴 보상을 받았습니다 (채굴 스택 -' + offer.th + ')', 'loot');
+    this.refreshMineOffer(p);
+    this.emit('update');
+    return { ok: true, reason: '' };
+  }
+
+  skipMine(p) {
+    if (!p.mineOffer) return { ok: false, reason: '' };
+    p.mineSkip = true;
+    this.emit('update');
+    return { ok: true, reason: '' };
   }
 
   damageFor(survivors) {
@@ -1004,6 +1176,7 @@ class Game {
         const resA = sim.winner === 'draw' ? 'draw' : sim.winner === 'A' ? 'win' : 'loss';
         const resB = sim.winner === 'draw' ? 'draw' : sim.winner === 'B' ? 'win' : 'loss';
         this.applyPvp(a, resA, sim.survivors('B'));
+        this.mining(a, m.teamA, resA);
         this.payGold(a, sim, 'A');
         Unlocks.onCombatEnd(this, a, sim, 'A', true);
         this.markStoneFree(a);
@@ -1011,6 +1184,7 @@ class Game {
         a.lastOpponent = b.id;
         if (!m.ghost) {
           this.applyPvp(b, resB, sim.survivors('A'));
+          this.mining(b, m.teamB, resB);
           this.payGold(b, sim, 'B');
           Unlocks.onCombatEnd(this, b, sim, 'B', true);
           this.markStoneFree(b);
@@ -1160,6 +1334,12 @@ class Game {
     else if (key === 'xp') p.addXp(amount);
     else if (key === 'item') for (let i = 0; i < amount; i++) p.items.push(this.randomComponent());
     else if (key === 'itemdone') for (let i = 0; i < amount; i++) p.items.push(this.randomCompleted());
+    else if (key === 'treasure') p.items.push(this.rng.pick(ITEMS.treasures[Math.max(0, Math.min(3, amount))]));
+    else if (key === 'candy') p.items.push(['candy-s', 'candy-m', 'rare-candy'][Math.max(0, Math.min(2, amount))]);
+    else if (key === 'mine') {
+      p.mine += amount;
+      if (this.phase === 'planning') this.refreshMineOffer(p);
+    }
     else if (key in p.counters) p.counters[key] += amount;
     this.emit('update');
   }

@@ -129,6 +129,7 @@ class CombatSim {
       seaAcc: 0,
       slam: null,
       gold: 0,
+      swordGold: 0,
       rocks: new Map()
     };
   }
@@ -309,8 +310,11 @@ class CombatSim {
       waterRefund: 0,
       waterPaired: false,
       whirlAcc: 0,
-      groundDown: false,
-      groundUp: false,
+      flatArmor: 0,
+      flatMr: 0,
+      swordUntil: 0,
+      swordAmp: 0,
+      swordDura: 0,
       eff: null
     };
     const tr = u.traits;
@@ -398,6 +402,7 @@ class CombatSim {
           u.pct.hp += v('풀', 'hp');
           u.flatHp += v('풀', 'flat');
         }
+        if (ty('땅') && t('땅')) u.flatHp += v('땅', 'hp');
         if (ty('불꽃') && t('불꽃') >= 2) {
           u.rk.atk += 1;
           u.rk.spa += 1;
@@ -655,7 +660,7 @@ class CombatSim {
   defense(u, special, ignoreUp) {
     let r = this.rank(u, special ? 'spd' : 'def');
     if (ignoreUp && r > 0) r = 0;
-    const b = special ? u.base.mr * (1 + u.pct.mr) : u.base.armor * (1 + u.pct.armor);
+    const b = special ? u.base.mr * (1 + u.pct.mr) + u.flatMr : u.base.armor * (1 + u.pct.armor) + u.flatArmor;
     return b * rankMult(r) * this.otMult('def');
   }
 
@@ -685,9 +690,9 @@ class CombatSim {
       basic: Math.round(this.offense(u)),
       as: Math.round(this.attackSpeed(u) * 100) / 100,
       crit: this.critChance(u),
-      amp: u.amp + u.bugAmp + (u.warriorOn ? u.warriorAmp : 0),
-      dura: Math.min(0.9, 1 - u.taken * (1 - Math.min(0.9, u.dura + u.bugDura))),
-      omnivamp: u.vamp,
+      amp: u.amp + u.bugAmp + (u.warriorOn ? u.warriorAmp : 0) + this.swordAmpOf(u),
+      dura: Math.min(0.9, 1 - u.taken * (1 - Math.min(0.9, u.dura + u.bugDura + this.swordDuraOf(u)))),
+      omnivamp: u.vamp + this.orbVamp(u),
       special: u.special,
       range: u.range,
       maxMana: u.maxMana,
@@ -944,6 +949,7 @@ class CombatSim {
     const refund = u.ppRefund + u.waterRefund;
     if (refund > 0 && u.alive) u.mana = Math.min(u.maxMana, used * refund);
     if (u.it['max-ether'] && u.alive) u.mana = Math.min(u.maxMana, u.mana + 12 * u.it['max-ether']);
+    if (u.items.length && u.alive) this.itemAfterCast(u);
     if (u.fairyHeal) {
       const a = this.lowestRatioAlly(u.side);
       if (a) this.heal(a, a.maxHp * u.fairyHeal * used * (1 + u.fairyBonus), u);
@@ -957,15 +963,11 @@ class CombatSim {
       this.emit({ type: 'wave', uid: u.uid });
     }
     if (u.flyingSkill) u.tmp.push({ k: 'spe', n: 1, until: this.time + 3 });
-    if (u.types.includes('땅') && this.tier(u.side, '땅')) {
-      const st = this.side[u.side];
-      st.quake += 1;
-      if (st.quake % traitVal('땅', 'every', this.tier(u.side, '땅')) === 0) this.quake(u.side);
-    }
   }
 
   dealDamage(src, t, raw, o) {
     if (!t.alive || raw <= 0) return 0;
+    if (o.orbTick) return this.orbTickDamage(t, raw);
     if (o.crit && t.critGuard) {
       raw /= CONFIG.combat.critMult;
       o = Object.assign({}, o, { crit: false });
@@ -979,12 +981,13 @@ class CombatSim {
       dmg *= tm;
     }
     if (typed && src && !o.special && src.burnUntil > this.time) dmg *= 0.8;
-    if (src && src.side !== t.side) dmg *= 1 + src.amp + src.bugAmp + (src.warriorOn ? src.warriorAmp : 0);
+    if (src && src.side !== t.side) dmg *= 1 + src.amp + src.bugAmp + (src.warriorOn ? src.warriorAmp : 0) + this.swordAmpOf(src);
     if (typed && src && src.side !== t.side) dmg *= this.itemDamageMult(src, t, o);
-    const dura = Math.min(0.9, (t.dura || 0) + (t.bugDura || 0));
+    const dura = Math.min(0.9, (t.dura || 0) + (t.bugDura || 0) + this.swordDuraOf(t));
     if (dura > 0) dmg *= 1 - dura;
     if (t.frozenUntil > this.time && t.frozenBy && t.frozenBy !== t.side) dmg *= 1 + traitVal('얼음', 'frozenAmp', this.tier(t.frozenBy, '얼음'));
     dmg *= t.taken;
+    if (t.it && t.it['luminous-moss']) dmg *= Math.pow(0.95, t.it['luminous-moss']);
     const red = this.damageReduction(t, o.special);
     if (red > 0) dmg *= 1 - red;
     const isHit = o.kind === 'basic' || o.kind === 'skill';
@@ -995,6 +998,12 @@ class CombatSim {
       t.shield -= absorbed;
     }
     let hpDmg = dmg - absorbed;
+    let delayed = 0;
+    if (t.orbDur && !t.orbDone && hpDmg > 0 && (!src || src.side !== t.side)) {
+      t.orbQ.push({ left: hpDmg, rate: hpDmg / t.orbDur });
+      delayed = hpDmg;
+      hpDmg = 0;
+    }
     if (hpDmg >= t.hp && t.phoenix && !t.eggUsed && !t.egg) {
       t.eggUsed = true;
       t.egg = true;
@@ -1027,7 +1036,7 @@ class CombatSim {
     }
     const real = Math.min(hpDmg, t.hp);
     t.hp -= real;
-    const total = real + absorbed;
+    const total = real + absorbed + delayed;
     if (src) {
       src.damageDealt += total;
       if (o.special) src.dealtS += total;
@@ -1038,7 +1047,9 @@ class CombatSim {
     if (o.special) t.takenS += total;
     else t.takenP += total;
     this.emit({ type: 'damage', target: t.uid, amount: Math.max(1, Math.round(total)), crit: !!o.crit, special: !!o.special, kind: o.kind });
-    if (src && src.alive && src.vamp > 0 && total > 0 && src.side !== t.side) this.heal(src, total * src.vamp, src);
+    const vamp = src ? src.vamp + this.orbVamp(src) : 0;
+    if (src && src.alive && vamp > 0 && total > 0 && src.side !== t.side) this.heal(src, total * vamp, src);
+    if (src && src.side !== t.side && src.it && (o.kind === 'basic' || o.kind === 'skill')) this.redOrbCount(src);
     if (isHit) this.gainPP(t, CONFIG.combat.ppPerHit);
     if (isHit && src && src.side !== t.side) this.itemAfterHit(src, t, o, total);
     if (isHit && src && src.side !== t.side) {
@@ -1048,8 +1059,10 @@ class CombatSim {
     if (o.kind === 'basic' && src && t.reflect && src.alive) this.dealDamage(t, src, total * t.reflect, { trueDmg: true, kind: 'reflect' });
     if (t.hp <= 0) {
       this.kill(t, o.kind);
+      if (src && src.side !== t.side) this.itemOnKill(src, t, false);
       return total;
     }
+    if (src && src.side !== t.side && src.alive && src.it && this.swordExecute(src, t)) return total;
     if (src && src.frostExec && src.side !== t.side && t.hp <= t.maxHp * 0.12) {
       this.emit({ type: 'freeze', target: t.uid, duration: 0.6 });
       this.execute(t, src.side);
@@ -1080,6 +1093,7 @@ class CombatSim {
       }
     }
     if (t.cloakReady) this.itemCloak(t);
+    if (t.items && t.items.length) this.itemAfterDamage(src, t, o, isHit);
     if (t.warriorShield && !t.warriorUsed && t.hp <= t.maxHp * 0.4) {
       t.warriorUsed = true;
       t.warriorOn = true;
@@ -1552,27 +1566,6 @@ class CombatSim {
     this.emit({ type: 'spikes', side, cells });
   }
 
-  quake(side) {
-    const tier = this.tier(side, '땅');
-    const foe = this.enemyOf(side);
-    const targets = this.aliveOf(foe).filter(e => !e.groundDown).sort(strongerFirst).slice(0, 2);
-    for (const e of targets) {
-      e.groundDown = true;
-      e.rk.def -= 1;
-      const s = traitVal('땅', 'stun', tier);
-      if (s) this.stun(e, s, side, 'quake');
-    }
-    const exec = traitVal('땅', 'execute', tier);
-    if (exec) {
-      for (const e of this.aliveOf(foe)) if (e.hp < e.maxHp * exec) this.execute(e, side);
-      for (const a of this.aliveOf(side).filter(x => !x.groundUp).sort(strongerFirst).slice(0, 2)) {
-        a.groundUp = true;
-        a.rk.def += 1;
-      }
-    }
-    this.emit({ type: 'quake', side, targets: targets.map(e => e.uid) });
-  }
-
   tickSide(side, dt) {
     const T = this.teams[side];
     const st = this.side[side];
@@ -1804,6 +1797,7 @@ class CombatSim {
       }
       if (u.alive && !u.serpent && this.side[foe].spikes.has(u.r * 10 + u.c)) this.addPoison(u, null, 3, true);
       if (u.alive && u.items.length) this.tickItems(u, dt);
+      if (u.alive && u.orbQ && u.orbQ.length) this.tickOrbQueue(u, dt);
     }
   }
 

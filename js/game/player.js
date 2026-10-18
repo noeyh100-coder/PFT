@@ -32,6 +32,9 @@ class Player {
     this.training = 0;
     this.psychic = 0;
     this.psychicLosses = 0;
+    this.mine = 0;
+    this.mineOffer = null;
+    this.mineSkip = false;
     this.fossilWins = 0;
     this.fossilLosses = 0;
     this.participants = new Set();

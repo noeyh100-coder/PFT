@@ -342,6 +342,20 @@ class Driver {
         res = g.equipItem(p, i, inst(a.iid));
         break;
       }
+      case 'combine': {
+        if (ph === 'over') return;
+        let i = Math.floor(Number(a.i));
+        let j = Math.floor(Number(a.j));
+        if (typeof a.id === 'string' && p.items[i] !== a.id) i = p.items.indexOf(a.id);
+        if (typeof a.jd === 'string' && p.items[j] !== a.jd) j = p.items.findIndex((x, k) => x === a.jd && k !== i);
+        if (i < 0 || j < 0) return;
+        res = g.combineBench(p, i, j);
+        break;
+      }
+      case 'mine':
+        if (ph !== 'planning') return;
+        res = a.k === 'take' ? g.takeMine(p) : g.skipMine(p);
+        break;
       case 'ready':
         if (this.state !== 'planning') return;
         this.ready.add(pid);
@@ -368,7 +382,9 @@ class Driver {
         break;
       }
       case 'visit': {
-        if (this.state !== 'planning' || ph !== 'planning') return;
+        const planVisit = this.state === 'planning' && ph === 'planning';
+        const fightVisit = (ph === 'combat' || ph === 'result') && ['precombat', 'combat', 'ending', 'result'].includes(this.state);
+        if (!planVisit && !fightVisit) return;
         const to = Math.floor(Number(a.to));
         const tp = g.players[to];
         if (!tp || !tp.alive) return;
@@ -412,7 +428,7 @@ class Driver {
     };
     mix(g.stage + '-' + g.round + g.phase + this.state);
     for (const p of g.players) {
-      mix(p.hp + '|' + p.gold + '|' + p.level + '|' + p.xp + '|' + p.alive + '|' + p.shop.join(',') + '|' + p.items.join(','));
+      mix(p.hp + '|' + p.gold + '|' + p.level + '|' + p.xp + '|' + p.alive + '|' + p.mine + '|' + p.shop.join(',') + '|' + p.items.join(','));
       for (const u of p.allUnits()) mix(u.iid + u.unitId + u.star + (u.loc ? u.loc.zone + (u.loc.r != null ? u.loc.r + ',' + u.loc.c : u.loc.i) : '') + (u.items || []).join(','));
     }
     return h.toString(16);

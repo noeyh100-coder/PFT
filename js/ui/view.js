@@ -5,6 +5,8 @@ const CLASS_COLORS = {
 };
 
 const ROUND_ICON = { encounter: 'encounter', pve: 'ball', pvp: 'sword', carousel: 'sushi' };
+const HOVER_COLORS = { 1: '#f2f2f2', 2: '#86ffa2', 3: '#8fd0ff', 4: '#eaa8ff', 5: '#ffe486' };
+const TIER_COLORS = ['#101014', '#d08a4c', '#e4e9f2', '#ffd75a'];
 
 const View = {
   planned: new Set(),
@@ -102,10 +104,8 @@ const View = {
         x += n;
       }
     });
-    const vw = w + (w % 2);
-    const vh = h + (h % 2);
     const crisp = scale % 1 === 0;
-    const svg = '<svg class="hex-ico" width="' + vw * scale + '" height="' + vh * scale + '" viewBox="0 0 ' + vw + ' ' + vh + '" shape-rendering="' + (crisp ? 'crispEdges' : 'geometricPrecision') + '">' +
+    const svg = '<svg class="hex-ico" width="' + w * scale + '" height="' + h * scale + '" viewBox="0 0 ' + w + ' ' + h + '" shape-rendering="' + (crisp ? 'crispEdges' : 'geometricPrecision') + '">' +
       (half ? '<path d="' + half + '" fill="currentColor" fill-opacity="0.5"/>' : '') +
       '<path d="' + full + '" fill="currentColor"/></svg>';
     this.iconCache[key] = svg;
@@ -157,6 +157,7 @@ const View = {
   unitEl(opts) {
     const el = this.el('div', opts.className || 'unit');
     el.classList.add('s' + Math.min(3, opts.star || 1));
+    el.style.setProperty('--hover-col', HOVER_COLORS[opts.cost] || HOVER_COLORS[1]);
     const ring = this.el('div', 'cost-ring');
     ring.style.boxShadow = '0 0 0 2px ' + (COST_COLORS[opts.cost] || '#888');
     let orb = opts.form ? Sprites.make(opts.form, { star: opts.star, dir: opts.dir }) : null;
@@ -190,6 +191,10 @@ const View = {
     if (id === 'choice-scarf') return u.scarfPct || 0;
     if (id === 'assault-vest') return u.vestRanks || 0;
     if (id === 'metronome') return u.metroTarget != null ? 30 * u.it.metronome * Math.floor((time - u.metroSince) / 3) : 0;
+    if (id === 'absorb-bulb') return u.bulbPct || 0;
+    if (/^griseous-orb-/.test(id)) return u.grisStacks || 0;
+    if (id === 'red-orb-3') return u.redAs || 0;
+    if (/^blue-orb-/.test(id)) return u.blueSa || 0;
     return null;
   },
 
@@ -198,15 +203,131 @@ const View = {
     const el = this.el('div', 'item-ico' + (d ? ' k-' + d.kind : ''));
     el.style.width = size + 'px';
     el.style.height = size + 'px';
+    if (d && d.kind === 'treasure') {
+      el.classList.add('tier' + d.tier);
+      el.style.setProperty('--tier-col', TIER_COLORS[d.tier]);
+    }
     if (d && d.glyph) {
       el.classList.add('glyph');
       el.textContent = d.glyph;
       el.style.fontSize = Math.max(8, Math.round(size * 0.62)) + 'px';
       el.style.lineHeight = size + 'px';
     } else {
-      el.style.backgroundImage = 'url("img/item/' + id + '.png")';
+      el.style.backgroundImage = 'url("img/item/' + itemIconName(id) + '.png")';
     }
     return el;
+  },
+
+  itemKindLabel(d) {
+    if (!d) return '';
+    if (d.kind === 'component') return '조합 아이템';
+    if (d.kind === 'completed') return d.unique ? '완성 아이템 · 고유' : '완성 아이템';
+    if (d.kind === 'treasure') return '채굴 보물 · ' + TREASURE_TIER_NAME[d.tier];
+    return '소모품';
+  },
+
+  renderItemTip(box, id, mode, hooks) {
+    box.innerHTML = '';
+    const d = itemDef(id);
+    if (!d) return;
+    const h = hooks || {};
+    const icon = (x, size) => {
+      const el = this.itemIcon(x, size);
+      if (h.pick) {
+        el.classList.add('pick');
+        el.dataset.pick = x;
+      }
+      return el;
+    };
+    const head = this.el('div', 'it-head');
+    head.appendChild(this.itemIcon(id, 40));
+    const titles = this.el('div', 'it-titles');
+    titles.appendChild(this.el('b', 'it-name', d.name));
+    titles.appendChild(this.el('div', 'it-kind' + (d.kind === 'treasure' ? ' tier' + d.tier : ''), this.itemKindLabel(d)));
+    const st = itemStatText(id);
+    if (st) titles.appendChild(this.el('div', 'it-stat', st));
+    head.appendChild(titles);
+    box.appendChild(head);
+    if (d.kind === 'component' && mode === 'recipe') {
+      const list = this.el('div', 'it-recipe');
+      for (const other of ITEMS.components) {
+        const out = combineItems(id, other);
+        if (!out) continue;
+        const row = this.el('div', 'it-row');
+        row.appendChild(this.el('span', 'it-op', '+'));
+        row.appendChild(icon(other, 24));
+        row.appendChild(this.el('span', 'it-op', '>'));
+        row.appendChild(icon(out, 24));
+        row.appendChild(this.el('span', 'it-rname', itemDef(out).name));
+        list.appendChild(row);
+      }
+      box.appendChild(list);
+      if (!h.preview) box.appendChild(this.el('div', 'it-hint', '오른쪽 클릭으로 돌아가기'));
+      return;
+    }
+    if (d.kind === 'component') {
+      box.appendChild(this.el('div', 'it-desc', st || ''));
+      if (!h.preview) box.appendChild(this.el('div', 'it-hint', '오른쪽 클릭으로 조합표 확인'));
+      return;
+    }
+    if (d.desc) box.appendChild(this.el('div', 'it-desc', d.desc));
+    if (d.kind === 'completed') {
+      const from = this.el('div', 'it-from');
+      from.appendChild(icon(d.from[0], 26));
+      from.appendChild(this.el('span', 'it-op', '+'));
+      from.appendChild(icon(d.from[1], 26));
+      box.appendChild(from);
+    }
+  },
+
+  renderMine(box, game, p, hooks) {
+    box.innerHTML = '';
+    const offer = p.mineOffer;
+    if (!offer) return;
+    const head = this.el('div', 'mine-head');
+    head.appendChild(this.el('b', null, '채굴장'));
+    head.appendChild(this.el('span', 'mine-cost', '채굴 스택 ' + Math.floor(p.mine) + ' · 받으면 -' + offer.th));
+    box.appendChild(head);
+    const row = this.el('div', 'mine-rewards');
+    for (const e of offer.list) {
+      const cell = this.el('div', 'mine-cell');
+      const pic = this.el('div', 'mine-pic');
+      let label = '';
+      if (e.k === 'item') {
+        const ico = this.itemIcon(e.id, 44);
+        pic.appendChild(ico);
+        pic.dataset.item = e.id;
+        label = itemDef(e.id).name;
+      } else if (e.k === 'gold') {
+        pic.classList.add('gold');
+        pic.innerHTML = iconSvg('coin', 34);
+        label = e.n + '골드';
+      } else {
+        const def = UNITS[e.id];
+        const form = formOf(def, e.star, p);
+        pic.style.setProperty('--cost-color', COST_COLORS[def.cost]);
+        pic.classList.add('unit-pic');
+        const spr = Sprites.portrait(form, 44, { fill: 0.9, max: 2 });
+        if (spr) pic.appendChild(spr);
+        pic.dataset.unit = def.id;
+        pic.dataset.form = form.name;
+        label = (e.star > 1 ? e.star + '성 ' : '') + form.name;
+      }
+      cell.appendChild(pic);
+      cell.appendChild(this.el('div', 'mine-label', label));
+      row.appendChild(cell);
+    }
+    box.appendChild(row);
+    const actions = this.el('div', 'mine-actions');
+    const take = this.el('button', 'mine-take');
+    take.innerHTML = iconSvg('check', 16);
+    take.appendChild(this.el('span', null, '모두 받기'));
+    take.addEventListener('click', () => hooks.take());
+    const skip = this.el('button', 'mine-skip', '받지 않기');
+    skip.addEventListener('click', () => hooks.skip());
+    actions.appendChild(take);
+    actions.appendChild(skip);
+    box.appendChild(actions);
   },
 
   itemPreview(stats, items, evolvable) {
@@ -291,15 +412,15 @@ const View = {
     container.innerHTML = '';
     const raw = (owner && owner.items) || [];
     const list = [];
-    let mag = null;
+    const groups = {};
     raw.forEach((id, idx) => {
-      if (id === 'magnet') {
-        if (mag) {
-          mag.count++;
+      if (isConsumable(id)) {
+        if (groups[id]) {
+          groups[id].count++;
           return;
         }
-        mag = { id, idx, count: 1 };
-        list.push(mag);
+        groups[id] = { id, idx, count: 1 };
+        list.push(groups[id]);
         return;
       }
       list.push({ id, idx, count: 1 });
@@ -311,9 +432,10 @@ const View = {
       const entry = list[pg * per + i];
       const slot = this.el('div', 'item-slot');
       if (entry) {
-        slot.appendChild(this.itemIcon(entry.id, 30));
+        slot.appendChild(this.itemIcon(entry.id, 33));
         if (entry.count > 1) slot.appendChild(this.el('div', 'item-count', entry.count));
-        slot.dataset.tip = itemTipText(entry.id);
+        slot.dataset.item = entry.id;
+        slot.dataset.idx = entry.idx;
         slot.classList.add('filled');
         if (hooks && hooks.down) slot.addEventListener('pointerdown', e => hooks.down(e, entry.idx, slot));
       }
@@ -341,7 +463,9 @@ const View = {
       row.appendChild(this.hex(t.id, t));
       row.appendChild(this.el('div', 'trait-count', t.count));
       const text = this.el('div', 'trait-text');
-      text.appendChild(this.el('div', 'trait-name', t.id));
+      const name = this.el('div', 'trait-name', t.id);
+      if (t.id === '땅' && owner && (owner.mine || t.active)) name.appendChild(this.el('span', 'mine-stack', '채굴 ' + Math.floor(owner.mine || 0)));
+      text.appendChild(name);
       const steps = this.el('div', 'trait-steps');
       const td = TRAIT_DATA.map[t.id];
       if (t.kind === 'unique') {
@@ -386,7 +510,8 @@ const View = {
     if (!owner) return lines;
     if (id === '드래곤') lines.push('보유한 용의 비늘: ' + (owner.dragonScales || 0) + '개');
     if (id === '격투') lines.push('수련 스택: ' + Math.floor(owner.training || 0));
-    if (id === '에스퍼') lines.push('서로 다른 가격: ' + (entry ? entry.count : 0) + '종류 · 사이킥 에너지: ' + Math.round(owner.psychic || 0));
+    if (id === '에스퍼') lines.push('사이킥 에너지: ' + Math.round(owner.psychic || 0));
+    if (id === '땅') lines.push('채굴 스택: ' + Math.floor(owner.mine || 0));
     if (id === '물') lines.push(entry && entry.pairCosts.length ? '짝을 이룬 가격: ' + entry.pairCosts.map(c => c + '코').join(', ') : '짝을 이룬 가격이 없습니다');
     if (id === '벌레') lines.push('필드의 3성 벌레: ' + (entry ? entry.count : 0) + '마리');
     return lines;
@@ -430,7 +555,7 @@ const View = {
       '해피너스': '치유 스택 ' + u.healStack + ' 이상에서 럭키가 전투에 참여하면 진화 (럭키 3성이면 스택 2배)',
       '팬텀': '고우스트(고오스 2성 이상)로 처치 관여 ' + u.gastlyTakedowns + '번이면 진화',
       '후딘': '최면 누적 ' + u.hypnosisSeconds + '초를 채운 뒤 윤겔라가 전투에 참여하면 진화',
-      '뮤': '한 전투에서 서로 다른 타입 시너지 4개 켜기',
+      '뮤': '한 전투에서 서로 다른 타입 시너지 ' + u.mewTypes + '개 켜기',
       '뮤츠': '뮤가 참여한 PvP 전투로 유전자 ' + u.geneStack + ' 모으기',
       '프리져': '필드의 얼음 타입 포켓몬 별 합계 ' + u.iceStarTotal + ' 이상으로 전투 시작',
       '썬더': '전기 시너지 낙뢰를 적에게 누적 ' + u.electricBolts + '번 맞히기',
@@ -765,7 +890,7 @@ const View = {
       const slot = this.el('div');
       if (held[i]) {
         slot.appendChild(this.itemIcon(held[i], 40));
-        slot.dataset.tip = itemTipText(held[i]);
+        slot.dataset.item = held[i];
       }
       items.appendChild(slot);
     }

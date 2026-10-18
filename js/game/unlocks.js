@@ -21,7 +21,7 @@ const Unlocks = {
     p.participants = new Set(board.map(u => u.iid));
     if (!p.unlockedShop.has('뮤')) {
       const types = computeSynergies(p).filter(s => s.kind === 'type' && s.active).length;
-      if (types >= 4) this.unlockGuaranteed(game, p, '뮤');
+      if (types >= CONFIG.unlock.mewTypes) this.unlockGuaranteed(game, p, '뮤');
     }
     if (!p.unlockedShop.has('프리져')) {
       let total = 0;

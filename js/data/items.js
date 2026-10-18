@@ -20,7 +20,7 @@ const ITEM_COMPLETED = [
   { id: 'rocky-helmet', name: '울퉁불퉁맷', from: ['protective-pads', 'protective-pads'], bonus: { def: 3 }, desc: '방어가 크게 오르고, 기본 공격에 맞으면 받은 피해의 50%를 공격한 적에게 돌려줍니다.' },
   { id: 'shell-bell', name: '조개껍질방울', from: ['x-sp-def', 'muscle-band'], desc: '모든 피해 흡혈 40%.' },
   { id: 'full-incense', name: '만복향로', from: ['x-sp-def', 'wise-glasses'], desc: '2칸 안의 적의 특수방어와 스피드가 1랭크 내려갑니다.' },
-  { id: 'kings-rock', name: '왕의징표석', from: ['x-sp-def', 'protective-pads'], bonus: { hp: 150 }, desc: '2칸 안의 적 1명마다 방어·특수방어가 1랭크씩 오릅니다(최대 4). 기본 공격 때 30% 확률로 적을 1.5초 동안 풀죽음(기절) 상태로 만듭니다.' },
+  { id: 'kings-rock', name: '왕의징표석', from: ['x-sp-def', 'protective-pads'], bonus: { hp: 150 }, desc: '2칸 안의 적 1명마다 방어·특수방어가 1랭크씩 오릅니다(최대 4). 기본 공격 때 10% 확률로 적을 1.5초 동안 풀죽음(기절) 상태로 만듭니다.' },
   { id: 'assault-vest', name: '돌격조끼', from: ['x-sp-def', 'x-sp-def'], bonus: { spd: 3, hp: 200 }, desc: '특수방어가 크게 오르고, 6초마다 공격·특수공격이 1랭크씩 오릅니다.' },
   { id: 'weakness-policy', name: '약점보험', from: ['leftovers', 'muscle-band'], desc: '효과가 굉장한 공격을 처음 맞으면 최대 체력 30%의 보호막을 얻고 공격·특수공격이 30% 증가합니다.' },
   { id: 'black-sludge', name: '검은오물', from: ['leftovers', 'wise-glasses'], desc: '피해를 입힌 적의 회복량이 33% 줄고 화상을 입습니다.' },
@@ -28,7 +28,7 @@ const ITEM_COMPLETED = [
   { id: 'lax-incense', name: '무사태평향로', from: ['leftovers', 'x-sp-def'], desc: '2칸 안의 적의 방어와 명중률이 1랭크 내려갑니다.' },
   { id: 'big-root', name: '큰뿌리', from: ['leftovers', 'leftovers'], desc: '최대 체력이 20% 증가합니다.' },
   { id: 'black-belt', name: '검은띠', from: ['swift-wing', 'muscle-band'], desc: '최대 체력이 1300 이상인 적에게 주는 피해가 45% 증가합니다.' },
-  { id: 'choice-scarf', name: '구애스카프', from: ['swift-wing', 'wise-glasses'], desc: '기본 공격할 때마다 공격 속도가 3%씩 오릅니다.' },
+  { id: 'choice-scarf', name: '구애스카프', from: ['swift-wing', 'wise-glasses'], desc: '기본 공격할 때마다 공격 속도가 2%씩 오릅니다.' },
   { id: 'booster-energy', name: '부스트에너지', from: ['swift-wing', 'protective-pads'], desc: '기본 공격을 맞히거나 기본 공격·스킬에 맞을 때마다 공격·특수공격이 3%씩 오릅니다(최대 25번). 최대로 쌓이면 방어·특수방어가 2랭크 오릅니다.' },
   { id: 'silver-wing', name: '은빛날개', from: ['swift-wing', 'x-sp-def'], desc: '기본 공격할 때 주변 적 2명에게 투사체를 더 날려 기본 공격 피해의 30%를 입힙니다.' },
   { id: 'focus-sash', name: '기합의띠', from: ['swift-wing', 'leftovers'], unique: true, desc: '처음으로 쓰러질 피해를 받으면 쓰러지지 않고 2초 동안 체력 1로 버티며, 공격·특수공격이 20% 증가합니다.' },
@@ -52,6 +52,37 @@ const ITEM_COMPLETED = [
 
 const ITEM_MAGNET = { id: 'magnet', name: '자석', kind: 'consumable', desc: '아이템을 가진 기물에게 쓰면 그 기물의 아이템을 모두 빼서 아이템 칸으로 돌려줍니다.' };
 
+const ITEM_CANDIES = [
+  { id: 'candy-s', name: '소형 이상한사탕', icon: 'exp-candy-xs', maxCost: 1, desc: '1코스트 기물에게 쓰면 별이 1 오릅니다.' },
+  { id: 'candy-m', name: '하급 이상한사탕', icon: 'exp-candy-s', maxCost: 3, desc: '3코스트 이하 기물에게 쓰면 별이 1 오릅니다.' },
+  { id: 'rare-candy', name: '이상한사탕', icon: 'rare-candy', maxCost: 5, desc: '기물에게 쓰면 별이 1 오릅니다.' }
+];
+
+const TREASURE_TIER_NAME = ['0티어', '1티어', '2티어', '3티어'];
+
+const ITEM_TREASURES = [
+  { id: 'absorb-bulb', name: '구근', tier: 0, icon: 'absorb-bulb', desc: '5초마다 피해증폭이 5%씩 증가합니다.' },
+  { id: 'luminous-moss', name: '빛이끼', tier: 0, icon: 'luminous-moss', desc: '받는 피해가 5% 줄어듭니다.' },
+  { id: 'rusted-sword-1', name: '녹슨검', tier: 1, icon: 'rusted-sword', desc: '모든 공격이 체력이 10% 이하인 적을 처형합니다. 적을 쓰러뜨리면 3칸 안에서 가장 멀리 있는 적에게 이동해 공격의 100% 물리 피해를 입힙니다.' },
+  { id: 'rusted-shield-1', name: '녹슨방패', tier: 1, icon: 'rusted-shield', desc: '체력이 처음으로 50% 이하가 되면 최대 체력 25%의 보호막을 얻고, 그 뒤 8초마다 최대 체력 10%의 보호막을 얻습니다.' },
+  { id: 'griseous-orb-1', name: '큰백금옥', tier: 1, icon: 'griseous-orb', desc: '기본 공격이나 스킬에 맞을 때마다 방어·특수방어가 3씩 오릅니다(최대 15번). 최대로 쌓이면 공격받은 뒤 1칸 안의 적에게 방어·특수방어 중 높은 쪽의 50%만큼 특수 피해를 입힙니다. (재사용 대기시간 2초)' },
+  { id: 'life-orb-1', name: '생명의구슬', tier: 1, icon: 'life-orb', desc: '적에게 받는 모든 피해가 5초에 걸쳐 나누어 들어옵니다. 체력이 처음으로 40% 이하가 되면 남은 피해를 모두 없애고, 5초 동안 잃은 체력의 50%만큼 보호막을 얻습니다.' },
+  { id: 'red-orb-1', name: '주홍구슬', tier: 1, icon: 'red-orb', desc: '피해를 6번 입힐 때마다 체력이 가장 낮은 적 2명에게 충격을 가해 150의 물리 피해를 입힙니다.' },
+  { id: 'blue-orb-1', name: '쪽빛구슬', tier: 1, icon: 'blue-orb', desc: '기본 공격할 때 PP를 1 더 얻습니다. 스킬을 쓴 뒤 PP를 2 얻고 특수공격이 5%씩 증가합니다.' },
+  { id: 'rusted-sword-2', name: '강화 녹슨검', tier: 2, icon: 'rusted-sword', desc: '모든 공격이 체력이 12% 이하인 적을 처형합니다. 적을 쓰러뜨리면 3칸 안에서 가장 멀리 있는 적에게 이동해 공격의 100% 물리 피해를 입히고, 5초 동안 내구력과 피해증폭이 10% 증가합니다.' },
+  { id: 'rusted-shield-2', name: '강화 녹슨방패', tier: 2, icon: 'rusted-shield', desc: '체력이 처음으로 50% 이하가 되면 최대 체력 50%의 보호막을 얻고, 그 뒤 8초마다 최대 체력 10%의 보호막을 얻습니다.' },
+  { id: 'griseous-orb-2', name: '강화 큰백금옥', tier: 2, icon: 'griseous-orb', desc: '기본 공격이나 스킬에 맞을 때마다 방어·특수방어가 5씩 오릅니다(최대 15번). 최대로 쌓이면 공격받은 뒤 1칸 안의 적에게 방어·특수방어 중 높은 쪽의 75%만큼 특수 피해를 입힙니다. (재사용 대기시간 2초)' },
+  { id: 'life-orb-2', name: '강화 생명의구슬', tier: 2, icon: 'life-orb', desc: '적에게 받는 모든 피해가 7초에 걸쳐 나누어 들어옵니다. 체력이 처음으로 40% 이하가 되면 남은 피해를 모두 없애고, 10초 동안 잃은 체력의 50%만큼 보호막을 얻습니다.' },
+  { id: 'red-orb-2', name: '강화 주홍구슬', tier: 2, icon: 'red-orb', desc: '피해를 6번 입힐 때마다 체력이 가장 낮은 적 2명에게 충격을 가해 250의 물리 피해를 입힙니다.' },
+  { id: 'blue-orb-2', name: '강화 쪽빛구슬', tier: 2, icon: 'blue-orb', desc: '기본 공격할 때 PP를 2 더 얻습니다. 스킬을 쓴 뒤 PP를 3 얻고 특수공격이 7%씩 증가합니다.' },
+  { id: 'rusted-sword-3', name: '완벽한 녹슨검', tier: 3, icon: 'rusted-sword', desc: '모든 공격이 체력이 15% 이하인 적을 처형합니다. 적을 쓰러뜨리면 3칸 안에서 가장 멀리 있는 적에게 이동해 공격의 100% 물리 피해를 입히고, 5초 동안 내구력과 피해증폭이 15% 증가합니다. 처형할 때마다 3골드를 얻고 최대 체력의 40%를 회복합니다.' },
+  { id: 'rusted-shield-3', name: '완벽한 녹슨방패', tier: 3, icon: 'rusted-shield', desc: '체력이 처음으로 50% 이하가 되면 최대 체력 70%의 보호막을 얻고, 그 뒤 8초마다 최대 체력 15%의 보호막을 얻습니다. 보호막을 얻을 때마다 가까운 적 3명에게 대지의 힘을 가해 최대 체력 15%만큼 특수 피해를 입힙니다.' },
+  { id: 'griseous-orb-3', name: '완벽한 큰백금옥', tier: 3, icon: 'griseous-orb', desc: '기본 공격이나 스킬에 맞을 때마다 방어·특수방어가 10씩 오릅니다(최대 15번). 최대로 쌓이면 공격받은 뒤 1칸 안의 적에게 방어·특수방어 중 높은 쪽의 90%만큼 특수 피해를 입히고(재사용 대기시간 2초), 4칸 안의 적에게 높은 쪽의 50%만큼 고정 피해를 입힙니다(재사용 대기시간 3초).' },
+  { id: 'life-orb-3', name: '완벽한 생명의구슬', tier: 3, icon: 'life-orb', desc: '적에게 받는 모든 피해가 10초에 걸쳐 나누어 들어옵니다. 체력이 처음으로 40% 이하가 되면 남은 피해를 모두 없애고, 15초 동안 잃은 체력의 50%만큼 보호막을 얻습니다. 잃은 체력의 비율만큼 모든 피해 흡혈을 얻습니다(최대 100%).' },
+  { id: 'red-orb-3', name: '완벽한 주홍구슬', tier: 3, icon: 'red-orb', desc: '피해를 6번 입힐 때마다 체력이 가장 낮은 적 2명에게 충격을 가해 300의 물리 피해를 입힙니다. 충격을 가할 때마다 공격 속도가 20% 증가합니다.' },
+  { id: 'blue-orb-3', name: '완벽한 쪽빛구슬', tier: 3, icon: 'blue-orb', desc: '기본 공격할 때 PP를 3 더 얻습니다. 스킬을 쓴 뒤 PP를 5 얻고 특수공격이 10%씩 증가합니다. 스킬을 쓸 때마다 이번 전투의 최대 PP가 2 줄어듭니다(최소 8).' }
+];
+
 const ITEMS = (function () {
   const map = {};
   const recipe = {};
@@ -66,7 +97,11 @@ const ITEMS = (function () {
     recipe[c.from.slice().sort().join('+')] = c.id;
   }
   map[ITEM_MAGNET.id] = Object.assign({ stats: {} }, ITEM_MAGNET);
-  return { map, recipe, components: ITEM_COMPONENTS.map(c => c.id), completed: ITEM_COMPLETED.map(c => c.id) };
+  for (const c of ITEM_CANDIES) map[c.id] = Object.assign({ kind: 'consumable', candy: true, stats: {} }, c);
+  for (const t of ITEM_TREASURES) map[t.id] = Object.assign({ kind: 'treasure', stats: {} }, t);
+  const tiers = [[], [], [], []];
+  for (const t of ITEM_TREASURES) tiers[t.tier].push(t.id);
+  return { map, recipe, components: ITEM_COMPONENTS.map(c => c.id), completed: ITEM_COMPLETED.map(c => c.id), treasures: tiers };
 })();
 
 function itemDef(id) {
@@ -89,6 +124,16 @@ function itemStatText(id) {
   return parts.join(', ');
 }
 
+function itemIconName(id) {
+  const d = itemDef(id);
+  return (d && d.icon) || id;
+}
+
+function isConsumable(id) {
+  const d = itemDef(id);
+  return !!d && d.kind === 'consumable';
+}
+
 function itemTipText(id) {
   const d = itemDef(id);
   if (!d) return '';
@@ -105,6 +150,8 @@ function itemTipText(id) {
   } else if (d.kind === 'completed') {
     lines.push('');
     lines.push(itemDef(d.from[0]).name + ' + ' + itemDef(d.from[1]).name + ' = ' + d.name);
+  } else if (d.kind === 'treasure') {
+    lines.splice(1, 0, '채굴 보물 · ' + TREASURE_TIER_NAME[d.tier]);
   }
   return lines.join('\n');
 }

@@ -47,6 +47,7 @@ class App {
     this.arena = new Arena(this);
     Floor.prerender([this.human.mapId].concat(this.game.players.map(p => p.mapId), CONFIG.maps));
     this.setupStatic();
+    this.setupItemTip();
     this.bindControls();
     this.bindGameEvents();
     this.planner = new Planner(this);
@@ -96,6 +97,138 @@ class App {
     this.$('btn-reroll').innerHTML = iconSvg('refresh', 20) + '<span class="lbl">새로고침<small>' + iconSvg('coin', 10) + CONFIG.rerollCost + '</small></span>';
   }
 
+  setupItemTip() {
+    const tip = this.$('item-tip');
+    this.itemTip = null;
+    this.mouse = { x: 0, y: 0 };
+    tip.addEventListener('mouseenter', () => clearTimeout(this.itemTipTimer));
+    tip.addEventListener('mouseleave', () => this.hideItemTipSoon());
+    tip.addEventListener('click', e => {
+      const t = e.target.closest('[data-pick]');
+      if (!t || !this.itemTip || this.itemTip.preview) return;
+      this.itemTip.id = t.dataset.pick;
+      this.itemTip.mode = 'info';
+      this.renderItemTip();
+    });
+    tip.addEventListener('pointerdown', e => {
+      if (e.button !== 2) return;
+      e.preventDefault();
+      e.stopPropagation();
+      this.toggleItemRecipe(null);
+    });
+    this.gameEl.addEventListener('pointermove', e => {
+      this.mouse.x = e.clientX;
+      this.mouse.y = e.clientY;
+    });
+  }
+
+  showItemTip(anchor, id) {
+    clearTimeout(this.itemTipTimer);
+    this.hideTooltip();
+    const t = this.itemTip;
+    if (!t || t.preview || t.anchor !== anchor || t.anchorId !== id) this.itemTip = { id, anchorId: id, mode: 'info', anchor };
+    this.placeItemTip();
+  }
+
+  placeItemTip() {
+    const t = this.itemTip;
+    if (!t || !t.anchor) return;
+    const r = t.anchor.getBoundingClientRect();
+    t.rect = { l: this.toGame(r.left, r.top), r: this.toGame(r.right, r.bottom) };
+    this.renderItemTip();
+  }
+
+  renderItemTip() {
+    const t = this.itemTip;
+    const tip = this.$('item-tip');
+    if (!t) {
+      tip.classList.remove('show');
+      return;
+    }
+    View.renderItemTip(tip, t.id, t.mode, { pick: !t.preview, preview: !!t.preview });
+    tip.classList.add('show');
+    tip.classList.toggle('preview', !!t.preview);
+    const w = tip.offsetWidth;
+    const h = tip.offsetHeight;
+    let x;
+    let y;
+    if (t.preview) {
+      x = t.at.x + 26;
+      y = t.at.y - h / 2;
+      if (x + w > 1276) x = t.at.x - w - 26;
+    } else {
+      x = t.rect.r.x + 8;
+      y = t.rect.l.y - 4;
+      if (x + w > 1276) x = t.rect.l.x - w - 8;
+    }
+    tip.style.left = Math.max(4, x) + 'px';
+    tip.style.top = Math.max(4, Math.min(716 - h, y)) + 'px';
+  }
+
+  hideItemTipSoon() {
+    if (this.itemTip && this.itemTip.preview) return;
+    clearTimeout(this.itemTipTimer);
+    this.itemTipTimer = setTimeout(() => {
+      if (!(this.itemTip && this.itemTip.preview)) this.hideItemTip();
+    }, 140);
+  }
+
+  hideItemTip() {
+    clearTimeout(this.itemTipTimer);
+    this.itemTip = null;
+    this.$('item-tip').classList.remove('show');
+  }
+
+  toggleItemRecipe(anchor) {
+    if (anchor) {
+      const id = anchor.dataset.item;
+      if (!this.itemTip || this.itemTip.anchor !== anchor) this.showItemTip(anchor, id);
+    }
+    const t = this.itemTip;
+    if (!t || t.preview) return;
+    const d = itemDef(t.id);
+    if (d && d.kind === 'component') t.mode = t.mode === 'recipe' ? 'info' : 'recipe';
+    this.renderItemTip();
+  }
+
+  showItemPreview(id, x, y) {
+    clearTimeout(this.itemTipTimer);
+    if (!id) {
+      this.hideItemPreview();
+      return;
+    }
+    const t = this.itemTip;
+    if (t && t.preview && t.id === id) {
+      t.at = { x, y };
+      this.renderItemTip();
+      return;
+    }
+    this.itemTip = { id, mode: 'info', preview: true, at: { x, y } };
+    this.renderItemTip();
+  }
+
+  hideItemPreview() {
+    if (this.itemTip && this.itemTip.preview) this.hideItemTip();
+  }
+
+  reanchorItemTip() {
+    const t = this.itemTip;
+    if (!t || t.preview || !t.anchor || document.contains(t.anchor)) return;
+    const el = document.elementFromPoint(this.mouse.x, this.mouse.y);
+    const tipEl = this.$('item-tip');
+    if (el && tipEl.contains(el)) return;
+    const a = el ? el.closest('[data-item]') : null;
+    if (a && !tipEl.contains(a)) {
+      t.anchor = a;
+      if (a.dataset.item !== t.anchorId) {
+        t.id = a.dataset.item;
+        t.anchorId = t.id;
+        t.mode = 'info';
+      }
+      this.placeItemTip();
+    } else this.hideItemTip();
+  }
+
   bindControls() {
     this.$('btn-ready').addEventListener('click', () => this.pressReady());
     this.$('return-btn').innerHTML = iconSvg('home', 24);
@@ -131,7 +264,20 @@ class App {
     this.gameEl.addEventListener('mouseover', e => {
       const u = e.target.closest('[data-unit]');
       if (u && !this.dragging && !(this.planner && this.planner.drag)) this.showUnitTip(u);
+      const it = e.target.closest('[data-item]');
+      if (it && !this.dragging && !it.closest('#item-tip')) this.showItemTip(it, it.dataset.item);
     });
+    this.gameEl.addEventListener('mouseout', e => {
+      const it = e.target.closest('[data-item]');
+      if (it && !it.closest('#item-tip') && (!e.relatedTarget || !it.contains(e.relatedTarget))) this.hideItemTipSoon();
+    });
+    this.gameEl.addEventListener('pointerdown', e => {
+      if (e.button !== 2) return;
+      const it = e.target.closest('[data-item]');
+      if (!it || it.closest('#item-tip')) return;
+      e.stopPropagation();
+      this.toggleItemRecipe(it);
+    }, true);
     this.gameEl.addEventListener('mouseout', e => {
       const u = e.target.closest('[data-unit]');
       if (u && (!e.relatedTarget || !u.contains(e.relatedTarget))) this.hideUnitTip();
@@ -308,11 +454,28 @@ class App {
       return;
     }
     if (this.viewId === id) return;
-    if (this.human.alive && this.game.phase === 'planning' && this.driver.state === 'planning') this.act({ t: 'visit', to: id });
+    this.sendVisit(id);
     this.viewId = id;
     this.arenaKey = null;
     this.hoverInst = null;
     this.render();
+  }
+
+  sendVisit(id) {
+    const g = this.game;
+    const d = this.driver;
+    const h = this.human;
+    if (!h.alive) return;
+    if (g.phase === 'planning' && d.state === 'planning') {
+      this.act({ t: 'visit', to: id });
+      return;
+    }
+    if (g.phase !== 'combat' && g.phase !== 'result') return;
+    const m = g.matchFor(h);
+    const mine = id === h.id || (m && (m.a.id === id || (m.b && !m.ghost && m.b.id === id)));
+    if (mine) {
+      if (d.strats[h.id].at !== h.id) this.act({ t: 'visit', to: h.id });
+    } else this.act({ t: 'visit', to: id });
   }
 
   setRightMode(mode) {
@@ -570,6 +733,7 @@ class App {
     if (this.rightMode === 'players') View.renderPlayers(playersEl, g, this.viewId, p => this.setView(p.id));
     else this.renderDamage();
     this.renderInfo();
+    this.renderMine();
     this.renderDebug();
     if (h.pendingBranch.length) this.maybeShowBranch();
     const rb = this.$('btn-ready');
@@ -619,6 +783,39 @@ class App {
       },
       down: mine ? (e, idx, el) => this.onItemPointerDown(e, idx, el) : null
     });
+    this.reanchorItemTip();
+  }
+
+  renderMine() {
+    const box = this.$('mine-box');
+    const h = this.human;
+    const show = !this.scouting() && !this.replaying && this.driver.state === 'planning' && this.game.canTakeMine(h);
+    this.gameEl.classList.toggle('mine-open', show);
+    if (!show) {
+      if (this.mineKey !== null) {
+        box.classList.remove('show');
+        box.innerHTML = '';
+        this.mineKey = null;
+      }
+      return;
+    }
+    const key = h.mine + '|' + JSON.stringify(h.mineOffer);
+    if (key !== this.mineKey) {
+      View.renderMine(box, this.game, h, {
+        take: () => this.act({ t: 'mine', k: 'take' }),
+        skip: () => this.act({ t: 'mine', k: 'skip' })
+      });
+      this.mineKey = key;
+    }
+    box.classList.add('show');
+  }
+
+  itemSlotAt(x, y, srcEl) {
+    for (const el of document.elementsFromPoint(x, y)) {
+      const slot = el.closest('#items .item-slot.filled');
+      if (slot && slot !== srcEl) return slot;
+    }
+    return null;
   }
 
   itemTargetAt(x, y) {
@@ -635,24 +832,57 @@ class App {
     e.stopPropagation();
     const id = this.human.items[idx];
     if (!id) return;
+    const isComp = itemDef(id).kind === 'component';
     const sx = e.clientX;
     const sy = e.clientY;
     let ghost = null;
+    const hold = { slot: null, timer: null, done: false };
+    const resetHold = () => {
+      clearTimeout(hold.timer);
+      hold.timer = null;
+      hold.slot = null;
+      hold.done = false;
+      if (ghost) ghost.classList.remove('holding', 'hold-done');
+    };
     const move = ev => {
       if (!ghost) {
         if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 6) return;
         this.dragging = true;
         this.hideTooltip();
-        ghost = View.itemIcon(id, 30);
+        this.hideItemTip();
+        ghost = View.itemIcon(id, 33);
         ghost.classList.add('item-ghost');
         this.gameEl.appendChild(ghost);
         srcEl.classList.add('dragging');
       }
       const g = this.toGame(ev.clientX, ev.clientY);
-      ghost.style.left = (g.x - 15) + 'px';
-      ghost.style.top = (g.y - 15) + 'px';
+      ghost.style.left = (g.x - 16) + 'px';
+      ghost.style.top = (g.y - 16) + 'px';
+      const slot = isComp ? this.itemSlotAt(ev.clientX, ev.clientY, srcEl) : null;
+      const other = slot ? slot.dataset.item : null;
+      if (slot && Number(slot.dataset.idx) !== idx && itemDef(other) && itemDef(other).kind === 'component') {
+        this.highlight(null);
+        if (hold.slot !== slot.dataset.idx) {
+          resetHold();
+          hold.slot = slot.dataset.idx;
+          ghost.classList.add('holding');
+          hold.timer = setTimeout(() => {
+            hold.done = true;
+            if (ghost) {
+              ghost.classList.remove('holding');
+              ghost.classList.add('hold-done');
+            }
+          }, 1000);
+        }
+        this.showItemPreview(combineItems(id, other), g.x, g.y);
+        return;
+      }
+      if (hold.slot !== null) resetHold();
       const hit = this.itemTargetAt(ev.clientX, ev.clientY);
       this.highlight(hit ? hit.t : null);
+      const comp = hit && isComp ? (hit.inst.items || []).find(x => itemDef(x) && itemDef(x).kind === 'component') : null;
+      if (comp) this.showItemPreview(combineItems(comp, id), g.x, g.y);
+      else this.hideItemPreview();
     };
     const up = ev => {
       window.removeEventListener('pointermove', move);
@@ -662,10 +892,14 @@ class App {
       srcEl.classList.remove('dragging');
       this.arena.drawOverlay(null);
       this.dragging = false;
-      const hit = this.itemTargetAt(ev.clientX, ev.clientY);
-      if (hit) {
-        if (hit.inst.loc.zone === 'board' && this.game.phase !== 'planning') this.toast('전투 중에는 필드의 기물에 아이템을 쓸 수 없습니다', 'error');
-        else this.act({ t: 'item', i: idx, id, iid: hit.inst.iid });
+      this.hideItemPreview();
+      clearTimeout(hold.timer);
+      const slot = isComp ? this.itemSlotAt(ev.clientX, ev.clientY, srcEl) : null;
+      if (hold.done && slot && slot.dataset.idx === hold.slot) {
+        this.act({ t: 'combine', i: idx, id, j: Number(slot.dataset.idx), jd: slot.dataset.item });
+      } else if (!slot) {
+        const hit = this.itemTargetAt(ev.clientX, ev.clientY);
+        if (hit) this.act({ t: 'item', i: idx, id, iid: hit.inst.iid });
       }
       this.render();
     };
@@ -1048,7 +1282,10 @@ class App {
   moveStrategist(cx, cy) {
     if (!this.human.alive) return;
     if (this.carouselScene && !this.viewCarousel) return;
-    if (!this.carouselScene && this.viewId !== this.human.id && !(this.game.phase === 'planning' && this.driver.strats[this.human.id].at === this.viewId)) return;
+    const st = this.driver.strats[this.human.id];
+    const csc = this.curScene;
+    const ownFight = csc && csc.mode === 'combat' && csc.bottom && csc.bottom.player === this.human && st.at === this.human.id;
+    if (!this.carouselScene && this.viewId !== this.human.id && st.at !== this.viewId && !ownFight) return;
     const p = this.arena.toFlat(cx, cy);
     let x = Math.max(-20, Math.min(ARENA_W + 20, p.x));
     let y = Math.max(-10, Math.min(ARENA_H + 10, p.y + 8));
@@ -1181,6 +1418,7 @@ class App {
     if (this.carouselScene) show = this.viewCarousel;
     else if (!sc || sc.carouselField || sc.mode === 'carousel') show = false;
     else if (sc.mode === 'planning') show = this.human.alive && s.at === this.viewId;
+    else if (s.at !== this.human.id) show = this.human.alive && s.at === this.viewId;
     else show = !!(sc.bottom && sc.bottom.player === this.human);
     const disp = show ? '' : 'none';
     if (me.el.style.display !== disp) {
@@ -1219,7 +1457,17 @@ class App {
         for (const [role, top] of [[sc.top, true], [sc.bottom, false]]) {
           if (!role || !role.player || role.ghost || role.player === this.human || !role.player.alive) continue;
           const s = d.strats[role.player.id];
+          if (s.at !== role.player.id) continue;
           want.set(role.player.id, top ? mir(s) : { x: s.x, y: s.y });
+        }
+        const topP = sc.top && sc.top.player && !sc.top.ghost ? sc.top.player : null;
+        const botP = sc.bottom && sc.bottom.player && !sc.bottom.ghost ? sc.bottom.player : null;
+        for (const p of this.game.players) {
+          if (p === this.human || !p.alive) continue;
+          const s = d.strats[p.id];
+          if (s.at === p.id) continue;
+          if (topP && s.at === topP.id) want.set(p.id, { x: s.x, y: s.y });
+          else if (botP && s.at === botP.id) want.set(p.id, mir(s));
         }
       }
     }
@@ -1532,6 +1780,11 @@ class App {
     box.appendChild(list);
     const actions = View.el('div', 'modal-actions');
     if (this.net && !this.replaying) this.net.send({ t: 'over' });
+    if (this.mode === 'mp') {
+      const party = View.el('button', 'gold', '파티로 돌아가기');
+      party.addEventListener('click', () => this.backToParty());
+      actions.appendChild(party);
+    }
     const again = View.el('button', null, '메인으로');
     again.addEventListener('click', () => this.leaveToMain());
     actions.appendChild(again);
@@ -1549,9 +1802,12 @@ class App {
     const actions = View.el('div', 'modal-actions');
     const watch = View.el('button', null, '계속 관전');
     watch.addEventListener('click', () => this.closeModal());
+    const party = View.el('button', 'gold', '파티로 돌아가기');
+    party.addEventListener('click', () => this.backToParty());
     const leave = View.el('button', null, '메인으로');
     leave.addEventListener('click', () => this.leaveToMain());
     actions.appendChild(watch);
+    actions.appendChild(party);
     actions.appendChild(leave);
     box.appendChild(actions);
     this.closeModal();
@@ -1561,6 +1817,17 @@ class App {
   leaveToMain() {
     if (this.net) this.net.leave();
     window.location.reload();
+  }
+
+  backToParty(stay) {
+    if (this.net && !stay && this.game.phase !== 'over') this.net.send({ t: 'park' });
+    try {
+      sessionStorage.setItem('ptft-party', '1');
+    } catch (e) {
+      this.leaveToMain();
+      return;
+    }
+    setTimeout(() => window.location.reload(), 150);
   }
 
   renderDebug() {

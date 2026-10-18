@@ -21,6 +21,7 @@ const TYPES = {
 };
 const MAX_GAME_MS = 100 * 60 * 1000;
 const EMPTY_ROOM_MS = 3 * 60 * 1000;
+const LOBBY_GRACE_MS = 10 * 1000;
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 const clients = new Map();
@@ -125,10 +126,42 @@ function leaveRoom(c, explicit) {
     else broadcastRoom(room);
   } else if (room.state === 'playing') {
     const slot = room.slotOf[c.token];
-    if (explicit) room.gone.add(c.token);
+    if (explicit || room.parked.has(c.token)) room.gone.add(c.token);
     if (slot !== undefined) room.pending.push([slot, { t: 'afk', on: true }]);
   }
   if (explicit) send(c, { t: 'left' });
+}
+
+function endGame(room) {
+  clearInterval(room.timer);
+  room.timer = null;
+  room.state = 'lobby';
+  room.members = room.members.filter(t => {
+    const c = clients.get(t);
+    const keep = !room.gone.has(t) && c && c.ws && c.room === room.code;
+    if (!keep) {
+      delete room.names[t];
+      delete room.looks[t];
+      delete room.icons[t];
+    }
+    return keep;
+  });
+  if (!room.members.includes(room.host)) room.host = room.members[0] || null;
+  room.log = [];
+  room.pending = [];
+  room.parked = new Set();
+  room.created = Date.now();
+  if (!room.members.length) closeRoom(room);
+  else broadcastRoom(room);
+}
+
+function roomOfToken(token) {
+  for (const room of rooms.values()) {
+    if (!room.members.includes(token)) continue;
+    if (room.state === 'lobby') return room;
+    if (room.state === 'playing' && !room.gone.has(token)) return room;
+  }
+  return null;
 }
 
 function closeRoom(room) {
@@ -143,16 +176,22 @@ function tickRoom(room) {
   if (acts.length) room.log.push(...acts);
   const msg = JSON.stringify({ t: 'tk', n: room.tick, a: acts });
   let online = 0;
+  let parked = 0;
   for (const t of room.members) {
     const c = clients.get(t);
-    if (c && c.ws && c.room === room.code) {
-      online += 1;
-      send(c, msg);
+    if (!c || !c.ws || c.room !== room.code) continue;
+    if (room.parked.has(t)) {
+      parked += 1;
+      continue;
     }
+    online += 1;
+    send(c, msg);
   }
   const now = Date.now();
   if (online) room.lastOnline = now;
-  if (now - room.lastOnline > EMPTY_ROOM_MS || now - room.started > MAX_GAME_MS) closeRoom(room);
+  if (!online && parked) endGame(room);
+  else if (now - room.started > MAX_GAME_MS) endGame(room);
+  else if (now - room.lastOnline > EMPTY_ROOM_MS) closeRoom(room);
 }
 
 function startGame(room) {
@@ -173,6 +212,7 @@ function startGame(room) {
   room.started = Date.now();
   room.lastOnline = Date.now();
   room.over = new Set();
+  room.parked = new Set();
   for (const t of room.members) send(clients.get(t), startInfo(room, t));
   room.timer = setInterval(() => tickRoom(room), TICK_MS);
 }
@@ -186,25 +226,20 @@ function onHello(c, m) {
   c.name = cleanName(m.name);
   c.look = cleanLook(m.look);
   c.icon = cleanIcon(m.icon);
-  send(c, { t: 'welcome', token: c.token, name: c.name });
-  for (const room of rooms.values()) {
-    if (!room.members.includes(c.token)) continue;
-    if (room.state === 'playing' && !room.gone.has(c.token)) {
-      c.room = room.code;
-      sendCatchup(c, room);
-      const slot = room.slotOf[c.token];
-      if (slot !== undefined) room.pending.push([slot, { t: 'afk', on: false }]);
-      return;
-    }
-    if (room.state === 'lobby') {
-      c.room = room.code;
-      room.names[c.token] = c.name;
-      room.looks[c.token] = c.look;
-      room.icons[c.token] = c.icon;
-      broadcastRoom(room);
-      return;
-    }
+  const room = roomOfToken(c.token);
+  send(c, { t: 'welcome', token: c.token, name: c.name, room: room ? room.code : null });
+  if (!room) return;
+  c.room = room.code;
+  room.names[c.token] = c.name;
+  room.looks[c.token] = c.look;
+  room.icons[c.token] = c.icon;
+  if (room.state === 'playing' && !room.parked.has(c.token)) {
+    sendCatchup(c, room);
+    const slot = room.slotOf[c.token];
+    if (slot !== undefined) room.pending.push([slot, { t: 'afk', on: false }]);
+    return;
   }
+  broadcastRoom(room);
 }
 
 function onMessage(c, m) {
@@ -260,10 +295,17 @@ function onMessage(c, m) {
     room.pending.push([slot, m.a]);
     return;
   }
+  if (m.t === 'park') {
+    if (room.state !== 'playing') return;
+    room.parked.add(c.token);
+    const slot = room.slotOf[c.token];
+    if (slot !== undefined) room.pending.push([slot, { t: 'afk', on: true }]);
+    return;
+  }
   if (m.t === 'over') {
     if (room.state !== 'playing') return;
     room.over.add(c.token);
-    room.gone.add(c.token);
+    endGame(room);
   }
 }
 
@@ -305,8 +347,12 @@ wss.on('connection', ws => {
     const room = c.room ? rooms.get(c.room) : null;
     if (!room) return;
     if (room.state === 'lobby') {
-      leaveRoom(c, false);
-      c.room = null;
+      broadcastRoom(room);
+      setTimeout(() => {
+        if (clients.get(c.token) !== c || c.ws) return;
+        leaveRoom(c, false);
+        c.room = null;
+      }, LOBBY_GRACE_MS);
     } else if (room.state === 'playing') {
       const slot = room.slotOf[c.token];
       if (slot !== undefined) room.pending.push([slot, { t: 'afk', on: true }]);

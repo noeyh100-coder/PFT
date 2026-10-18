@@ -79,8 +79,15 @@ class Lobby {
     this.bindNet();
     this.bindInput();
     this.planner = new Planner(this);
+    let toParty = false;
+    try {
+      toParty = sessionStorage.getItem('ptft-party') === '1';
+      sessionStorage.removeItem('ptft-party');
+    } catch (e) {
+      toParty = false;
+    }
     if (this.name) {
-      this.show('main');
+      this.show(toParty && Net.available() ? 'party' : 'main');
       if (Net.available()) this.net.connect(this.name);
     } else this.show('login');
   }
@@ -179,12 +186,13 @@ class Lobby {
     });
     n.on('welcome', m => {
       if (m.name) this.name = m.name;
-      if (this.screen === 'party' && !this.room && !this.app) this.createRoom();
+      if (this.screen === 'party' && !this.room && !this.app && !m.room) this.createRoom();
     });
     n.on('room', m => {
       this.creating = false;
       this.room = m.room;
       if (this.app) return;
+      if (m.room && m.room.state === 'lobby') this.buffer = [];
       if (this.screen !== 'party') {
         this.net.send({ t: 'leave' });
         this.room = null;
@@ -222,7 +230,10 @@ class Lobby {
   }
 
   onStart(m) {
-    if (this.app) return;
+    if (this.app) {
+      if (this.app.game.phase === 'over') this.app.backToParty(true);
+      return;
+    }
     this.startInfo = m;
     this.net.resetTicks();
     this.closeLobby();
@@ -554,14 +565,15 @@ class Lobby {
     bar.appendChild(joinWrap);
     this.view.appendChild(bar);
     const multi = online && r && r.members.length > 1;
-    const host = !multi || (meRow && meRow.host);
+    const playing = !!(online && r && r.state === 'playing');
+    const host = !playing && (!multi || (meRow && meRow.host));
     const start = this.el('button', 'lb-play start' + (host ? '' : ' wait'));
     const ic = this.el('span', 'lb-play-ic');
     ic.innerHTML = iconSvg(host ? 'ball' : 'players', 34);
     start.appendChild(ic);
-    start.appendChild(this.el('span', 'lb-play-t', host ? '시작' : '방장을 기다리는 중'));
+    start.appendChild(this.el('span', 'lb-play-t', playing ? '게임 진행 중' : host ? '시작' : '방장을 기다리는 중'));
     start.disabled = !host;
-    start.dataset.tip = host ? (multi ? '빈자리는 봇이 채웁니다' : '혼자서 봇 7명과 합니다') : '';
+    start.dataset.tip = playing ? '파티원들의 게임이 끝나면 다시 시작할 수 있습니다' : host ? (multi ? '빈자리는 봇이 채웁니다' : '혼자서 봇 7명과 합니다') : '';
     start.addEventListener('click', () => this.pressStart());
     this.view.appendChild(start);
   }

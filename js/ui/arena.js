@@ -374,6 +374,11 @@ class Arena {
       if (!inst) continue;
       const el = makeToken(inst, player);
       el.classList.add(cls);
+      if (el._maxHp && !el.querySelector('.bars')) {
+        View.unitBars(el, el._maxHp);
+        el.classList.add('planbar');
+        if (el._enemy) el.classList.add('enemy');
+      }
       const sc = slotCenter(i, top);
       placeSprite(el, sc.x, sc.y + 8, UNIT_ORIGIN.x, UNIT_ORIGIN.y, UNIT_SCALE);
       this.unitLayer.appendChild(el);
@@ -554,21 +559,37 @@ class Arena {
     placeSprite(el, f.x, f.y, UNIT_ORIGIN.x, UNIT_ORIGIN.y, UNIT_SCALE);
     el.addEventListener('pointerdown', e => this.app.onTokenPointerDown(e, { combat: u }, el));
     this.unitLayer.appendChild(el);
-    const itemEls = [];
-    const icons = el.querySelectorAll('.unit-items .item-ico');
-    (u.items || []).forEach((id, i) => {
-      if (!icons[i] || View.itemStack(u, id, 0) === null) return;
-      const b = document.createElement('b');
-      icons[i].appendChild(b);
-      itemEls.push({ id, b, v: -1 });
-    });
-    this.cunits[u.uid] = { el, hpFill, shFill, manaFill, barSet, itemEls, flags: '', pos: Proj.toScreen(f.x, f.y), walkUntil: 0, walkDir: null };
+    this.cunits[u.uid] = { el, hpFill, shFill, manaFill, barSet, itemEls: [], itemKey: null, flags: '', pos: Proj.toScreen(f.x, f.y), walkUntil: 0, walkDir: null };
+    this.syncItemRow(this.cunits[u.uid], u);
     if (u.serpent) {
       el.classList.add('serpent-head');
       if (el._spr) Sprites.setScale(el._spr, 0.62);
       if (!this.serpents[u.uid]) this.createSerpent(u);
     }
     if (u.egg) el.classList.add('egg');
+  }
+
+  syncItemRow(e, u) {
+    const key = (u.items || []).join(',');
+    if (e.itemKey === key) return;
+    e.itemKey = key;
+    const el = e.el;
+    const old = el.querySelector('.unit-items');
+    if (old) old.remove();
+    e.itemEls = [];
+    el.classList.toggle('has-items', !!(u.items && u.items.length));
+    if (!u.items || !u.items.length) return;
+    const row = document.createElement('div');
+    row.className = 'unit-items';
+    for (const id of u.items) {
+      const ico = View.itemIcon(id, 16);
+      row.appendChild(ico);
+      if (View.itemStack(u, id, 0) === null) continue;
+      const b = document.createElement('b');
+      ico.appendChild(b);
+      e.itemEls.push({ id, b, v: -1 });
+    }
+    el.appendChild(row);
   }
 
   updateBars() {
@@ -583,6 +604,7 @@ class Arena {
       e.shFill.style.left = Math.max(0, (u.hp / total) * 100) + '%';
       e.shFill.style.width = Math.max(0, (u.shield / total) * 100) + '%';
       e.manaFill.style.width = Math.max(0, (u.mana / u.maxMana) * 100) + '%';
+      if (e.itemKey !== (u.items || []).join(',')) this.syncItemRow(e, u);
       if (e.itemEls) {
         for (const it of e.itemEls) {
           const v = View.itemStack(u, it.id, now);
@@ -794,7 +816,7 @@ class Arena {
       } else if (ev.type === 'freeze') {
         this.floatText(ev.target, '빙결', 'ice');
       } else if (ev.type === 'buff') {
-        const label = { endure: '버티기', warrior: '학살자의 각오', bug: '회복', harden: '단단해지기', break: '보호막 파괴', thunder: '흡수', frenzy: '야단법석', cleanse: '정화', sash: '기합의띠', cloak: '은밀망토', policy: '약점보험', boost: '부스트 완료' }[ev.kind];
+        const label = { endure: '버티기', warrior: '학살자의 각오', bug: '회복', harden: '단단해지기', break: '보호막 파괴', thunder: '흡수', frenzy: '야단법석', cleanse: '정화', sash: '기합의띠', cloak: '은밀망토', policy: '약점보험', boost: '부스트 완료', tshield: '녹슨방패', lifeorb: '생명의구슬' }[ev.kind];
         if (label) this.floatText(ev.target, label, 'buff');
       } else if (ev.type === 'death') {
         const e = this.cunits[ev.uid];

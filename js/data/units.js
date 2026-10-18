@@ -1040,7 +1040,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "전쟁기계"
+   "학살자"
   ],
   "uniques": [],
   "forms": [
@@ -4964,7 +4964,7 @@ const UNIT_DATA = [
   "id": "탕구리",
   "family": "탕구리",
   "variant": "원종",
-  "cost": 4,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [

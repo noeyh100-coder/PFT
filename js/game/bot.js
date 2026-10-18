@@ -1,6 +1,6 @@
-const BOT_DEF_ITEMS = new Set(['protective-pads', 'x-sp-def', 'leftovers', 'rocky-helmet', 'assault-vest', 'kings-rock', 'big-root', 'super-potion', 'weakness-policy', 'flame-orb', 'full-incense', 'lax-incense', 'soothe-bell', 'booster-energy', 'shell-armor', 'mental-herb', 'eviolite', 'black-sludge', 'everstone', 'covert-cloak']);
-const BOT_PHYS_ITEMS = new Set(['muscle-band', 'choice-band', 'punching-glove', 'black-belt', 'spell-tag', 'choice-scarf', 'silver-wing']);
-const BOT_SPEC_ITEMS = new Set(['wise-glasses', 'choice-specs', 'black-glasses', 'soul-dew', 'twisted-spoon', 'max-ether']);
+const BOT_DEF_ITEMS = new Set(['luminous-moss', 'rusted-shield-1', 'rusted-shield-2', 'rusted-shield-3', 'griseous-orb-1', 'griseous-orb-2', 'griseous-orb-3', 'life-orb-1', 'life-orb-2', 'life-orb-3', 'protective-pads', 'x-sp-def', 'leftovers', 'rocky-helmet', 'assault-vest', 'kings-rock', 'big-root', 'super-potion', 'weakness-policy', 'flame-orb', 'full-incense', 'lax-incense', 'soothe-bell', 'booster-energy', 'shell-armor', 'mental-herb', 'eviolite', 'black-sludge', 'everstone', 'covert-cloak']);
+const BOT_PHYS_ITEMS = new Set(['rusted-sword-1', 'rusted-sword-2', 'rusted-sword-3', 'red-orb-1', 'red-orb-2', 'red-orb-3', 'muscle-band', 'choice-band', 'punching-glove', 'black-belt', 'spell-tag', 'choice-scarf', 'silver-wing']);
+const BOT_SPEC_ITEMS = new Set(['blue-orb-1', 'blue-orb-2', 'blue-orb-3', 'wise-glasses', 'choice-specs', 'black-glasses', 'soul-dew', 'twisted-spoon', 'max-ether']);
 
 const Bot = {
   targetLevel(g) {
@@ -121,6 +121,7 @@ const Bot = {
   itemOk(g, p, inst, id) {
     const d = itemDef(id);
     if (!d) return false;
+    if (d.candy) return inst.star < 3 && UNITS[inst.unitId].cost <= d.maxCost;
     const comp = (inst.items || []).find(x => itemDef(x) && itemDef(x).kind === 'component');
     const res = d.kind === 'component' && comp ? combineItems(comp, id) : id;
     if (res === 'everstone' && canEvolveFurther(inst, p)) return false;
@@ -155,6 +156,7 @@ const Bot = {
   },
 
   plan(g, p) {
+    if (g.canTakeMine(p)) g.takeMine(p);
     const reserve = this.reserve(g, p);
     const target = this.targetLevel(g);
     while (p.level < CONFIG.maxLevel && p.level < target && p.gold - CONFIG.xpCost >= reserve) {

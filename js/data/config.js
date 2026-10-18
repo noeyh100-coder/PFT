@@ -59,15 +59,30 @@ const CONFIG = {
     dragonairWins: 3,
     gastlyTakedowns: 32,
     hypnosisSeconds: 60,
-    healStack: 15000,
+    healStack: 20000,
     geneStack: 100,
+    mewTypes: 5,
     iceStarTotal: 9,
     electricBolts: 120,
-    burnDamage: 5000,
+    burnDamage: 10000,
     downloadStage1: 200,
     downloadStage2: 600,
     kabutoWins: 3,
     aerodactylLosses: 3
+  },
+  mine: {
+    base: 20,
+    step: 10,
+    winCut: 0.3,
+    rewards: {
+      100: [{ item: 't0' }, { pick: [[{ unit: 1 }, { unit: 1 }], [{ unit: 2 }]] }],
+      200: [{ item: 't0' }, { item: 't1' }, { unit: 3 }, { gold: 2 }],
+      300: [{ item: 't1' }, { item: 't1' }, { item: 'candy-s' }, { unit: 3, star: 2 }, { gold: 5 }],
+      400: [{ item: 't1' }, { item: 't2' }, { item: 'candy-m' }, { unit: 4 }, { gold: 10 }],
+      500: [{ item: 't2' }, { item: 't3' }, { item: 'candy-s' }, { item: 'candy-m' }, { unit: 4 }, { unit: 4 }, { gold: 20 }],
+      600: [{ item: 't3' }, { item: 't3' }, { item: 'candy-m' }, { item: 'candy-m' }, { unit: 4, star: 2 }, { gold: 30 }],
+      700: [{ item: 't3' }, { item: 't3' }, { item: 't3' }, { item: 'rare-candy' }, { gold: 40 }]
+    }
   },
   regions: ['알로라', '가라르', '히스이', '팔데아'],
   carouselCosts: {

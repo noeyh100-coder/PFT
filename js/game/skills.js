@@ -26,7 +26,7 @@ const SKILL_P = {
   '콘치': { m: 1.7, crit: 0 },
   '왕콘치': { m: 2.2, crit: 1 },
   '핑복': { heal: 0.08 },
-  '럭키': { heal: 0.2 },
+  '럭키': { heal: 0.1 },
   '니드런♀': { red: 0.25, dur: 2 },
   '니드리나': { red: 0.3, dur: 2 },
   '니드퀸': { red: 0.4, dur: 5 },
@@ -604,7 +604,7 @@ const SKILL_HELPERS = {
   },
 
   skillParams(u) {
-    if (u.mew) return { m: 3.0, r: 2 };
+    if (u.mew) return { m: 1.5, r: 2 };
     return (u.form && SKILL_P[u.form.name]) || {};
   },
 
