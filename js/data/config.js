@@ -8,7 +8,7 @@ const CONFIG = {
   passiveXp: 2,
   maxLevel: 10,
   xpToNext: { 1: 2, 2: 2, 3: 6, 4: 10, 5: 20, 6: 36, 7: 56, 8: 68, 9: 68, 10: 80 },
-  poolSize: { 1: 29, 2: 22, 3: 18, 4: 12, 5: 10 },
+  poolSize: { 1: 29, 2: 22, 3: 18, 4: 12, 5: 10, 6: 10 },
   pityStep: 0.15,
   shopOdds: {
     1: [100, 0, 0, 0, 0],
@@ -82,9 +82,9 @@ const CONFIG = {
       100: [{ item: 'loaded-dice' }, { item: 't0' }, { pick: [[{ unit: 1 }, { unit: 1 }], [{ unit: 2 }]] }],
       200: [{ item: 'loaded-dice' }, { item: 't0' }, { item: 't1' }, { unit: 3 }, { gold: 2 }],
       300: [{ item: 'loaded-dice' }, { item: 't1' }, { item: 't1' }, { item: 'poke-box' }, { item: 'exp-s' }, { unit: 3, star: 2 }, { gold: 5 }],
-      400: [{ item: 'loaded-dice' }, { item: 't1' }, { item: 't2' }, { item: 'exp-m' }, { unit: 4 }, { gold: 10 }],
-      500: [{ item: 'loaded-dice' }, { item: 't2' }, { item: 't3' }, { item: 'great-box' }, { item: 'exp-s' }, { item: 'exp-m' }, { unit: 4 }, { unit: 4 }, { gold: 20 }],
-      600: [{ item: 'loaded-dice' }, { item: 't3' }, { item: 't3' }, { item: 'exp-m' }, { item: 'exp-m' }, { unit: 4, star: 2 }, { gold: 30 }],
+      400: [{ item: 'loaded-dice' }, { item: 't1' }, { item: 't2' }, { item: 'exp-m' }, { unit: 5 }, { gold: 10 }],
+      500: [{ item: 'loaded-dice' }, { item: 't2' }, { item: 't3' }, { item: 'great-box' }, { item: 'exp-s' }, { item: 'exp-m' }, { unit: 5 }, { unit: 5 }, { gold: 20 }],
+      600: [{ item: 'loaded-dice' }, { item: 't3' }, { item: 't3' }, { item: 'exp-m' }, { item: 'exp-m' }, { unit: 5, star: 2 }, { gold: 30 }],
       700: [{ item: 'loaded-dice' }, { item: 't3' }, { item: 't3' }, { item: 't3' }, { item: 'great-box' }, { item: 'rare-candy' }, { gold: 40 }]
     }
   },
@@ -140,7 +140,7 @@ const CONFIG = {
     4: { gray: 0.35, blue: 0.45, gold: 0.2 },
     5: { gray: 0.3, blue: 0.45, gold: 0.25 }
   },
-  carousel: { firstRelease: 3, releaseGap: 5, lastWindow: 7, ringRadius: 84, spin: 0.22, pickRadius: 24, moveSpeed: 85 },
+  carousel: { firstRelease: 4, releaseGap: 5, lastWindow: 7, ringRadius: 84, spin: 0.22, pickRadius: 24, moveSpeed: 85 },
   strategists: ['Hazel', 'Ember', 'Moss', 'Scarlet', 'Indigo', 'Ebony', 'Sunny', 'Daisy'],
   maps: ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova', 'kalos', 'alola', 'galar', 'paldea'],
   botNames: ['반바지 꼬마', '등산가', '아가씨', '이과계 남자', '낚시꾼', '괴인', '엘리트 트레이너']
@@ -152,4 +152,11 @@ const TYPE_COLORS = {
   '바위': '#bfb889', '고스트': '#684870', '드래곤': '#535ca8', '악': '#4c4948', '강철': '#69a9c7', '페어리': '#dab4d4'
 };
 
-const COST_COLORS = { 1: '#8c8c8c', 2: '#3fae5a', 3: '#3b7fd4', 4: '#a24bd6', 5: '#e0a51b' };
+const COST_COLORS = { 1: '#8c8c8c', 2: '#3fae5a', 3: '#3b7fd4', 4: '#a24bd6', 5: '#e0a51b', 6: '#6c62d8' };
+
+const COST6_GRAD = 'linear-gradient(90deg, #3347c4 0%, #5a5ad2 28%, #8a70e0 52%, #6c6ad8 76%, #3a4dc8 100%)';
+
+function paintCost(el, cost) {
+  el.style.setProperty('--cost-color', COST_COLORS[cost] || '#888');
+  el.classList.toggle('c6', cost >= 6);
+}

@@ -83,7 +83,7 @@ class Player {
   }
 
   boardCount() {
-    return this.boardUnits().length;
+    return this.boardUnits().filter(u => !u.overflow).length;
   }
 
   freeBenchSlot() {

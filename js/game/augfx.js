@@ -34,7 +34,7 @@ const AUG_FX = {
       u.pct.pa += k;
       u.pct.sa += k;
     };
-    const anyBig = units.some(u => u.cost >= 4);
+    const anyBig = units.some(u => u.cost === 4 || u.cost === 5);
     const [cr, cc] = this.augCenter(side);
     let farA = null;
     let farB = null;

@@ -109,7 +109,7 @@ const PP_ADJUST = { '거북왕': 3, '폴리곤Z': 3, '거대코뿌리': 3, '해�
 function ppFor(form, cost, role) {
   const kind = (role || '').split(' ')[1] || '전사';
   const base = PP_ROLE[kind] || PP_ROLE.전사;
-  const max = Math.round(base[0] + (Math.max(1, cost) - 1) * base[1] + (PP_ADJUST[form.name] || 0));
+  const max = Math.round(base[0] + (Math.max(1, Math.min(5, cost)) - 1) * base[1] + (PP_ADJUST[form.name] || 0));
   const start = kind === '탱커' && cost >= 3 ? Math.round(max * 0.15) : 0;
   return { max: Math.max(8, max), start };
 }

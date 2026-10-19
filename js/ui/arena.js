@@ -56,8 +56,9 @@ class StratSprite {
     this.suffix = suffix || this.suffix || '';
     this.plateName.textContent = player.name + this.suffix;
     this.plateLv.textContent = player.level;
-    this.plateHp.style.width = Math.max(0, Math.min(100, (player.hp / (player.maxHp || 100)) * 100)) + '%';
-    this.plateHp.classList.toggle('low', player.hp <= 30);
+    const hp = typeof shownHp === 'function' ? shownHp(player) : player.hp;
+    this.plateHp.style.width = Math.max(0, Math.min(100, (hp / (player.maxHp || 100)) * 100)) + '%';
+    this.plateHp.classList.toggle('low', hp <= 30);
   }
 
   refresh() {
@@ -203,7 +204,14 @@ class Arena {
     this.drawOverlay(null);
   }
 
+  setRedCells(cells) {
+    this.redCells = cells && cells.length ? cells : null;
+    this.drawOverlay(this.lastOverlay || null);
+  }
+
   drawOverlay(opts) {
+    this.lastOverlay = opts;
+    if (this.redCells) opts = Object.assign({}, opts || {}, { red: this.redCells });
     const key = JSON.stringify(opts || null);
     if (key === this.overlayKey) return;
     this.overlayKey = key;
@@ -568,6 +576,7 @@ class Arena {
     const f = this.combatFlat(u.r, u.c);
     el.style.transitionDuration = '0s';
     placeSprite(el, f.x, f.y, UNIT_ORIGIN.x, UNIT_ORIGIN.y, UNIT_SCALE);
+    el._cu = u;
     el.addEventListener('pointerdown', e => this.app.onTokenPointerDown(e, { combat: u }, el));
     this.unitLayer.appendChild(el);
     this.cunits[u.uid] = { el, hpFill, shFill, manaFill, barSet, itemEls: [], itemKey: null, flags: '', pos: Proj.toScreen(f.x, f.y), walkUntil: 0, walkDir: null };

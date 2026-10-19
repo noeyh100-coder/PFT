@@ -341,6 +341,15 @@ const Floor = {
       ctx.fill();
       ctx.stroke();
     }
+    if (opts.red) {
+      ctx.strokeStyle = 'rgba(255, 70, 70, 0.95)';
+      ctx.fillStyle = 'rgba(255, 60, 60, 0.18)';
+      ctx.lineWidth = 3;
+      for (const cell of opts.red) {
+        this.hexPath(ctx, cell.r, cell.c, 3);
+        ctx.fill();
+      }
+    }
     if (opts.barriers) {
       for (const b of opts.barriers) {
         if (b.open) continue;

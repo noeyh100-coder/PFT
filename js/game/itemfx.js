@@ -257,6 +257,10 @@ const ITEM_FX = {
       while (T.regen >= 1) {
         T.regen -= 1;
         this.heal(u, u.maxHp * 0.015 * it['super-potion'], u);
+        for (const a of this.aliveOf(u.side)) {
+          if (a === u || Hex.dist(a.r, a.c, u.r, u.c) !== 1) continue;
+          this.heal(a, u.maxHp * 0.01 * it['super-potion'], u);
+        }
       }
     }
     if (it['soul-dew']) {

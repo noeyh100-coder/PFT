@@ -855,7 +855,7 @@ const AUGMENTS = [
   "name": "하늘의 선물",
   "src": "Gifts from Above",
   "icon": "galarica-wreath",
-  "desc": "슈퍼볼 아이템 상자 1개"
+  "desc": "큰 모으령 상자 1개"
  },
  {
   "id": "trove",
@@ -911,7 +911,7 @@ const AUGMENTS = [
   "name": "거지도 가릴 수 있다",
   "src": "Beggars Can Be Choosers",
   "icon": "bottle-cap",
-  "desc": "PvP에서 3번 질 때마다 몬스터볼 아이템 상자 1개"
+  "desc": "PvP에서 3번 질 때마다 작은 모으령 상자 1개"
  },
  {
   "id": "recombob",
@@ -1031,7 +1031,7 @@ const AUGMENTS = [
   "name": "살아있는 대장간",
   "src": "Living Forge",
   "icon": "great-ball",
-  "desc": "5라운드마다 슈퍼볼 아이템 상자 1개"
+  "desc": "5라운드마다 큰 모으령 상자 1개"
  },
  {
   "id": "goldenegg",
@@ -1039,7 +1039,7 @@ const AUGMENTS = [
   "name": "황금 알",
   "src": "The Golden Egg",
   "icon": "lum-berry",
-  "desc": "9라운드 뒤 슈퍼볼 아이템 상자 3개 + 60골드"
+  "desc": "9라운드 뒤 큰 모으령 상자 3개 + 60골드"
  },
  {
   "id": "hedge",
@@ -1063,7 +1063,7 @@ const AUGMENTS = [
   "name": "고대 기록보관소",
   "src": "Ancient Archives",
   "icon": "balm-mushroom",
-  "desc": "무작위 시너지 +1 + 슈퍼볼 아이템 상자 1개"
+  "desc": "무작위 시너지 +1 + 큰 모으령 상자 1개"
  },
  {
   "id": "tacrown",
@@ -1079,7 +1079,7 @@ const AUGMENTS = [
   "name": "행운의 장갑",
   "src": "Lucky Gloves",
   "icon": "power-bracer",
-  "desc": "아이템 상자가 4개 대신 6개 중에서 고르게 됨 + 슈퍼볼 아이템 상자 1개"
+  "desc": "아이템 상자가 4개 대신 6개 중에서 고르게 됨 + 큰 모으령 상자 1개"
  },
  {
   "id": "relics",
@@ -1199,7 +1199,7 @@ const AUGMENTS = [
   "name": "판도라의 상자",
   "src": "자체",
   "icon": "enigma-berry",
-  "desc": "슈퍼볼 아이템 상자 2개. 라운드 시작마다 아이템 칸의 완성 아이템이 무작위로 바뀜"
+  "desc": "큰 모으령 상자 2개. 라운드 시작마다 아이템 칸의 완성 아이템이 무작위로 바뀜"
  }
 ];
 

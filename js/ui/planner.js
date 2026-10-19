@@ -385,7 +385,7 @@ class Planner {
   portrait(def, size) {
     const form = this.baseForm(def);
     const box = this.el('div', 'pl-pic');
-    box.style.setProperty('--cost-color', COST_COLORS[def.cost]);
+    paintCost(box, def.cost);
     box.style.width = size + 'px';
     box.style.height = size + 'px';
     const spr = Sprites.portrait(form, size, { fill: 0.86, max: 3 });
@@ -579,13 +579,13 @@ class Planner {
     const human = this.app.human;
     const filter = this.state.filter;
     let shown = 0;
-    for (let cost = 1; cost <= 5; cost++) {
+    for (let cost = 1; cost <= 6; cost++) {
       const defs = this.units().filter(def => def.cost === cost && (!filter.length || filter.every(id => allTraitsOf(def, 1, null).includes(id) || (def.forms || []).some(f => f.types.includes(id)))));
       if (!defs.length) continue;
       const h = this.el('div', 'pl-cost-h');
       h.innerHTML = iconSvg('coin', 14);
       h.appendChild(this.el('span', null, cost));
-      h.style.setProperty('--cost-color', COST_COLORS[cost]);
+      paintCost(h, cost);
       scroll.appendChild(h);
       const grid = this.el('div', 'pl-grid');
       for (const def of defs) {
@@ -683,7 +683,7 @@ class Planner {
       slot.dataset.slot = i;
       if (id) {
         const def = UNITS[id];
-        slot.style.setProperty('--cost-color', COST_COLORS[def.cost]);
+        paintCost(slot, def.cost);
         const pic = this.portrait(def, 84);
         pic.appendChild(this.traitStrip(def));
         slot.appendChild(pic);

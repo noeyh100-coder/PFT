@@ -60,11 +60,6 @@ class Driver {
         s.y = s.ty = sp.y;
         s.carry = null;
         s.speed = p.isHuman && !p.afk ? WALK_SPEED : CONFIG.carousel.moveSpeed;
-        if (g.carousel.encounter && !(p.isHuman && !p.afk)) {
-          s.tx = CAROUSEL_CENTER.x + (sp.x - CAROUSEL_CENTER.x) * 0.45;
-          s.ty = CAROUSEL_CENTER.y + (sp.y - CAROUSEL_CENTER.y) * 0.45;
-          s.speed = WALK_SPEED * 0.6;
-        }
       }
     }
   }
@@ -157,9 +152,10 @@ class Driver {
   }
 
   finishCombat() {
+    const pvp = this.game.matches.some(m => m.kind === 'pvp');
     this.game.finishCombat();
     this.state = 'result';
-    this.wait = 1.4;
+    this.wait = pvp ? 2.9 : 1.4;
     this.emit('combatEnd');
   }
 
@@ -222,7 +218,7 @@ class Driver {
         }
       }
       this.state = 'carouselEnd';
-      this.wait = 0.9;
+      this.wait = car.encounter ? 0.9 : 1.7;
       this.emit('carouselDone');
     }
   }
@@ -297,7 +293,10 @@ class Driver {
         const slot = this.num(a.s, 0, CONFIG.shopSize - 1);
         if (!shopPhase || slot === null) return;
         res = g.canBuy(p, slot);
-        if (res.ok) g.buy(p, slot);
+        if (res.ok) {
+          res.unitId = p.shop[slot];
+          g.buy(p, slot);
+        }
         break;
       }
       case 'sell':
@@ -359,6 +358,16 @@ class Driver {
         res = g.combineBench(p, i, j);
         break;
       }
+      case 'iswap': {
+        if (ph === 'over') return;
+        let i = Math.floor(Number(a.i));
+        let j = Math.floor(Number(a.j));
+        if (typeof a.id === 'string' && p.items[i] !== a.id) i = p.items.indexOf(a.id);
+        if (typeof a.jd === 'string' && p.items[j] !== a.jd) j = p.items.findIndex((x, k) => x === a.jd && k !== i);
+        if (i < 0 || j < 0 || i === j) return;
+        res = g.swapItemEntries(p, i, j);
+        break;
+      }
       case 'box': {
         if (ph === 'over') return;
         if (a.k === 'open') {
@@ -367,7 +376,7 @@ class Driver {
           if (i < 0) return;
           res = g.openBox(p, i);
         } else {
-          const n = this.num(a.n, 0, 3);
+          const n = this.num(a.n, 0, 5);
           if (n === null) return;
           res = g.pickBox(p, Math.floor(n));
         }

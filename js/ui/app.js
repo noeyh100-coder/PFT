@@ -91,6 +91,7 @@ class App {
     this.$('btn-speed').insertAdjacentHTML('afterbegin', iconSvg('speed', 20));
     this.$('btn-debug').innerHTML = iconSvg('gear', 20);
     this.$('btn-credit').innerHTML = iconSvg('info', 20);
+    this.$('btn-sound').classList.toggle('muted', Sound.muted);
     this.$('encounter-icon').innerHTML = iconSvg('encounter', 16);
     this.$('gold-icon').innerHTML = iconSvg('coin', 16);
     this.$('btn-xp').innerHTML = iconSvg('xpup', 20) + '<span class="lbl">경험치 구매<small>' + iconSvg('coin', 10) + CONFIG.xpCost + '</small></span>';
@@ -296,6 +297,10 @@ class App {
     });
     this.$('btn-debug').addEventListener('click', () => this.toggleDebug());
     this.$('btn-credit').addEventListener('click', () => this.showCredits());
+    this.$('btn-sound').addEventListener('click', e => {
+      e.stopPropagation();
+      this.toggleSoundPop();
+    });
     this.$('btn-xp').addEventListener('click', () => this.buyXp());
     this.$('btn-reroll').addEventListener('click', () => this.reroll());
     this.$('btn-lock').addEventListener('click', () => {
@@ -374,6 +379,7 @@ class App {
     });
     this.gameEl.addEventListener('pointerdown', e => {
       if (this.augListFor && !e.target.closest('#aug-list, #aug-desc, .aug-ball')) this.closeAugList();
+      if (!e.target.closest('#sound-pop, #btn-sound')) this.$('sound-pop').classList.remove('show');
     });
     this.gameEl.addEventListener('pointerdown', e => {
       if (e.button !== 0 || !this.selected) return;
@@ -391,6 +397,9 @@ class App {
       if (e.code === 'KeyD') this.reroll();
       else if (e.code === 'KeyF') this.buyXp();
       else if (e.code === 'KeyE') this.sellHovered();
+      else if (e.code === 'KeyW') this.moveHovered();
+      else if (e.code === 'Digit1' || e.code === 'Numpad1') this.cycleView(-1);
+      else if (e.code === 'Digit3' || e.code === 'Numpad3') this.cycleView(1);
       else if (e.code === 'Backquote') this.toggleDebug();
       else if (e.code === 'Space') {
         e.preventDefault();
@@ -429,6 +438,9 @@ class App {
     });
     d.on('carry', pid => this.onCarry(pid));
     d.on('carouselEnd', () => this.endCarousel());
+    d.on('carouselDone', () => {
+      if (!this.replaying) this.taxiCarouselDone();
+    });
     d.on('orb', e => {
       if (e.pid !== this.human.id || this.replaying) return;
       const el = this.arena.orbEls && this.arena.orbEls[e.id];
@@ -443,6 +455,7 @@ class App {
       if (this.replaying) return;
       if (e.pid === this.human.id) {
         if (e.res && !e.res.ok && e.res.reason) this.toast(e.res.reason, 'error');
+        if (e.a.t === 'buy' && e.res && e.res.ok && e.res.unitId && UNITS[e.res.unitId]) Sound.cry(formOf(UNITS[e.res.unitId], 1, this.human).en);
         if (e.a.t === 'branch') {
           this.closeModal();
           this.arenaKey = null;
@@ -569,6 +582,55 @@ class App {
     this.act({ t: 'reroll' });
   }
 
+  onShopPointerDown(e, slot, card) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const sx = e.clientX;
+    const sy = e.clientY;
+    const id = this.human.shop[slot];
+    let ghost = null;
+    const shopRect = () => this.$('shop').getBoundingClientRect();
+    const outside = ev => {
+      const r = shopRect();
+      return ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom;
+    };
+    const move = ev => {
+      if (!ghost) {
+        if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 6) return;
+        const r = card.getBoundingClientRect();
+        const g0 = this.toGame(r.left, r.top);
+        ghost = card.cloneNode(true);
+        ghost.classList.add('shop-ghost');
+        ghost.style.width = card.offsetWidth + 'px';
+        ghost.style.height = card.offsetHeight + 'px';
+        ghost._dx = this.toGame(sx, sy).x - g0.x;
+        ghost._dy = this.toGame(sx, sy).y - g0.y;
+        this.gameEl.appendChild(ghost);
+        card.classList.add('drag-src');
+        this.dragging = true;
+        this.hideTooltip();
+      }
+      const g = this.toGame(ev.clientX, ev.clientY);
+      ghost.style.left = (g.x - ghost._dx) + 'px';
+      ghost.style.top = (g.y - ghost._dy) + 'px';
+      ghost.classList.toggle('out', outside(ev));
+    };
+    const up = ev => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (!ghost) {
+        this.buySlot(slot);
+        return;
+      }
+      ghost.remove();
+      card.classList.remove('drag-src');
+      this.dragging = false;
+      if (outside(ev) && this.human.shop[slot] === id) this.buySlot(slot);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
   buySlot(slot) {
     if (!this.canShop()) return;
     const check = this.game.canBuy(this.human, slot);
@@ -577,6 +639,80 @@ class App {
       return;
     }
     this.act({ t: 'buy', s: slot });
+  }
+
+  toggleSoundPop() {
+    const pop = this.$('sound-pop');
+    if (pop.classList.contains('show')) {
+      pop.classList.remove('show');
+      return;
+    }
+    pop.innerHTML = '';
+    pop.appendChild(View.el('b', null, '효과음'));
+    const row = View.el('div', 'snd-row');
+    const range = document.createElement('input');
+    range.type = 'range';
+    range.min = '0';
+    range.max = '100';
+    range.value = String(Math.round(Sound.vol * 100));
+    const num = View.el('span', 'snd-num', range.value);
+    range.addEventListener('input', () => {
+      Sound.vol = Number(range.value) / 100;
+      num.textContent = range.value;
+      Sound.save();
+    });
+    row.appendChild(range);
+    row.appendChild(num);
+    pop.appendChild(row);
+    const mute = View.el('label', 'snd-mute');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = Sound.muted;
+    cb.addEventListener('change', () => {
+      Sound.muted = cb.checked;
+      Sound.save();
+      this.$('btn-sound').classList.toggle('muted', Sound.muted);
+    });
+    mute.appendChild(cb);
+    mute.appendChild(document.createTextNode(' 음소거'));
+    pop.appendChild(mute);
+    pop.classList.add('show');
+  }
+
+  moveHovered() {
+    const h = this.human;
+    const inst = this.hoverInst;
+    if (!inst || !inst.loc || !h.alive || this.viewId !== h.id || this.dragging) return;
+    if (this.game.phase !== 'planning') {
+      this.toast('전투 중에는 필드를 바꿀 수 없습니다', 'error');
+      return;
+    }
+    if (inst.loc.zone === 'bench') {
+      if (h.boardCount() >= h.boardLimit()) {
+        this.toast('필드에 놓을 수 있는 기물은 ' + h.boardLimit() + '개입니다', 'error');
+        return;
+      }
+      const cell = this.game.frontCell(h);
+      if (!cell) return;
+      this.act({ t: 'move', iid: inst.iid, z: 'board', r: cell.r, c: cell.c });
+    } else {
+      const slot = h.freeBenchSlot();
+      if (slot < 0) {
+        this.toast('대기석이 가득 찼습니다', 'error');
+        return;
+      }
+      this.act({ t: 'move', iid: inst.iid, z: 'bench', i: slot });
+    }
+    this.hoverInst = null;
+  }
+
+  cycleView(dir) {
+    const list = this.game.players.filter(p => p.alive).sort((a, b) => (b.hp - a.hp) || ((a.placement || 9) - (b.placement || 9)) || (a.id - b.id));
+    if (!list.length) return;
+    let i = list.findIndex(p => p.id === this.viewId);
+    if (i < 0) i = 0;
+    const next = list[(i + dir + list.length) % list.length];
+    this.setView(next.id);
   }
 
   sellHovered() {
@@ -610,9 +746,11 @@ class App {
     this.combatRunning = false;
     this.ending = false;
     if (this.replaying) {
+      if (this._taxi) this.taxiReset();
       if (this.game.phase === 'carousel') this.startCarousel();
       return;
     }
+    this.taxiRoundStart();
     if (this.game.phase === 'planning') {
       const inc = this.game.lastIncome;
       if (inc && info.type !== 'encounter') {
@@ -672,6 +810,7 @@ class App {
   }
 
   renderArena() {
+    if (this.travelHold) return;
     const a = this.arena;
     const sc = this.scene();
     if (sc.mode === 'carousel') {
@@ -686,6 +825,7 @@ class App {
       a.renderOrbs([]);
       this.$('scout-label').classList.remove('show');
       a.renderBoardCount('');
+      a.setRedCells(null);
       this.arenaKey = 'carousel';
       return;
     }
@@ -728,6 +868,8 @@ class App {
     }
     a.renderBench(false, sc.bottom && sc.bottom.player, (inst, owner) => this.makeToken(inst, owner));
     a.renderBench(true, sc.top && sc.top.player, (inst, owner) => this.makeToken(inst, owner));
+    const bp = sc.mode === 'planning' && sc.bottom && sc.bottom.player;
+    a.setRedCells(bp ? bp.boardUnits().filter(u => u.overflow).map(u => ({ r: u.loc.r, c: u.loc.c })) : null);
     a.renderBoardCount(viewMe && sc.mode === 'planning' && this.game.phase === 'planning' ? this.human.boardCount() + ' / ' + this.human.boardLimit() : '', this.human.boardCount() < this.human.boardLimit());
     a.renderOrbs(viewMe && !sc.carouselField ? this.human.orbs || [] : []);
     a.refreshSprites();
@@ -776,7 +918,7 @@ class App {
     this.$('btn-ready').disabled = g.phase !== 'planning';
     this.renderShop();
     const scouting = this.scouting();
-    this.$('shop').style.display = scouting ? 'none' : '';
+    this.$('shop').style.display = scouting || h.augOffer ? 'none' : '';
     const ret = this.$('return-btn');
     ret.classList.toggle('show', scouting && this.human.alive);
     if (this.carouselScene) ret.dataset.tip = this.viewCarousel ? '내 필드 보기' : '회전초밥으로 (스페이스바)';
@@ -1019,8 +1161,9 @@ class App {
 
   placeAugBalls() {
     const balls = this.$('aug-balls').children;
-    const L = Proj.toScreen(View.BOARD_X - 58, View.BOARD_Y + 5.6 * View.ROW_STEP);
-    const R = Proj.toScreen(View.BOARD_X + 7.5 * View.CELL_W + 58, View.BOARD_Y + 2.6 * View.ROW_STEP);
+    const midY = View.BOARD_Y + 3.5 * View.ROW_STEP + View.CELL_H / 2;
+    const L = Proj.toScreen(View.BOARD_X - 4, midY);
+    const R = Proj.toScreen(View.BOARD_X + 7.5 * View.CELL_W + 4, midY);
     const k = Math.round(L.x) + ',' + Math.round(L.y) + ',' + Math.round(R.x) + ',' + Math.round(R.y);
     if (k === this.augBallPos) return;
     this.augBallPos = k;
@@ -1066,11 +1209,39 @@ class App {
   }
 
   itemTargetAt(x, y) {
-    const t = this.dropTargetAt(x, y, null);
-    if (!t || (t.kind !== 'board' && t.kind !== 'bench')) return null;
-    if (t.kind === 'board' && this.viewId !== this.human.id) return null;
-    const inst = this.human.unitAt(t.kind === 'board' ? { zone: 'board', r: t.r, c: t.c } : { zone: 'bench', i: t.i });
-    return inst ? { t, inst } : null;
+    for (const el of document.elementsFromPoint(x, y)) {
+      const u = el.closest('.unit');
+      if (!u || u.classList.contains('ghost')) continue;
+      if (u._inst && u._owner === this.human && u._inst.loc) return { el: u, inst: u._inst };
+      const cu = u._cu;
+      if (cu && cu.alive && cu.iid) {
+        const m = this.game.matchFor(this.human);
+        if (m && m.sim === this.arena.sim && cu.side === this.game.sideOf(m, this.human)) {
+          const inst = this.human.findInstance(cu.iid);
+          if (inst) return { el: u, inst };
+        }
+      }
+    }
+    return null;
+  }
+
+  overItemPanel(x, y) {
+    const r = this.$('items').getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  }
+
+  setSwapHover(el) {
+    if (this.swapHoverEl === el) return;
+    if (this.swapHoverEl) this.swapHoverEl.classList.remove('swap-target');
+    this.swapHoverEl = el || null;
+    if (el) el.classList.add('swap-target');
+  }
+
+  setItemHover(el) {
+    if (this.itemHoverEl === el) return;
+    if (this.itemHoverEl) this.itemHoverEl.classList.remove('item-target');
+    this.itemHoverEl = el || null;
+    if (el) el.classList.add('item-target');
   }
 
   onItemPointerDown(e, idx, srcEl) {
@@ -1105,10 +1276,11 @@ class App {
       const g = this.toGame(ev.clientX, ev.clientY);
       ghost.style.left = (g.x - 16) + 'px';
       ghost.style.top = (g.y - 16) + 'px';
-      const slot = isComp ? this.itemSlotAt(ev.clientX, ev.clientY, srcEl) : null;
+      const slot = this.itemSlotAt(ev.clientX, ev.clientY, srcEl);
       const other = slot ? slot.dataset.item : null;
-      if (slot && Number(slot.dataset.idx) !== idx && itemDef(other) && itemDef(other).kind === 'component') {
-        this.highlight(null);
+      this.setSwapHover(slot && Number(slot.dataset.idx) !== idx ? slot : null);
+      if (isComp && slot && Number(slot.dataset.idx) !== idx && itemDef(other) && itemDef(other).kind === 'component') {
+        this.setItemHover(null);
         if (hold.slot !== slot.dataset.idx) {
           resetHold();
           hold.slot = slot.dataset.idx;
@@ -1125,8 +1297,13 @@ class App {
         return;
       }
       if (hold.slot !== null) resetHold();
+      if (slot || this.overItemPanel(ev.clientX, ev.clientY)) {
+        this.setItemHover(null);
+        this.hideItemPreview();
+        return;
+      }
       const hit = this.itemTargetAt(ev.clientX, ev.clientY);
-      this.highlight(hit ? hit.t : null);
+      this.setItemHover(hit ? hit.el : null);
       const comp = hit && isComp ? (hit.inst.items || []).find(x => itemDef(x) && itemDef(x).kind === 'component') : null;
       if (comp) this.showItemPreview(combineItems(comp, id), g.x, g.y);
       else this.hideItemPreview();
@@ -1140,14 +1317,17 @@ class App {
       }
       ghost.remove();
       srcEl.classList.remove('dragging');
-      this.arena.drawOverlay(null);
+      this.setItemHover(null);
       this.dragging = false;
       this.hideItemPreview();
       clearTimeout(hold.timer);
-      const slot = isComp ? this.itemSlotAt(ev.clientX, ev.clientY, srcEl) : null;
-      if (hold.done && slot && slot.dataset.idx === hold.slot) {
+      this.setSwapHover(null);
+      const slot = this.itemSlotAt(ev.clientX, ev.clientY, srcEl);
+      if (isComp && hold.done && slot && slot.dataset.idx === hold.slot) {
         this.act({ t: 'combine', i: idx, id, j: Number(slot.dataset.idx), jd: slot.dataset.item });
-      } else if (!slot) {
+      } else if (slot) {
+        if (Number(slot.dataset.idx) !== idx) this.act({ t: 'iswap', i: idx, id, j: Number(slot.dataset.idx), jd: slot.dataset.item });
+      } else if (!this.overItemPanel(ev.clientX, ev.clientY)) {
         const hit = this.itemTargetAt(ev.clientX, ev.clientY);
         if (hit) this.act({ t: 'item', i: idx, id, iid: hit.inst.iid });
       }
@@ -1296,7 +1476,7 @@ class App {
     cards.innerHTML = '';
     for (let i = 0; i < CONFIG.shopSize; i++) {
       const card = View.shopCard(this.game, h, i, can);
-      if (h.shop[i]) card.addEventListener('click', () => this.buySlot(i));
+      if (h.shop[i]) card.addEventListener('pointerdown', e => this.onShopPointerDown(e, i, card));
       cards.appendChild(card);
     }
   }
@@ -1585,6 +1765,7 @@ class App {
   }
 
   frame(dt) {
+    this.checkTooltip();
     if (this.mode === 'solo') {
       this.tickAcc += dt;
       let n = 0;
@@ -1613,6 +1794,7 @@ class App {
 
   afterReplay() {
     const g = this.game;
+    if (this._taxi) this.taxiReset();
     this.closeModal();
     if (this.carouselScene && g.phase !== 'carousel') {
       this.carouselScene = null;
@@ -1654,6 +1836,7 @@ class App {
       this.setTimer(g.carousel.duration - g.carousel.time, g.carousel.duration);
       tn.dataset.tip = g.carousel.encounter ? '조우자' : PHASE_LABEL.carousel;
     }
+    this.taxiFx().update(dt);
     if (this.boxKey) this.updateBoxTimer();
     if (this.augKey || this.$('aug-toggle').classList.contains('show')) this.updateAugTimer();
     this.placeAugBalls();
@@ -1673,6 +1856,13 @@ class App {
 
   syncMe(dt) {
     const me = this.arena.me;
+    this.taxiFx();
+    if (this.tx.freezeMe) {
+      this.applyTaxiVis(me, this.human.id);
+      me.update(dt);
+      this.syncOthers(dt);
+      return;
+    }
     const s = this.driver.strats[this.human.id];
     const sc = this.curScene;
     let show = false;
@@ -1694,6 +1884,7 @@ class App {
         me.moveTo(s.x, s.y);
       }
     }
+    this.applyTaxiVis(me, this.human.id);
     me.update(dt);
     this.syncOthers(dt);
   }
@@ -1752,6 +1943,7 @@ class App {
         sp.speed = Math.max(60, d.strats[id].speed) * 1.3;
         sp.moveTo(pos.x, pos.y);
       }
+      this.applyTaxiVis(sp, id);
       sp.update(dt);
     }
   }
@@ -1766,6 +1958,7 @@ class App {
     this.ending = false;
     this.arenaKey = null;
     if (this.replaying) return;
+    this.taxiCombatStart(e);
     this.render();
     if (e.pre > 0) this.toast('매칭 완료! ' + CONFIG.preCombat + '초 뒤 전투가 시작됩니다', 'info');
   }
@@ -1784,6 +1977,7 @@ class App {
       banner.innerHTML = (res === 'win' ? '승리!' : res === 'draw' ? '무승부' : '패배') + (h.lastDamage ? '<small>체력 -' + h.lastDamage + '</small>' : '');
     }
     this.render();
+    this.taxiCombatEnd();
     clearTimeout(this.bannerTimer);
     this.bannerTimer = setTimeout(() => {
       banner.className = '';
@@ -1791,6 +1985,11 @@ class App {
   }
 
   startCarousel() {
+    if (this.taxiCarouselStart()) return;
+    this.buildCarousel();
+  }
+
+  buildCarousel() {
     const g = this.game;
     const car = g.carousel;
     const a = this.arena;
@@ -1817,7 +2016,7 @@ class App {
       const form = formOf(def, 1, this.human);
       const el = View.unitEl({ className: 'unit', name: form.name, form, types: form.types, star: 1, cost: def.cost, badge: View.badgeFor(def), items: item.item ? [item.item] : [] });
       el.classList.add('car-item');
-      el.style.setProperty('--cost-color', COST_COLORS[def.cost]);
+      paintCost(el, def.cost);
       el.addEventListener('pointerdown', e => this.onTokenPointerDown(e, { inst: { unitId: item.unitId, star: 1 }, owner: this.human, preview: true }, el));
       a.carLayer.appendChild(el);
       sc.items[idx] = el;
@@ -1887,6 +2086,7 @@ class App {
         sp.speed = Math.max(60, s.speed) * 1.3;
         sp.moveTo(s.x, s.y);
       }
+      this.applyTaxiVis(sp, Number(id));
       sp.update(dt);
     }
   }
@@ -1920,6 +2120,7 @@ class App {
 
   showTooltip(anchor, text) {
     if (!text) return;
+    this.tipAnchor = anchor;
     const tip = this.$('tooltip');
     if (text.includes('⟦')) tip.innerHTML = View.esc(text).replace(/⟦(.*?)⟧/g, '<span class="up">$1</span>');
     else tip.textContent = text;
@@ -1939,6 +2140,19 @@ class App {
 
   hideTooltip() {
     this.$('tooltip').classList.remove('show');
+    this.tipAnchor = null;
+  }
+
+  checkTooltip() {
+    const a = this.tipAnchor;
+    if (!a) return;
+    let hovered = false;
+    try {
+      hovered = a.isConnected && a.matches(':hover');
+    } catch (e) {
+      hovered = false;
+    }
+    if (!hovered) this.hideTooltip();
   }
 
   showUnitTip(anchor) {

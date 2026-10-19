@@ -28,7 +28,7 @@ function tierFor(def, count) {
 }
 
 function computeSynergies(owner, insts) {
-  const list = bestInstances(insts || owner.boardUnits(), insts ? null : owner);
+  const list = bestInstances(insts || owner.boardUnits().filter(u => !u.overflow), insts ? null : owner);
   const groups = {};
   for (const inst of list) {
     let def = UNITS[inst.unitId];

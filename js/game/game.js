@@ -291,7 +291,7 @@ class Game {
     for (const def of UNIT_DATA) {
       if (!this.isEligible(p, def) || locked.has(def.id) || this.pool.remaining(def.id) <= 0) continue;
       if (bugOnly && !this.isBugDef(def)) continue;
-      byCost[def.cost].push(def);
+      byCost[Math.min(5, def.cost)].push(def);
     }
     let costs = [1, 2, 3, 4, 5].filter(c => byCost[c].length > 0 && odds[c - 1] > 0);
     let cost = this.rng.weighted(costs, c => odds[c - 1]);
@@ -416,9 +416,9 @@ class Game {
       for (const g of groups.values()) {
         if (g.length < 3) continue;
         const placed = g.filter(u => u.loc);
-        const onBoard = placed.filter(u => u.loc.zone === 'board');
+        const onBoard = placed.filter(u => u.loc.zone === 'board' && !u.overflow);
         const onBench = placed.filter(u => u.loc.zone === 'bench').sort((a, b) => a.loc.i - b.loc.i);
-        const keep = onBoard[0] || onBench[0];
+        const keep = onBoard[0] || onBench[0] || placed.find(u => u.overflow);
         if (!keep) continue;
         const others = g.filter(u => u !== keep).sort((a, b) => rank(a) - rank(b)).slice(0, 2);
         for (const o of others) {
@@ -461,6 +461,7 @@ class Game {
       }
       if (!merged) break;
     }
+    this.resolveOverflow(p);
   }
 
   onStarUp(p, inst, silent) {
@@ -501,11 +502,13 @@ class Game {
       delete p.branch[def.id];
       p.pendingBranch = p.pendingBranch.filter(x => x !== def.id);
     }
+    this.resolveOverflow(p);
     return true;
   }
 
   moveUnit(p, inst, to) {
     if (!inst || !inst.loc) return { ok: false, reason: '' };
+    if (inst.overflow) return { ok: false, reason: '자리가 없어 기다리는 기물입니다. 다른 기물을 팔아 자리를 만들어 주세요' };
     if (to.zone === 'board' && (!Hex.inBounds(to.r, to.c) || !Hex.isHome(to.r))) return { ok: false, reason: '' };
     if (to.zone === 'bench' && (to.i < 0 || to.i >= CONFIG.benchSize)) return { ok: false, reason: '' };
     if (this.phase === 'combat' && (inst.loc.zone === 'board' || to.zone === 'board')) {
@@ -514,6 +517,7 @@ class Game {
     const from = Object.assign({}, inst.loc);
     const other = p.unitAt(to);
     if (other === inst) return { ok: true, reason: '' };
+    if (other && other.overflow) return { ok: false, reason: '자리가 없어 기다리는 기물입니다' };
     if (from.zone === 'bench' && to.zone === 'board' && !other && p.boardCount() >= p.boardLimit()) {
       return { ok: false, reason: '필드에 놓을 수 있는 기물은 ' + p.boardLimit() + '개입니다' };
     }
@@ -675,6 +679,7 @@ class Game {
     this.autoPickAugs();
     const alive = this.alivePlayers();
     for (const p of alive) {
+      this.convertOverflow(p);
       this.collectOrbs(p);
       this.autoFill(p);
       Unlocks.onCombatStart(this, p);
@@ -824,6 +829,37 @@ class Game {
     }
     p.items.splice(i, 1);
     this.notify(p, formOf(def, 1, p).name + ' 복사본을 얻었습니다', 'loot');
+    this.emit('update');
+    return { ok: true, reason: '' };
+  }
+
+  itemEntries(p) {
+    const list = [];
+    const groups = {};
+    p.items.forEach((id, idx) => {
+      if (isConsumable(id)) {
+        if (groups[id]) {
+          groups[id].ids.push(id);
+          return;
+        }
+        groups[id] = { start: idx, ids: [id] };
+        list.push(groups[id]);
+        return;
+      }
+      list.push({ start: idx, ids: [id] });
+    });
+    return list;
+  }
+
+  swapItemEntries(p, i, j) {
+    const list = this.itemEntries(p);
+    const a = list.findIndex(e => e.start === i || (e.ids.length > 1 && p.items[i] === e.ids[0]));
+    const b = list.findIndex(e => e.start === j || (e.ids.length > 1 && p.items[j] === e.ids[0]));
+    if (a < 0 || b < 0 || a === b) return { ok: false, reason: '' };
+    const t = list[a];
+    list[a] = list[b];
+    list[b] = t;
+    p.items = [].concat(...list.map(e => e.ids));
     this.emit('update');
     return { ok: true, reason: '' };
   }
@@ -1007,7 +1043,7 @@ class Game {
 
   openOrb(p, orb) {
     if (orb.item) {
-      p.items.push(orb.item);
+      this.giveItem(p, orb.item);
       const d = itemDef(orb.item);
       this.notify(p, '전리품: ' + (d ? d.name : orb.item), 'loot');
       return;
@@ -1360,9 +1396,9 @@ class Game {
   applyEncounterStart() {
     const e = this.encounter;
     for (const p of this.alivePlayers()) {
-      this.giveRandomUnit(p, 1);
       if (e === '피카츄') this.giveRandomUnit(p, 2);
-      if (e === '이브이') this.giveRandomUnit(p, 3);
+      else if (e === '이브이') this.giveRandomUnit(p, 3);
+      else this.giveRandomUnit(p, 1);
       if (e === '폴리곤') {
         this.giveBox(p, 'poke-box');
         this.giveBox(p, 'poke-box');
@@ -1383,7 +1419,7 @@ class Game {
         p.fireUsed = true;
         for (let i = 0; i < 3; i++) this.giveBox(p, 'great-box');
         p.gold += 20;
-        this.notify(p, '파이어: 슈퍼볼 아이템 상자 3개와 20골드를 받았습니다', 'loot');
+        this.notify(p, '파이어: 큰 모으령 상자 3개와 20골드를 받았습니다', 'loot');
       }
     }
   }
@@ -1475,10 +1511,7 @@ class Game {
     const item = this.carousel.items[idx];
     item.takenBy = p.id;
     this.carousel.picked[p.id] = idx;
-    const inst = this.addUnit(p, item.unitId, 1);
-    if (!inst) p.gold += UNITS[item.unitId].cost;
-    if (item.item) p.items.push(item.item);
-    this.notify(p, formOf(UNITS[item.unitId], 1, p).name + '을(를) 골랐습니다', 'loot');
+    this.notify(p, formOf(UNITS[item.unitId], 1, p).name + '을(를) 골랐습니다. 회전초밥이 끝나면 들어옵니다', 'loot');
     this.emit('carousel');
     return true;
   }
@@ -1514,9 +1547,69 @@ class Game {
       const idx = this.carouselRandomChoice(p);
       if (idx !== null) this.carouselPick(p, idx);
     }
+    for (const p of car.order) {
+      const idx = car.picked[p.id];
+      if (idx === undefined || !p.alive) continue;
+      const it = car.items[idx];
+      this.deliverUnit(p, it.unitId);
+      if (it.item) p.items.push(it.item);
+    }
     if (car.encounter) this.applyEncounterStart();
     car.done = true;
     this.phase = 'result';
+  }
+
+  frontCell(p) {
+    const cols = [3, 2, 4, 1, 5, 0, 6];
+    for (let r = 4; r < BOARD_ROWS; r++) {
+      for (const c of cols) if (!p.unitAt({ zone: 'board', r, c })) return { zone: 'board', r, c };
+    }
+    return null;
+  }
+
+  deliverUnit(p, unitId) {
+    const def = UNITS[unitId];
+    const slot = p.freeBenchSlot();
+    if (slot >= 0 || this.countMergeable(p, unitId, 1) >= 2 || !p.isHuman) {
+      if (!this.addUnit(p, unitId, 1)) p.gold += def.cost;
+      return;
+    }
+    const cell = this.frontCell(p);
+    if (!cell) {
+      p.gold += def.cost;
+      return;
+    }
+    const inst = newInstance(unitId, 1);
+    if (p.boardCount() >= p.boardLimit()) {
+      inst.overflow = true;
+      this.notify(p, '대기석이 가득 차서 ' + formOf(def, 1, p).name + '이(가) 필드 밖 자리에서 기다립니다. 전투 전까지 자리를 비우지 않으면 골드로 바뀝니다', 'info');
+    }
+    p.setAt(cell, inst);
+    this.mergeAll(p);
+  }
+
+  resolveOverflow(p) {
+    for (const inst of p.boardUnits()) {
+      if (!inst.overflow) continue;
+      const slot = p.freeBenchSlot();
+      if (slot >= 0) {
+        p.remove(inst);
+        inst.overflow = false;
+        p.setAt({ zone: 'bench', i: slot }, inst);
+      } else if (p.boardCount() < p.boardLimit()) inst.overflow = false;
+    }
+  }
+
+  convertOverflow(p) {
+    for (const inst of p.boardUnits()) {
+      if (!inst.overflow) continue;
+      const def = UNITS[inst.unitId];
+      p.remove(inst);
+      this.returnItems(p, inst);
+      const g = sellValue(def, inst.star);
+      p.gold += g;
+      this.notify(p, formOf(def, inst.star, p, inst).name + '이(가) 자리를 찾지 못해 ' + g + '골드로 바뀌었습니다', 'info');
+    }
   }
 
   carouselRunBots() {

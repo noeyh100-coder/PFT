@@ -5,7 +5,7 @@ const CLASS_COLORS = {
 };
 
 const ROUND_ICON = { encounter: 'encounter', pve: 'ball', pvp: 'sword', carousel: 'sushi' };
-const HOVER_COLORS = { 1: '#f2f2f2', 2: '#86ffa2', 3: '#8fd0ff', 4: '#eaa8ff', 5: '#ffe486' };
+const HOVER_COLORS = { 1: '#f2f2f2', 2: '#86ffa2', 3: '#8fd0ff', 4: '#eaa8ff', 5: '#ffe486', 6: '#a99bff' };
 const TIER_COLORS = ['#101014', '#d08a4c', '#e4e9f2', '#ffd75a'];
 
 const View = {
@@ -158,6 +158,7 @@ const View = {
     const el = this.el('div', opts.className || 'unit');
     el.classList.add('s' + Math.min(3, opts.star || 1));
     el.style.setProperty('--hover-col', HOVER_COLORS[opts.cost] || HOVER_COLORS[1]);
+    if (opts.cost >= 6) el.classList.add('c6');
     const ring = this.el('div', 'cost-ring');
     ring.style.boxShadow = '0 0 0 2px ' + (COST_COLORS[opts.cost] || '#888');
     let orb = opts.form ? Sprites.make(opts.form, { star: opts.star, dir: opts.dir }) : null;
@@ -345,6 +346,7 @@ const View = {
     box.appendChild(head);
     box.appendChild(this.el('div', 'box-sub', '아이템 하나를 고르세요'));
     const row = this.el('div', 'box-row');
+    if (b.choices.length > 4) row.classList.add('six');
     b.choices.forEach((id, n) => {
       const it = itemDef(id);
       const card = this.el('button', 'box-card');
@@ -385,7 +387,7 @@ const View = {
       } else {
         const def = UNITS[e.id];
         const form = formOf(def, e.star, p);
-        pic.style.setProperty('--cost-color', COST_COLORS[def.cost]);
+        paintCost(pic, def.cost);
         pic.classList.add('unit-pic');
         const spr = Sprites.portrait(form, 44, { fill: 0.9, max: 2 });
         if (spr) pic.appendChild(spr);
@@ -601,7 +603,7 @@ const View = {
   traitPortrait(m, id, owner) {
     const on = memberActive(owner, m, id);
     const el = this.el('div', 'tt-unit' + (on ? ' on' : ''));
-    el.style.setProperty('--cost-color', COST_COLORS[m.cost]);
+    paintCost(el, m.cost);
     const card = Assets.cardUrl(m.form);
     const spr = Assets.ready(card) ? null : Sprites.portrait(m.form, 48, { fill: 0.85, max: 2 });
     if (Assets.ready(card)) {
@@ -654,7 +656,7 @@ const View = {
     const br = def.branches ? def.branches.find(b => b.form.name === form.name) : null;
     const head = this.el('div', 'ut-head');
     const pic = this.el('div', 'ut-pic');
-    pic.style.setProperty('--cost-color', COST_COLORS[def.cost]);
+    paintCost(pic, def.cost);
     const spr = Sprites.portrait(form, 40, { fill: 0.9, max: 2 });
     if (spr) pic.appendChild(spr);
     head.appendChild(pic);
@@ -771,11 +773,11 @@ const View = {
       if (human && human.alive && human.currentOpponent === p.id && p !== human) cls += ' vs';
       if (p.id === viewId) cls += ' viewing';
       if (!p.alive) cls += ' dead';
-      if (p.hp <= 30) cls += ' low';
+      if (shownHp(p) <= 30) cls += ' low';
       const row = this.el('div', cls);
       const name = this.el('div', 'pname', p.alive ? p.name : p.name + ' · ' + p.placement + '등');
       const por = this.portrait(p.strategist, p === human ? 36 : 31);
-      por.appendChild(this.el('div', 'hp', p.alive ? p.hp : '✕'));
+      por.appendChild(this.el('div', 'hp', p.alive ? shownHp(p) : '✕'));
       if (human && human.alive && human.currentOpponent === p.id && p !== human) {
         const sw = this.el('div', 'vs-sword');
         sw.innerHTML = iconSvg('sword', 14);
@@ -799,7 +801,7 @@ const View = {
     }
     const def = UNITS[id];
     const form = formOf(def, 1, p);
-    card.style.setProperty('--cost-color', COST_COLORS[def.cost]);
+    paintCost(card, def.cost);
     Assets.setCardArt(card, form, 90, true);
     if (card._spr) {
       card.addEventListener('mouseenter', () => Sprites.hoverPlay(card._spr, true));
@@ -851,7 +853,7 @@ const View = {
 
   pickCard(def, owner, form, extraTraits) {
     const card = this.el('div', 'card');
-    card.style.setProperty('--cost-color', COST_COLORS[def.cost]);
+    paintCost(card, def.cost);
     Assets.setCardArt(card, form);
     const traits = this.el('div', 'card-traits');
     for (const t of form.types.concat(extraTraits || [])) traits.appendChild(this.miniTrait(t));
@@ -920,7 +922,8 @@ const View = {
       container.appendChild(evo);
     }
     const art = this.el('div', 'ip-art');
-    art.style.setProperty('--cost-color', t.creep ? '#b0b0b0' : COST_COLORS[t.cost]);
+    if (t.creep) art.style.setProperty('--cost-color', '#b0b0b0');
+    else paintCost(art, t.cost);
     Assets.setCardArt(art, t.form, 100);
     const traits = this.el('div', 'ip-traits');
     for (const id of t.traits) {

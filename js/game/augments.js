@@ -70,7 +70,7 @@ function augText(a) {
   if (a.id === 'heart') return a.trait + ' 시너지 +1';
   if (a.id === 'soul') return a.trait + ' 시너지 +1, ' + a.trait + ' 기물 체력 +150';
   if (a.id === 'crown') return a.trait + ' 시너지 +2';
-  if (a.id === 'archives') return a.trait + ' 시너지 +1 + 슈퍼볼 아이템 상자 1개';
+  if (a.id === 'archives') return a.trait + ' 시너지 +1 + 큰 모으령 상자 1개';
   if (a.id === 'kitchen') return (a.traits || []).join(', ') + ' 시너지가 각각 +1';
   return d.desc;
 }
@@ -162,16 +162,26 @@ const AUG_GAME = {
     for (const p of this.players) if (p.augOffer) this.pickAug(p, this.rng.int(p.augOffer.choices.length));
   },
 
+  augItem(p, id) {
+    if (!p.isHuman || !this.realtime) {
+      this.giveItem(p, id);
+      return;
+    }
+    const orb = this.makeItemOrb(id, 5 + this.rng.int(3), this.rng.int(4));
+    p.orbs = (p.orbs || []).concat([orb]);
+    this.emit('orbs');
+  },
+
   augComps(p, n) {
-    for (let i = 0; i < n; i++) p.items.push(this.randomComponent());
+    for (let i = 0; i < n; i++) this.augItem(p, this.randomComponent());
   },
 
   augDone(p, n) {
-    for (let i = 0; i < n; i++) p.items.push(this.randomCompleted());
+    for (let i = 0; i < n; i++) this.augItem(p, this.randomCompleted());
   },
 
   augTreasure(p, tier) {
-    p.items.push(this.rng.pick(ITEMS.treasures[tier]));
+    this.augItem(p, this.rng.pick(ITEMS.treasures[tier]));
   },
 
   addAugTrait(p, trait, n) {
@@ -188,15 +198,16 @@ const AUG_GAME = {
     }
     if (augLineOf(id) === 'rolling') p.roundRolls = Math.max(p.roundRolls, AUG_LV.rolling.n[Number(id.slice(-1)) - 1]);
     if (id === 'rolling1') p.gold += 7;
-    else if (id === 'archives') this.giveBox(p, 'great-box');
+    else if (id === 'archives') this.augItem(p, 'great-box');
     else if (id === 'compbag') this.augComps(p, 2);
     else if (id === 'bigbag') {
       this.augComps(p, 3);
-      p.items.push('loaded-dice');
+      this.augItem(p, 'loaded-dice');
       p.gold += 2;
     } else if (id === 'heroicbag') {
       this.augDone(p, 2);
-      p.items.push('loaded-dice', 'loaded-dice');
+      this.augItem(p, 'loaded-dice');
+      this.augItem(p, 'loaded-dice');
       p.gold += 6;
     } else if (id === 'windfall') p.gold += 8;
     else if (id === 'windfall3') p.gold += 30;
@@ -218,14 +229,14 @@ const AUG_GAME = {
     else if (id === 'prismticket') p.freeRolls += 5;
     else if (id === 'teamup') {
       this.augComps(p, 1);
-      p.items.push('loaded-dice');
+      this.augItem(p, 'loaded-dice');
     } else if (id === 'branching') {
       this.augComps(p, 1);
-      p.items.push('magnet');
+      this.augItem(p, 'magnet');
       p.gold += 3;
     } else if (id === 'corners') p.xpCut += 2;
     else if (id === 'pitems') this.augComps(p, 2);
-    else if (id === 'gifts') this.giveBox(p, 'great-box');
+    else if (id === 'gifts') this.augItem(p, 'great-box');
     else if (id === 'trove') {
       this.augTreasure(p, 1);
       this.augTreasure(p, 1);
@@ -249,11 +260,11 @@ const AUG_GAME = {
       this.augDone(p, 1);
       this.augComps(p, 1);
     } else if (id === 'thinkfast') S.thinkUntil = this.roundSeq + 3;
-    else if (id === 'pforge') this.giveBox(p, 'forge-box');
+    else if (id === 'pforge') this.augItem(p, 'forge-box');
     else if (id === 'lforge') S.lforgeAt = this.roundSeq + 5;
     else if (id === 'gloves') {
       p.boxSize = 6;
-      this.giveBox(p, 'great-box');
+      this.augItem(p, 'great-box');
     } else if (id === 'relics') {
       this.augTreasure(p, 3);
       this.augTreasure(p, 2);
@@ -262,8 +273,8 @@ const AUG_GAME = {
     else if (id === 'phreaky') S.phreakyAt = this.roundSeq + 4;
     else if (id === 'level11') p.augLevel = 1;
     else if (id === 'pbox') {
-      this.giveBox(p, 'great-box');
-      this.giveBox(p, 'great-box');
+      this.augItem(p, 'great-box');
+      this.augItem(p, 'great-box');
     }
     if (p.hp > p.maxHp) p.hp = p.maxHp;
   },
@@ -332,11 +343,11 @@ const AUG_GAME = {
     }
     if (S.lforgeAt && this.roundSeq >= S.lforgeAt) {
       S.lforgeAt += 5;
-      this.giveBox(p, 'great-box');
+      this.augItem(p, 'great-box');
     }
     if (S.eggAt && this.roundSeq >= S.eggAt) {
       S.eggAt = 0;
-      for (let i = 0; i < 3; i++) this.giveBox(p, 'great-box');
+      for (let i = 0; i < 3; i++) this.augItem(p, 'great-box');
       p.gold += 60;
       this.notify(p, '황금 알이 부화했습니다!', 'loot');
     }
@@ -346,7 +357,7 @@ const AUG_GAME = {
       p.gold += 25;
       this.notify(p, '기괴한 금요일!', 'loot');
     }
-    if (has('magicdice')) p.items.push('loaded-dice');
+    if (has('magicdice')) this.augItem(p, 'loaded-dice');
     if (has('waiting') && S.waitId && S.waitStart < this.roundSeq) {
       if (p.freeBenchSlot() >= 0 || this.countMergeable(p, S.waitId, 1) >= 2) this.addUnit(p, S.waitId, 1);
     }
@@ -404,7 +415,7 @@ const AUG_GAME = {
     }
     if (loss && has('beggars')) {
       S.losses += 1;
-      if (S.losses % 3 === 0) this.giveBox(p, 'poke-box');
+      if (S.losses % 3 === 0) this.augItem(p, 'poke-box');
     }
     if (win && has('pilfer') && this.rng.next() < 0.2) this.augComps(p, 1);
     if (has('reckoning')) S.reckon = loss ? S.reckon + 1 : win ? 0 : S.reckon;

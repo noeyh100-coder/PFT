@@ -22,6 +22,7 @@
         <button id="btn-speed" class="icon-btn" title="전투 속도"><span id="speed-num">x1</span></button>
         <button id="btn-debug" class="icon-btn" title="개발 도구 (`)"></button>
         <button id="btn-credit" class="icon-btn" title="크레딧"></button>
+        <button id="btn-sound" class="icon-btn" title="효과음">♪</button>
       </div>
 
       <div id="items" class="frame"></div>
@@ -91,8 +92,8 @@
           <button data-dbg="dice" data-amt="1">속임수주사위 +1</button>
           <button data-dbg="mine" data-amt="100">채굴 스택 +100</button>
           <button data-dbg="esper" data-amt="0">에스퍼 효과 변경</button>
-          <button data-dbg="pokebox" data-amt="1">몬스터볼 상자 +1</button>
-          <button data-dbg="greatbox" data-amt="1">슈퍼볼 상자 +1</button>
+          <button data-dbg="pokebox" data-amt="1">작은 모으령 상자 +1</button>
+          <button data-dbg="greatbox" data-amt="1">큰 모으령 상자 +1</button>
           <button data-dbg="enc" data-amt="0">조우자 변경</button>
           <button data-dbg="aug" data-amt="1">실버 증강 선택</button>
           <button data-dbg="aug" data-amt="2">골드 증강 선택</button>
@@ -108,6 +109,7 @@
       <button id="aug-toggle"></button>
       <div id="aug-balls"><div class="aug-ball left"></div><div class="aug-ball right"></div></div>
       <div id="aug-list" class="frame"></div>
+      <div id="sound-pop" class="frame"></div>
       <div id="aug-desc" class="frame"></div>
       <div id="item-tip" class="frame"></div>
       <div id="item-tip2" class="frame"></div>
@@ -146,6 +148,7 @@
   <script src="js/ui/view.js"></script>
   <script src="js/ui/projection.js"></script>
   <script src="js/ui/arena.js"></script>
+  <script src="js/ui/sound.js"></script>
   <script src="js/ui/driver.js"></script>
   <script src="js/ui/mapkit.js"></script>
   <script src="js/ui/maps.js"></script>
@@ -153,5 +156,6 @@
   <script src="js/ui/net.js"></script>
   <script src="js/ui/lobby.js"></script>
   <script src="js/ui/app.js"></script>
+  <script src="js/ui/taxi.js"></script>
 </body>
 </html>

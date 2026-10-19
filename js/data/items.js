@@ -44,7 +44,7 @@ const ITEM_COMPLETED = [
   { id: 'soul-dew', name: '마음의물방울', from: ['leppa-berry', 'wise-glasses'], desc: '5초마다 특수공격이 18%씩 증가합니다.' },
   { id: 'soothe-bell', name: '평온의방울', from: ['leppa-berry', 'protective-pads'], desc: '공격에 맞을 때 PP를 2 더 얻습니다.' },
   { id: 'everstone', name: '변함없는돌', from: ['leppa-berry', 'x-sp-def'], unique: true, bonus: { hp: 350 }, desc: '진화하지 않습니다. 별은 오르지만 모습·스킬·타입은 그대로입니다. 돌을 빼면 전투를 한 번 치른 뒤 다음 라운드에 진화합니다.' },
-  { id: 'super-potion', name: '좋은상처약', from: ['leppa-berry', 'leftovers'], desc: '매초 최대 체력의 1.5%를 회복합니다.' },
+  { id: 'super-potion', name: '좋은상처약', from: ['leppa-berry', 'leftovers'], desc: '매초 최대 체력의 1.5%를 회복하고, 바로 옆 칸의 아군도 매초 이 기물의 최대 체력의 1%만큼 회복시킵니다.' },
   { id: 'twisted-spoon', name: '휘어진스푼', from: ['leppa-berry', 'swift-wing'], bonus: { spa: 1 }, desc: '피해를 입힌 적의 특수방어가 6초 동안 3랭크 내려갑니다. (겹치지 않음)' },
   { id: 'dragon-fang', name: '용의이빨', from: ['leppa-berry', 'razor-claw'], desc: '기본 공격할 때 PP를 3 더 얻고, 급소에 맞히면 3을 더 얻습니다.' },
   { id: 'max-ether', name: 'PP맥스', from: ['leppa-berry', 'leppa-berry'], bonus: { pp: 4 }, desc: '시작 PP가 더 많고, 스킬을 쓴 뒤 PP를 12 얻습니다.' }
@@ -65,8 +65,8 @@ const ITEM_DUPLICATORS = [
 const ITEM_DICE = { id: 'loaded-dice', name: '속임수주사위', icon: 'loaded-dice', label: '재조합기', desc: '아이템을 가진 기물에게 쓰면 그 기물의 아이템을 모두 같은 종류의 다른 무작위 아이템으로 바꿔 아이템 칸으로 돌려줍니다. (조합은 조합끼리, 완성은 완성끼리, 보물은 같은 티어끼리)' };
 
 const ITEM_BOXES = [
-  { id: 'poke-box', name: '몬스터볼 아이템 상자', icon: 'poke-ball', box: 'component', desc: '클릭해서 열면 서로 다른 조합 아이템 4개 중 하나를 고릅니다.' },
-  { id: 'great-box', name: '슈퍼볼 아이템 상자', icon: 'great-ball', box: 'completed', desc: '클릭해서 열면 서로 다른 완성 아이템 4개 중 하나를 고릅니다.' },
+  { id: 'poke-box', name: '작은 모으령 상자', icon: 'gimmi-small', box: 'component', desc: '클릭해서 열면 서로 다른 조합 아이템 4개 중 하나를 고릅니다.' },
+  { id: 'great-box', name: '큰 모으령 상자', icon: 'gimmi-big', box: 'completed', desc: '클릭해서 열면 서로 다른 완성 아이템 4개 중 하나를 고릅니다.' },
   { id: 'forge-box', name: '대장간 상자', icon: 'dynite-ore', box: 'treasure3', desc: '클릭해서 열면 서로 다른 3티어 보물 4개 중 하나를 고릅니다.' }
 ];
 
