@@ -1,3 +1,4 @@
+const STRAT_FRAME = { w: 16, h: 24, px: 2.5, foot: 22.8 };
 const Assets = {
   status: {},
   listeners: [],

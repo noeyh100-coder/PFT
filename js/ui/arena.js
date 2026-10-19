@@ -15,8 +15,14 @@ class StratSprite {
   constructor(opts) {
     this.leader = !!opts.leader;
     this.el = document.createElement('div');
-    this.el.className = 'strat' + (this.leader ? ' leader' : '') + (opts.me ? ' me' : '');
+    this.el.className = 'strat' + (this.leader ? ' leader' : ' ow') + (opts.me ? ' me' : '');
     this.el.style.backgroundImage = 'url("' + (this.leader ? Assets.leaderUrl(opts.leader) : Assets.playerUrl(opts.look)) + '")';
+    if (!this.leader) {
+      const F = STRAT_FRAME;
+      this.el.style.width = F.w * F.px + 'px';
+      this.el.style.height = F.h * F.px + 'px';
+      this.el.style.backgroundSize = F.w * 3 * F.px + 'px ' + F.h * 4 * F.px + 'px';
+    }
     this.plate = null;
     if (opts.player) {
       this.plate = document.createElement('div');
@@ -103,11 +109,15 @@ class StratSprite {
   }
 
   render() {
-    placeSprite(this.el, this.x, this.y, 32, 60, STRAT_SCALE);
-    if (this.leader) return;
+    if (this.leader) {
+      placeSprite(this.el, this.x, this.y, 32, 60, STRAT_SCALE);
+      return;
+    }
+    const F = STRAT_FRAME;
+    placeSprite(this.el, this.x, this.y, F.w * F.px / 2, F.foot * F.px, STRAT_SCALE);
     const seq = [0, 1, 2, 1];
-    const col = this.moving ? seq[Math.floor(this.anim * 8) % 4] : 1;
-    this.el.style.backgroundPosition = (-col * 64) + 'px ' + (-DIR_ROW[this.dir] * 64) + 'px';
+    const col = this.moving ? seq[Math.floor(this.anim * 7) % 4] : 1;
+    this.el.style.backgroundPosition = (-col * F.w * F.px) + 'px ' + (-DIR_ROW[this.dir] * F.h * F.px) + 'px';
   }
 
   carry(unitEl) {

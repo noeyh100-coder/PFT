@@ -36,6 +36,9 @@ class Game {
       const l = o.seats ? o.seats[i] && o.seats[i].look : o.look;
       return valid(l) ? l : null;
     });
+    want.forEach((l, i) => {
+      if (l && want.indexOf(l) !== i) want[i] = null;
+    });
     const free = looks.filter(l => !want.includes(l));
     let k = 0;
     this.players.forEach((p, i) => {

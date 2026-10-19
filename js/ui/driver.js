@@ -45,6 +45,8 @@ class Driver {
     const g = this.game;
     this.ready.clear();
     if (g.phase === 'planning') {
+      for (const id of this.awayIds || []) this.homeSlot(id);
+      this.awayIds = [];
       this.state = 'planning';
       this.timerTotal = g.planningTime();
       this.timeLeft = this.timerTotal;
@@ -62,6 +64,15 @@ class Driver {
         s.speed = p.isHuman && !p.afk ? WALK_SPEED : CONFIG.carousel.moveSpeed;
       }
     }
+  }
+
+  homeSlot(id) {
+    const s = this.strats[id];
+    if (!s) return;
+    s.at = id;
+    s.x = s.tx = s.hx = HOME_BOTTOM.x;
+    s.y = s.ty = s.hy = HOME_BOTTOM.y;
+    s.speed = WALK_SPEED;
   }
 
   homeAll() {
@@ -144,6 +155,12 @@ class Driver {
       this.wait = 0;
       this.emit('combatStart', { pre: 0, none: true });
       return;
+    }
+    this.awayIds = [];
+    for (const m of g.matches) {
+      if (m.kind !== 'pvp' || m.ghost || !m.b) continue;
+      this.awayIds.push(m.b.id);
+      this.homeSlot(m.b.id);
     }
     const pre = g.matches.some(m => m.kind === 'pvp') ? CONFIG.preCombat : 0;
     this.state = pre > 0 ? 'precombat' : 'combat';

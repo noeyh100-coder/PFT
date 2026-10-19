@@ -54,11 +54,8 @@ class Lobby {
       this.icon = ProfileForms.random();
       this.store('ptft-icon', this.icon);
     }
-    this.look = this.load('ptft-look');
-    if (!CONFIG.strategists.includes(this.look)) {
-      this.look = this.randomLook();
-      this.store('ptft-look', this.look);
-    }
+    this.look = this.randomLook();
+    this.store('ptft-look', this.look);
     this.net.look = this.look;
     this.net.icon = this.icon;
     this.root = document.createElement('div');
@@ -451,11 +448,15 @@ class Lobby {
 
   stratEl(look, scale) {
     const s = this.el('div', 'lb-strat');
-    s.style.width = 32 * scale + 'px';
-    s.style.height = 32 * scale + 'px';
+    const k = scale * 1.25;
+    const F = STRAT_FRAME;
+    s.style.width = F.w * k + 'px';
+    s.style.height = F.h * k + 'px';
+    s.style.marginLeft = (32 * scale - F.w * k) / 2 + 'px';
+    s.style.marginTop = 32 * scale - F.h * k + 'px';
     s.style.backgroundImage = 'url("' + Assets.playerUrl(look) + '")';
-    s.style.backgroundSize = 96 * scale + 'px ' + 128 * scale + 'px';
-    s.style.backgroundPosition = -32 * scale + 'px 0px';
+    s.style.backgroundSize = F.w * 3 * k + 'px ' + F.h * 4 * k + 'px';
+    s.style.backgroundPosition = -F.w * k + 'px 0px';
     return s;
   }
 
@@ -480,7 +481,7 @@ class Lobby {
     box.style.height = h + 'px';
     box.appendChild(this.hexSvg(w, h, big ? 'gold' : m ? 'on' : ''));
     if (!m) return box;
-    const sp = this.stratEl(m.look && CONFIG.strategists.includes(m.look) ? m.look : 'Hazel', scale);
+    const sp = this.stratEl(m.look && CONFIG.strategists.includes(m.look) ? m.look : CONFIG.strategists[0], scale);
     const sw = 32 * scale;
     sp.style.left = (w - sw) / 2 + 'px';
     sp.style.top = h * 0.56 - sw + 'px';

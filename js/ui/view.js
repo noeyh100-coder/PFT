@@ -484,8 +484,9 @@ const View = {
     const face = this.el('div', 'face');
     const s = size / 16;
     face.style.backgroundImage = 'url("' + Assets.playerUrl(name) + '")';
-    face.style.backgroundSize = (96 * s) + 'px ' + (128 * s) + 'px';
-    face.style.backgroundPosition = (-(32 + 8) * s) + 'px ' + (-7 * s) + 'px';
+    const F = STRAT_FRAME;
+    face.style.backgroundSize = (F.w * 3 * s) + 'px ' + (F.h * 4 * s) + 'px';
+    face.style.backgroundPosition = (-F.w * s) + 'px ' + (-3 * s) + 'px';
     wrap.appendChild(face);
     return wrap;
   },

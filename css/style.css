@@ -154,6 +154,9 @@ button:disabled {
 }
 
 #encounter-icon {
+  position: relative;
+  overflow: hidden;
+  flex: none;
   width: 24px;
   height: 24px;
   display: flex;
@@ -1133,6 +1136,21 @@ button:disabled {
   position: absolute;
   left: 32px;
   top: 2px;
+}
+
+.strat.ow::before {
+  left: 9px;
+  right: 9px;
+  bottom: 1px;
+}
+
+.strat.ow .plate {
+  bottom: 49px;
+}
+
+.strat.ow .carry {
+  left: 20px;
+  top: 4px;
 }
 
 .strat .carry .unit {

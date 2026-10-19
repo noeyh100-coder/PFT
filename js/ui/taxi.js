@@ -5,7 +5,8 @@ const TAXI_CAB = {
 const TAXI_BIRD = { src: 'img/dot/pokemon/Corviknight/Hover.png', fw: 40, fh: 64, frames: 11, sw: 440, sh: 512, footSide: 22, footFront: 20, footY: 35, fps: 18 };
 const TAXI_PX = 2;
 const TAXI_SCALE = 0.9;
-const TAXI_T = { approach: 0.6, land: 0.25, wait: 0.12, rise: 0.25, leave: 0.55 };
+const TAXI_T = { approach: 1.0, land: 0.35, wait: 0.15, rise: 0.35, leave: 0.8 };
+const TAXI_LEAD = 1.5;
 
 function taxiEase(t) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
@@ -111,12 +112,27 @@ class TaxiRide {
     while (left > 0 && this.i < this.legs.length) {
       const leg = this.legs[this.i];
       if (this.t === 0 && (leg.view || leg.face)) this.setLook(leg.view || this.view, leg.face || this.face);
+      if (leg.hold) {
+        if (!this.released) {
+          const at = leg.to();
+          const k = Math.min(1, dt * 10);
+          this.pos.x += (at.x - this.pos.x) * k;
+          this.pos.y += (at.y - this.pos.y) * k;
+          this.pos.alt += ((at.alt != null ? at.alt : this.pos.alt) - this.pos.alt) * k;
+          left = 0;
+          break;
+        }
+        this.from = Object.assign({}, this.pos);
+        this.i += 1;
+        this.t = 0;
+        continue;
+      }
       const dur = Math.max(0.001, leg.dur);
       const use = Math.min(left, dur - this.t);
       this.t += use;
       left -= use;
       const k = taxiEase(Math.min(1, this.t / dur));
-      const to = leg.to || this.from;
+      const to = typeof leg.to === 'function' ? leg.to() : leg.to || this.from;
       this.pos.x = this.from.x + (to.x - this.from.x) * k;
       this.pos.y = this.from.y + (to.y - this.from.y) * k;
       this.pos.alt = this.from.alt + ((to.alt != null ? to.alt : this.from.alt) - this.from.alt) * k;
@@ -129,6 +145,10 @@ class TaxiRide {
     }
     this.apply();
     if (this.i >= this.legs.length) this.finish();
+  }
+
+  release() {
+    this.released = true;
   }
 
   finish() {
@@ -261,30 +281,72 @@ const TRAVEL_APP = {
     if (sprite.el.style.visibility !== v) sprite.el.style.visibility = v;
   },
 
-  taxiPickup(pos, pid, onGone, quick) {
-    const fx = this.taxiFx();
+  taxiSide(pos) {
+    const c = Proj.toScreen(ARENA_W / 2, ARENA_H / 2);
+    return Proj.toScreen(pos.x, pos.y).x < c.x ? -1 : 1;
+  },
+
+  taxiLegs(get, dir, q, onLand, onGone, hold) {
     const T = TAXI_T;
-    const q = quick ? 0.8 : 1;
-    fx.ride({ x: pos.x - 380, y: pos.y - 40, alt: 230, view: 'side', face: 'right' }, [
-      { to: { x: pos.x, y: pos.y, alt: 60 }, dur: T.approach * q },
-      { to: { x: pos.x, y: pos.y, alt: 6 }, dur: T.land, then: () => this.taxiHide.add(pid) },
+    const at = alt => () => {
+      const p = get();
+      return { x: p.x, y: p.y, alt };
+    };
+    const legs = [{ to: at(55), dur: T.approach * q }];
+    if (hold) legs.push({ hold: true, to: at(55) });
+    legs.push(
+      { to: at(6), dur: T.land, then: onLand },
       { dur: T.wait },
-      { to: { x: pos.x, y: pos.y, alt: 70 }, dur: T.rise, face: 'left' },
-      { to: { x: pos.x - 420, y: pos.y - 40, alt: 240 }, dur: T.leave * q, then: onGone }
-    ]);
+      { to: at(70), dur: T.rise, face: dir < 0 ? 'left' : 'right' },
+      { to: () => { const p = get(); return { x: p.x + dir * 440, y: p.y - 40, alt: 240 }; }, dur: T.leave * q, then: onGone }
+    );
+    const p = get();
+    return { start: { x: p.x + dir * 400, y: p.y - 40, alt: 230, view: 'side', face: dir < 0 ? 'right' : 'left' }, legs };
+  },
+
+  taxiPickup(pos, pid, onGone, quick, hold) {
+    const get = typeof pos === 'function' ? pos : () => pos;
+    const r = this.taxiLegs(get, this.taxiSide(get()), quick ? 0.8 : 1, () => this.taxiHide.add(pid), onGone, hold);
+    return this.taxiFx().ride(r.start, r.legs);
   },
 
   taxiDrop(pos, pid, onDone) {
-    const fx = this.taxiFx();
-    const T = TAXI_T;
     this.taxiHide.add(pid);
-    fx.ride({ x: pos.x - 380, y: pos.y - 40, alt: 230, view: 'side', face: 'right' }, [
-      { to: { x: pos.x, y: pos.y, alt: 60 }, dur: T.approach },
-      { to: { x: pos.x, y: pos.y, alt: 6 }, dur: T.land, then: () => this.taxiHide.delete(pid) },
-      { dur: T.wait },
-      { to: { x: pos.x, y: pos.y, alt: 70 }, dur: T.rise, face: 'left' },
-      { to: { x: pos.x - 420, y: pos.y - 40, alt: 240 }, dur: T.leave, then: onDone }
-    ]);
+    const r = this.taxiLegs(() => pos, this.taxiSide(pos), 1, () => {
+      if (pid === this.human.id) {
+        const s = this.driver.strats[pid];
+        this.arena.me.place(s.x, s.y);
+      }
+      this.taxiHide.delete(pid);
+    }, onDone);
+    return this.taxiFx().ride(r.start, r.legs);
+  },
+
+  awayPair() {
+    const h = this.human;
+    if (!h || this.game.roundInfo().type !== 'pvp') return null;
+    return this.game.pairings.find(pr => pr[1] === h && !pr[2]) || null;
+  },
+
+  taxiPlanTick() {
+    if (!this._taxi || this.tx.preRide || !this.taxiOk()) return;
+    const d = this.driver;
+    if (d.state !== 'planning' || this.game.phase !== 'planning' || d.timeLeft > TAXI_LEAD) return;
+    if (this.viewId !== this.human.id || this.carouselScene || this.isTaxiHidden(this.human.id)) return;
+    if (!this.awayPair()) return;
+    const me = this.arena.me;
+    if (me.el.style.display === 'none') return;
+    this.tx.preRide = this.taxiPickup(() => ({ x: me.x, y: me.y }), this.human.id, () => this.taxiArriveAway(), false, true);
+  },
+
+  taxiArriveAway() {
+    this.travelHold = false;
+    this.tx.freezeMe = false;
+    this.arenaKey = null;
+    this.renderArena();
+    const s = this.driver.strats[this.human.id];
+    this.arena.me.place(s.x, s.y);
+    this.taxiDrop(HOME_BOTTOM, this.human.id, null);
   },
 
   taxiSeatRide(pid, sp, arrive, onEvent) {
@@ -298,11 +360,11 @@ const TRAVEL_APP = {
     const fx = this.taxiFx();
     const start = arrive ? Object.assign({ view, face: inFace }, out) : { x: sp.x + Math.cos(a) * 300, y: sp.y + Math.sin(a) * 300, alt: 200, view, face: inFace };
     fx.ride(start, [
-      { to: { x: sp.x, y: sp.y, alt: 55 }, dur: arrive ? 0.9 : 0.55 },
-      { to: { x: sp.x, y: sp.y, alt: 6 }, dur: 0.2, then: onEvent },
-      { dur: 0.1 },
-      { to: { x: sp.x, y: sp.y, alt: 70 }, dur: 0.22, face: outFace },
-      { to: out, dur: 0.45 }
+      { to: { x: sp.x, y: sp.y, alt: 55 }, dur: arrive ? 1.15 : 0.7 },
+      { to: { x: sp.x, y: sp.y, alt: 6 }, dur: 0.26, then: onEvent },
+      { dur: 0.12 },
+      { to: { x: sp.x, y: sp.y, alt: 70 }, dur: 0.28, face: outFace },
+      { to: out, dur: 0.6 }
     ]);
   },
 
@@ -315,25 +377,36 @@ const TRAVEL_APP = {
   },
 
   taxiCombatStart(e) {
-    if (!this.taxiOk() || !e || !(e.pre > 0)) return;
+    const pre = this.tx && this.tx.preRide;
+    if (this.tx) this.tx.preRide = null;
+    if (!this.taxiOk() || !e || !(e.pre > 0)) {
+      if (pre) pre.finish();
+      return;
+    }
     const h = this.human;
     const m = this.game.matchFor(h);
-    if (!m || m.kind !== 'pvp' || m.ghost) return;
+    if (!m || m.kind !== 'pvp' || m.ghost) {
+      if (pre) pre.finish();
+      return;
+    }
     const fx = this.taxiFx();
     if (m.b === h) {
-      if (this.viewId !== h.id) return;
+      if (this.viewId !== h.id) {
+        if (pre) pre.finish();
+        return;
+      }
       this.travelHold = true;
-      const s = this.driver.strats[h.id];
-      this.taxiPickup({ x: s.x, y: s.y }, h.id, () => {
-        this.travelHold = false;
-        this.arenaKey = null;
-        this.renderArena();
-        this.taxiDrop(HOME_BOTTOM, h.id, null);
-      });
+      this.tx.freezeMe = true;
+      if (pre && !pre.done) pre.release();
+      else {
+        const me = this.arena.me;
+        this.taxiPickup({ x: me.x, y: me.y }, h.id, () => this.taxiArriveAway());
+      }
     } else if (m.a === h && m.b) {
+      if (pre) pre.finish();
       const pid = m.b.id;
       this.taxiHide.add(pid);
-      fx.after(TAXI_T.approach + TAXI_T.land + TAXI_T.wait + TAXI_T.rise + TAXI_T.leave, () => {
+      fx.after(TAXI_T.land + TAXI_T.wait + TAXI_T.rise + TAXI_T.leave, () => {
         if (this.game.phase === 'combat' || this.driver.state === 'precombat') this.taxiDrop(HOME_TOP, pid, null);
         else this.taxiHide.delete(pid);
       });
@@ -349,9 +422,9 @@ const TRAVEL_APP = {
     if (!m || m.kind !== 'pvp' || m.ghost) return;
     if (m.b === h) {
       this.tx.returning = true;
-      fx.after(0.95, () => {
+      fx.after(0.15, () => {
         if (!this.tx.returning) return;
-        this.taxiPickup(this.stratFlatPos(h, HOME_BOTTOM), h.id, () => {
+        this.taxiPickup(() => this.stratFlatPos(h, HOME_BOTTOM), h.id, () => {
           this.tx.returnReady = true;
           this.travelHold = true;
           if (this.tx.afterReturn) {
@@ -363,7 +436,7 @@ const TRAVEL_APP = {
       });
     } else if (m.a === h && m.b) {
       const pid = m.b.id;
-      fx.after(0.95, () => this.taxiPickup(this.stratFlatPos(m.b, HOME_TOP), pid, null));
+      fx.after(0.15, () => this.taxiPickup(() => this.stratFlatPos(m.b, HOME_TOP), pid, null));
     }
   },
 
@@ -450,7 +523,7 @@ const TRAVEL_APP = {
       if (!sprite) continue;
       this.taxiSeatRide(p.id, { x: sprite.x, y: sprite.y }, false, () => this.taxiHide.add(p.id));
     }
-    fx.after(1.2, () => fx.fadeTo(1, 0.3));
+    fx.after(1.25, () => fx.fadeTo(1, 0.3));
   },
 
   boomFx() {

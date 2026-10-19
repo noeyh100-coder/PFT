@@ -57,7 +57,7 @@ class Player {
     this.items = ['magnet', 'magnet', 'magnet', 'magnet'];
     this.stage1Items = 0;
     this.stage1Given = 0;
-    this.strategist = 'Hazel';
+    this.strategist = 'TrAA';
     this.mapId = null;
     this.dittoLink = null;
     this.fedRound = null;

@@ -1837,6 +1837,7 @@ class App {
       tn.dataset.tip = g.carousel.encounter ? '조우자' : PHASE_LABEL.carousel;
     }
     this.taxiFx().update(dt);
+    this.taxiPlanTick();
     if (this.boxKey) this.updateBoxTimer();
     if (this.augKey || this.$('aug-toggle').classList.contains('show')) this.updateAugTimer();
     this.placeAugBalls();
