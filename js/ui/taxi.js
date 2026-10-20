@@ -642,8 +642,11 @@ const TRAVEL_APP = {
       this.tx.carouselReturn = false;
       this.taxiHide.add(h.id);
       this.taxiFx().fadeTo(0, 0.3);
-      this.taxiDrop(HOME_BOTTOM, h.id, null);
-    } else this.taxiHide.delete(h.id);
+      this.taxiDrop(HOME_BOTTOM, h.id, null, this.ballHide.has(h.id) ? () => this.ballThrow(h.id) : null);
+    } else {
+      this.taxiHide.delete(h.id);
+      if (this.ballHide.has(h.id)) this.ballThrow(h.id);
+    }
   },
 
   taxiEncounterStart() {
@@ -665,17 +668,25 @@ const TRAVEL_APP = {
     const focus = { x: g.x, y: g.y - 40 };
     fx.camera(focus, 1, 2);
     fx.fadeTo(0, 0.3);
+    let k = 0;
     for (const p of car.order) {
       if (!p.alive) continue;
       const sp = sc.spawn[p.id];
-      this.taxiSeatRide(p.id, sp, true, () => {
-        this.taxiHide.delete(p.id);
-        if (p !== h) return;
-        if (this.carouselScene === sc) {
-          card.classList.add('show', 'enc-fade');
+      const isMe = p === h;
+      const ride = () => {
+        if (this.carouselScene !== sc) {
+          this.taxiHide.delete(p.id);
+          return;
         }
-        fx.tween(2, k => fx.camera(focus, 1 - k * k * (3 - 2 * k), 2), () => fx.camera(null, 0));
-      });
+        this.taxiSeatRide(p.id, sp, true, () => {
+          this.taxiHide.delete(p.id);
+          if (!isMe) return;
+          if (this.carouselScene === sc) card.classList.add('show', 'enc-fade');
+          fx.tween(2, t => fx.camera(focus, 1 - t * t * (3 - 2 * t), 2), () => fx.camera(null, 0));
+        });
+      };
+      if (isMe) ride();
+      else fx.after(0.95 + 0.12 * k++, ride);
     }
     return true;
   },

@@ -35,7 +35,8 @@ const MEW_MOVES = {
 
 const ALL_TYPES = Object.keys(MEW_MOVES);
 
-const SERPENT = { segs: 18, gap: 0.32, speed: 1.9, turn: 2.8, wave: 4.2, phase: 0.5, reach: 0.78, tick: 0.5, ratio: 0.6, yk: 0.852 };
+const SERPENT = { yk: 0.852 };
+const GYARA = { dive: 0.5, pool: 3, every: 0.5, poolR: 1, poolMult: 0.3, burstR: 2, burstMult: 2.15, stun: 1.5, sky: 1.5, fall: 0.45 };
 
 function typeMult(atk, defTypes) {
   if (!atk) return 1;
@@ -89,6 +90,7 @@ class CombatSim {
     this.lastHit = false;
     this.timers = [];
     this.skillScale = 1;
+    this.skillBoost = 1;
     this.skillTarget = null;
     this.skillMissed = false;
     this.shadowIndex = 0;
@@ -271,7 +273,9 @@ class CombatSim {
       heart: false,
       shadowCaster: false,
       frostExec: false,
-      serpent: null,
+      gyara: false,
+      gyaraFx: null,
+      gyaraBoost: 1,
       reduces: [],
       shieldTimed: [],
       channel: null,
@@ -372,7 +376,6 @@ class CombatSim {
     if (tr.includes('저주받은 그림자')) u.shadowCaster = true;
     if (tr.includes('치유의 마음')) u.heart = true;
     if (tr.includes('다운로드')) u.download = true;
-    if (tr.includes('최상위 포식자')) u.serpent = {};
     if (u.unitId === '뮤' || (u.form && u.form.skill === '오리진즈슈퍼노바')) {
       u.mew = true;
       u.ghostNext = 10;
@@ -558,7 +561,8 @@ class CombatSim {
       u.hp = u.maxHp;
     }
     this.augPost(side, units);
-    for (const u of units) if (u.serpent) this.initSerpent(u);
+    this.gimmickStart(units);
+    for (const u of units) if (u.traits.includes('최상위 포식자')) this.initGyara(u);
     if (sst.frost) this.emit({ type: 'field', side, kind: 'frost', on: true });
     if (sst.seaOn && sst.sea) this.emit({ type: 'sea', side, cells: Array.from(sst.sea) });
     if (T && this.tier(side, '물')) {
@@ -657,19 +661,14 @@ class CombatSim {
   }
 
   canTarget(u, o) {
-    return !!o && o.alive && o.side !== u.side && !o.hidden && typeMult(u.skillType, o.defTypes) > 0;
+    return !!o && o.alive && o.side !== u.side && !o.hidden && this.effMult(u, o) > 0;
   }
 
   distTo(u, t) {
-    if (t.serpent) return this.serpentNear(u, t)[0];
     return Hex.dist(u.r, u.c, t.r, t.c);
   }
 
   aimCell(u, t) {
-    if (t.serpent) {
-      const n = this.serpentNear(u, t);
-      return [n[1], n[2]];
-    }
     return [t.r, t.c];
   }
 
@@ -825,6 +824,7 @@ class CombatSim {
   heal(t, amount, src) {
     if (!t.alive || amount <= 0) return 0;
     let a = amount * (1 + t.healMod) * this.otMult('heal');
+    if (src && src.casting && this.skillBoost > 1) a *= this.skillBoost;
     if (t.antiHealUntil > this.time) a *= 1 - t.antiHeal;
     const red = this.fireReduction(t);
     if (red && !t.fairyImmune) a *= 1 - red;
@@ -841,6 +841,7 @@ class CombatSim {
   addShield(u, amount) {
     if (!u.alive || amount <= 0) return;
     let a = amount * (1 + u.shieldMod) * this.otMult('heal');
+    if (this.skillBoost > 1 && this.boostSide === u.side) a *= this.skillBoost;
     const red = this.fireReduction(u);
     if (red) a *= 1 - red;
     u.shield += a;
@@ -1048,7 +1049,7 @@ class CombatSim {
       const b = hexMetric(t.r, t.c);
       const base = Math.atan2(b.y - a.y, b.x - a.x);
       for (const e of this.units) {
-        if (e === t || !this.canTarget(u, e) || e.serpent || Hex.dist(t.r, t.c, e.r, e.c) > 1) continue;
+        if (e === t || !this.canTarget(u, e) || Hex.dist(t.r, t.c, e.r, e.c) > 1) continue;
         const q = hexMetric(e.r, e.c);
         let diffA = Math.atan2(q.y - a.y, q.x - a.x) - base;
         while (diffA > Math.PI) diffA -= Math.PI * 2;
@@ -1061,7 +1062,7 @@ class CombatSim {
       const b = hexMetric(t.r, t.c);
       const base = Math.atan2(b.y - a.y, b.x - a.x);
       for (const e of this.units) {
-        if (e === t || !this.canTarget(u, e) || e.serpent || Hex.dist(u.r, u.c, e.r, e.c) > 3) continue;
+        if (e === t || !this.canTarget(u, e) || Hex.dist(u.r, u.c, e.r, e.c) > 3) continue;
         const q = hexMetric(e.r, e.c);
         let diffA = Math.atan2(q.y - a.y, q.x - a.x) - base;
         while (diffA > Math.PI) diffA -= Math.PI * 2;
@@ -1075,16 +1076,20 @@ class CombatSim {
   castSkill(u, t) {
     this.casts += 1;
     if (u.sealedBy) this.sealCast(u);
+    const boost = this.gimmickCast(u);
     if (u.experiment) {
       u.mana = 0;
       u.skillCount += 1;
       this.psychoBreak(u);
+      this.gimmickAfterCast(u);
       return;
     }
-    if (u.serpent) {
+    if (u.gyara) {
       u.mana = 0;
       u.skillCount += 1;
-      this.serpentSkill(u);
+      u.gyaraBoost = boost;
+      this.gyaraSkill(u);
+      this.gimmickAfterCast(u);
       return;
     }
     if (u.thunder) {
@@ -1094,13 +1099,16 @@ class CombatSim {
       u.zapHasteUntil = this.time + (P.dur || 5) * this.durMul(u);
       this.emit({ type: 'buff', target: u.uid, kind: 'thunder' });
       this.emit({ type: 'lightning', side: u.side, targets: [u.uid] });
+      this.gimmickAfterCast(u);
       return;
     }
     const used = u.maxMana;
     u.mana = 0;
     u.skillCount += 1;
     if (u.shadowCaster) this.summonShadows(u);
-    this.skillScale = 1;
+    this.skillBoost = boost;
+    this.boostSide = u.side;
+    this.skillScale = boost;
     this.shadowIndex = 0;
     u.casting = true;
     this.runSkill(u, t);
@@ -1114,8 +1122,10 @@ class CombatSim {
       }
     }
     this.skillScale = 1;
+    this.skillBoost = 1;
     this.shadowIndex = 0;
     u.casting = false;
+    this.gimmickAfterCast(u);
     if (this.side[this.enemyOf(u.side)].frost) u.ppFreezeUntil = this.time + 3;
     const refund = u.ppRefund + u.waterRefund;
     if (refund > 0 && u.alive) u.mana = Math.min(u.maxMana, used * refund);
@@ -1149,7 +1159,7 @@ class CombatSim {
     if (!o.trueDmg) dmg = (raw * 100) / (100 + this.defense(t, o.armor ? false : o.special, o.crit || o.ignoreUp));
     const typed = o.kind === 'basic' || o.kind === 'skill';
     if (typed && src && src.side !== t.side) {
-      const tm = typeMult(src.skillType, t.defTypes);
+      const tm = this.effMult(src, t);
       if (tm <= 0) return 0;
       dmg *= tm;
     }
@@ -1165,7 +1175,7 @@ class CombatSim {
     const red = this.damageReduction(t, o.special);
     if (red > 0) dmg *= 1 - red;
     const isHit = o.kind === 'basic' || o.kind === 'skill';
-    if (isHit && t.darkGuard && src && typeMult(src.skillType, t.defTypes) > 1) dmg *= t.darkGuard;
+    if (isHit && t.darkGuard && src && this.effMult(src, t) > 1) dmg *= t.darkGuard;
     let absorbed = 0;
     if (t.shield > 0 && !o.ignoreShield) {
       absorbed = Math.min(t.shield, dmg);
@@ -1343,7 +1353,7 @@ class CombatSim {
     }
     const fieldSide = this.enemyOf(t.side);
     if (this.side[fieldSide].elecField) {
-      const near = this.aliveOf(t.side).filter(o => !o.serpent && Hex.dist(t.deathR, t.deathC, o.r, o.c) <= 1).sort((a, b) => a.uid - b.uid).slice(0, 2);
+      const near = this.aliveOf(t.side).filter(o => Hex.dist(t.deathR, t.deathC, o.r, o.c) <= 1).sort((a, b) => a.uid - b.uid).slice(0, 2);
       if (near.length) this.emit({ type: 'lightning', side: fieldSide, targets: near.map(o => o.uid) });
       for (const o of near) this.stun(o, 1.5, fieldSide, 'stun');
     }
@@ -1536,7 +1546,7 @@ class CombatSim {
       for (const f of front) {
         const fr = f.alive ? f.r : f.deathR;
         const fc = f.alive ? f.c : f.deathC;
-        const near = this.units.filter(o => !hit.has(o.uid) && this.canTarget(u, o) && !o.serpent && Hex.dist(fr, fc, o.r, o.c) <= 1).sort((a, b) => a.uid - b.uid).slice(0, 3);
+        const near = this.units.filter(o => !hit.has(o.uid) && this.canTarget(u, o) && Hex.dist(fr, fc, o.r, o.c) <= 1).sort((a, b) => a.uid - b.uid).slice(0, 3);
         for (const o of near) {
           hit.add(o.uid);
           next.push(o);
@@ -1570,186 +1580,81 @@ class CombatSim {
     }
   }
 
-  initSerpent(u) {
-    const a = hexMetric(u.r, u.c);
-    const ang = u.side === 'A' ? -Math.PI / 2 : Math.PI / 2;
-    const S = { x: a.x, y: a.y, ang, trail: [], segs: [], mode: 'swim', modeT: 0, wp: null, leg: 0, contactAcc: 0, impact: null, center: null };
-    for (let i = 0; i < 90; i++) S.trail.push({ x: a.x - Math.cos(ang) * i * 0.08, y: a.y - Math.sin(ang) * i * 0.08 });
-    u.serpent = S;
-    if (this.grid[u.r][u.c] === u.uid) this.grid[u.r][u.c] = 0;
-    this.updateSerpentSegs(u);
+  initGyara(u) {
+    u.gyara = true;
+    u.gyaraFx = null;
     this.emit({ type: 'flood', side: u.side, uid: u.uid });
   }
 
-  updateSerpentSegs(u) {
-    const S = u.serpent;
-    const tr = S.trail;
-    const segs = [];
-    let want = 0;
-    let acc = 0;
-    for (let i = 0; i < tr.length && segs.length < SERPENT.segs; i++) {
-      if (i > 0) {
-        const d = Math.hypot(tr[i].x - tr[i - 1].x, tr[i].y - tr[i - 1].y);
-        while (segs.length < SERPENT.segs && acc + d >= want) {
-          const k = d > 0 ? (want - acc) / d : 0;
-          segs.push({ x: tr[i - 1].x + (tr[i].x - tr[i - 1].x) * k, y: tr[i - 1].y + (tr[i].y - tr[i - 1].y) * k });
-          want += SERPENT.gap;
+  gyaraCluster(u) {
+    const foes = this.aliveOf(this.enemyOf(u.side)).filter(e => !e.hidden);
+    let best = [u.r, u.c];
+    let bestN = -1;
+    for (let r = 0; r < BOARD_ROWS; r++) {
+      for (let c = 0; c < BOARD_COLS; c++) {
+        const n = foes.filter(e => Hex.dist(r, c, e.r, e.c) <= GYARA.burstR).length;
+        if (n > bestN) {
+          bestN = n;
+          best = [r, c];
         }
-        acc += d;
-      } else {
-        segs.push({ x: tr[0].x, y: tr[0].y });
-        want = SERPENT.gap;
       }
-    }
-    while (segs.length < SERPENT.segs) segs.push(Object.assign({}, segs[segs.length - 1]));
-    const swim = S.mode === 'swim';
-    segs.forEach((g, i) => {
-      g.h = swim ? Math.sin(this.time * SERPENT.wave - i * SERPENT.phase) : -1;
-      const cell = metricCell(g.x, g.y);
-      g.r = cell[0];
-      g.c = cell[1];
-    });
-    S.segs = segs;
-    const head = metricCell(S.x, S.y);
-    u.r = head[0];
-    u.c = head[1];
-    u.hidden = !(swim && segs.some(g => g.h > 0));
-  }
-
-  serpentNear(o, s) {
-    let best = [Infinity, s.r, s.c];
-    for (const g of s.serpent.segs || []) {
-      if (g.h <= 0) continue;
-      const d = Hex.dist(o.r, o.c, g.r, g.c);
-      if (d < best[0]) best = [d, g.r, g.c];
     }
     return best;
   }
 
-  clusterPoint(foes) {
-    let best = null;
-    let bestN = -1;
-    for (const e of foes) {
-      const n = foes.filter(o => Hex.dist(e.r, e.c, o.r, o.c) <= 2).length;
-      if (n > bestN) {
-        bestN = n;
-        best = e;
-      }
-    }
-    return best ? hexMetric(best.r, best.c) : null;
+  gyaraSkill(u) {
+    u.gyaraFx = { phase: 'dive', t: 0, home: [u.r, u.c], at: null, tick: 0 };
+    u.hidden = true;
+    u.moving = false;
+    u.channel = null;
+    this.emit({ type: 'gyara', uid: u.uid, mode: 'dive', r: u.r, c: u.c });
   }
 
-  clampMetric(p) {
-    return { x: Math.max(0.2, Math.min(BOARD_COLS - 0.3, p.x)), y: Math.max(0.15, Math.min((BOARD_ROWS - 1) * SERPENT.yk - 0.1, p.y)) };
-  }
-
-  tickSerpent(u, dt) {
-    const S = u.serpent;
-    S.modeT += dt;
-    const foes = this.aliveOf(this.enemyOf(u.side)).filter(e => !e.serpent);
-    if (S.mode === 'swim') {
-      if (u.stunUntil <= this.time) {
-        if (!S.wp || Math.hypot(S.wp.x - S.x, S.wp.y - S.y) < 0.6) {
-          const c = (foes.length ? this.clusterPoint(foes) : null) || { x: (BOARD_COLS - 0.5) / 2, y: 3.5 * SERPENT.yk };
-          const goRight = S.wp ? S.wp.x < (BOARD_COLS - 0.5) / 2 : S.x < (BOARD_COLS - 0.5) / 2;
-          S.wp = this.clampMetric({ x: goRight ? BOARD_COLS - 0.4 : 0.1, y: c.y + (this.rng.next() - 0.5) * 0.8 });
-        }
-        let diff = Math.atan2(S.wp.y - S.y, S.wp.x - S.x) - S.ang;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        const turn = SERPENT.turn * dt;
-        S.ang += Math.max(-turn, Math.min(turn, diff));
-        const nx = S.x + Math.cos(S.ang) * SERPENT.speed * dt;
-        const ny = S.y + Math.sin(S.ang) * SERPENT.speed * dt;
-        const cl = this.clampMetric({ x: nx, y: ny });
-        S.x = cl.x;
-        S.y = cl.y;
-        S.trail.unshift({ x: S.x, y: S.y });
-        if (S.trail.length > 160) S.trail.length = 160;
-        S.contactAcc += dt;
-        if (S.contactAcc >= SERPENT.tick) {
-          S.contactAcc -= SERPENT.tick;
-          this.serpentContact(u, foes);
-        }
-      }
-      this.updateSerpentSegs(u);
-      if (u.mana >= u.maxMana && u.stunUntil <= this.time) this.castSkill(u, null);
-      return;
-    }
-    if (S.mode === 'dive' && S.modeT >= 1) {
-      S.mode = 'rise';
-      S.modeT = 0;
-      S.center = { x: (BOARD_COLS - 0.5) / 2, y: 3.5 * SERPENT.yk };
-      S.x = S.center.x;
-      S.y = S.center.y;
-      const [cr, cc] = metricCell(S.x, S.y);
-      for (const e of foes) {
-        const m = hexMetric(e.r, e.c);
-        if (Math.hypot(m.x - S.x, m.y - S.y) <= 2.1) this.stun(e, 2, u.side, 'airborne');
-      }
-      this.emit({ type: 'serpent', uid: u.uid, mode: 'rise', r: cr, c: cc });
-    } else if (S.mode === 'rise' && S.modeT >= 0.6) {
-      S.mode = 'sky';
-      S.modeT = 0;
-      let best = null;
-      let bestN = -1;
-      for (let r = 0; r < BOARD_ROWS; r++) {
-        for (let c = 0; c < BOARD_COLS; c++) {
-          const m = hexMetric(r, c);
-          const n = foes.filter(e => {
-            const q = hexMetric(e.r, e.c);
-            return Math.hypot(q.x - m.x, q.y - m.y) <= 3;
-          }).length;
-          if (n > bestN) {
-            bestN = n;
-            best = [r, c];
-          }
-        }
-      }
-      S.impact = best;
-      this.emit({ type: 'serpent', uid: u.uid, mode: 'sky', r: best[0], c: best[1] });
-    } else if (S.mode === 'sky' && S.modeT >= 0.8) {
-      const m = hexMetric(S.impact[0], S.impact[1]);
-      S.x = m.x;
-      S.y = m.y;
-      S.mode = 'swim';
-      S.modeT = 0;
-      S.wp = null;
-      S.leg = 1;
-      S.trail = [];
-      for (let i = 0; i < 90; i++) S.trail.push({ x: m.x - Math.cos(S.ang) * i * 0.08, y: m.y - Math.sin(S.ang) * i * 0.08 });
-      this.emit({ type: 'splash', uid: u.uid, r: S.impact[0], c: S.impact[1] });
-      const cfg = CONFIG.combat;
-      for (const e of foes) {
-        const q = hexMetric(e.r, e.c);
-        if (Math.hypot(q.x - m.x, q.y - m.y) > 3) continue;
-        const crit = this.rng.next() < this.critChance(u);
-        this.dealDamage(u, e, this.offense(u) * 2.15 * (1 + u.skillAmp) * (u.pwStar || 1) * (crit ? cfg.critMult + (u.critDmg || 0) : 1), { special: u.special, crit, kind: 'skill' });
-      }
-    }
-    this.updateSerpentSegs(u);
-  }
-
-  serpentContact(u, foes) {
-    let any = false;
+  gyaraHit(u, r, c, radius, mult, stun) {
     const cfg = CONFIG.combat;
-    for (const e of foes) {
-      if (!e.alive || typeMult(u.skillType, e.defTypes) <= 0) continue;
-      const q = hexMetric(e.r, e.c);
-      if (!u.serpent.segs.some(g => g.h > 0.1 && Math.hypot(g.x - q.x, g.y - q.y) <= SERPENT.reach)) continue;
+    for (const e of this.aliveOf(this.enemyOf(u.side))) {
+      if (e.hidden || Hex.dist(r, c, e.r, e.c) > radius) continue;
       const crit = this.rng.next() < this.critChance(u);
-      this.dealDamage(u, e, this.offense(u) * SERPENT.ratio * (crit ? cfg.critMult + (u.critDmg || 0) : 1), { special: u.special, crit, kind: 'basic' });
-      any = true;
+      this.dealDamage(u, e, this.offense(u) * mult * (1 + u.skillAmp) * (u.pwStar || 1) * this.skillBoostOf(u) * (crit ? cfg.critMult + (u.critDmg || 0) : 1), { special: u.special, crit, kind: 'skill' });
+      if (stun && e.alive) this.stun(e, stun, u.side, 'airborne');
     }
-    if (any) this.gainPP(u, 1);
   }
 
-  serpentSkill(u) {
-    const S = u.serpent;
-    S.mode = 'dive';
-    S.modeT = 0;
-    this.emit({ type: 'serpent', uid: u.uid, mode: 'dive' });
-    this.updateSerpentSegs(u);
+  skillBoostOf(u) {
+    return u.gyaraBoost || 1;
+  }
+
+  tickGyara(u, dt) {
+    const F = u.gyaraFx;
+    F.t += dt;
+    if (F.phase === 'dive' && F.t >= GYARA.dive) {
+      F.phase = 'pool';
+      F.t = 0;
+      F.at = this.gyaraCluster(u);
+      this.emit({ type: 'gyara', uid: u.uid, mode: 'pool', r: F.at[0], c: F.at[1], dur: GYARA.pool });
+    } else if (F.phase === 'pool') {
+      F.tick += dt;
+      while (F.tick >= GYARA.every) {
+        F.tick -= GYARA.every;
+        this.gyaraHit(u, F.at[0], F.at[1], GYARA.poolR, GYARA.poolMult, 0);
+      }
+      if (F.t >= GYARA.pool) {
+        F.phase = 'sky';
+        F.t = 0;
+        this.gyaraHit(u, F.at[0], F.at[1], GYARA.burstR, GYARA.burstMult, GYARA.stun);
+        this.emit({ type: 'gyara', uid: u.uid, mode: 'burst', r: F.at[0], c: F.at[1] });
+      }
+    } else if (F.phase === 'sky' && F.t >= GYARA.sky) {
+      F.phase = 'fall';
+      F.t = 0;
+      this.emit({ type: 'gyara', uid: u.uid, mode: 'fall', r: F.home[0], c: F.home[1] });
+    } else if (F.phase === 'fall' && F.t >= GYARA.fall) {
+      u.gyaraFx = null;
+      u.gyaraBoost = 1;
+      u.hidden = false;
+      u.atkTimer = Math.min(u.atkTimer, 0.3);
+      this.emit({ type: 'gyara', uid: u.uid, mode: 'land', r: u.r, c: u.c });
+    }
   }
 
   tickBlizzards(side, dt) {
@@ -1760,7 +1665,7 @@ class CombatSim {
       b.acc += dt;
       while (b.acc >= 0.5 && this.time <= b.until + 1e-9) {
         b.acc -= 0.5;
-        const foes = this.aliveOf(this.enemyOf(side)).filter(e => !e.hidden && !e.serpent && Hex.dist(b.r, b.c, e.r, e.c) <= b.radius);
+        const foes = this.aliveOf(this.enemyOf(side)).filter(e => !e.hidden && Hex.dist(b.r, b.c, e.r, e.c) <= b.radius);
         for (const e of foes) {
           if (!e.alive) continue;
           const chilled = e.chill > 0 && e.chillUntil > this.time;
@@ -1802,7 +1707,7 @@ class CombatSim {
       while (st.seaAcc >= 2) {
         st.seaAcc -= 2;
         for (const a of this.aliveOf(side)) {
-          if (a.serpent || !st.sea.has(a.r * 10 + a.c)) continue;
+          if (a.gyaraFx || !st.sea.has(a.r * 10 + a.c)) continue;
           this.gainPP(a, 1);
           this.heal(a, (a.maxHp - a.hp) * 0.05, null);
         }
@@ -1852,7 +1757,7 @@ class CombatSim {
       if (this.time >= st.lightAt) {
         st.lightAt += iv;
         const sparks = this.aliveOf(side).filter(u => u.types.includes('전기'));
-        const enemies = this.aliveOf(foe).filter(e => !e.serpent || !e.hidden);
+        const enemies = this.aliveOf(foe).filter(e => !e.gyaraFx);
         if (sparks.length && enemies.length) {
           const spa = Math.max(...sparks.map(u => this.spaStat(u)));
           const ranked = enemies.slice().sort(strongerFirst);
@@ -2019,7 +1924,7 @@ class CombatSim {
           }
         }
       }
-      if (u.alive && !u.serpent && this.side[foe].spikes.has(u.r * 10 + u.c)) this.addPoison(u, null, 3, true);
+      if (u.alive && !u.gyaraFx && this.side[foe].spikes.has(u.r * 10 + u.c)) this.addPoison(u, null, 3, true);
       if (u.alive && u.items.length) this.tickItems(u, dt);
       if (u.alive && u.orbQ && u.orbQ.length) this.tickOrbQueue(u, dt);
     }
@@ -2052,8 +1957,8 @@ class CombatSim {
     for (const u of this.order) {
       if (!u.alive) continue;
       if (u.bulkUntil && this.time >= u.bulkUntil) this.bulkEnd(u);
-      if (u.serpent) {
-        this.tickSerpent(u, dt);
+      if (u.gyaraFx) {
+        this.tickGyara(u, dt);
         continue;
       }
       if (u.egg) continue;
@@ -2103,7 +2008,7 @@ class CombatSim {
           d = this.distTo(u, t);
         }
       }
-      if (u.cavalryStun && u.lastDash !== t.uid && !t.serpent) {
+      if (u.cavalryStun && u.lastDash !== t.uid) {
         u.lastDash = t.uid;
         this.dash(u, t);
         if (u.moving) continue;

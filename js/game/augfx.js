@@ -329,7 +329,7 @@ const AUG_FX = {
       if (haste) {
         k.hasteUntil = this.time + 3;
         const next = this.nearestEnemy(k);
-        if (next && !k.serpent && !k.channel && this.distTo(k, next) > k.range) {
+        if (next && !k.gyaraFx && !k.channel && this.distTo(k, next) > k.range) {
           this.dash(k, next);
           this.setTarget(k, next);
         }

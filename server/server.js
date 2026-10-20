@@ -120,6 +120,7 @@ function leaveRoom(c, explicit) {
     room.members = room.members.filter(t => t !== c.token);
     delete room.names[c.token];
     delete room.looks[c.token];
+    if (room.maps) delete room.maps[c.token];
     delete room.icons[c.token];
     if (room.host === c.token) room.host = room.members[0] || null;
     if (!room.members.length) closeRoom(room);
@@ -142,6 +143,7 @@ function endGame(room) {
     if (!keep) {
       delete room.names[t];
       delete room.looks[t];
+      if (room.maps) delete room.maps[t];
       delete room.icons[t];
     }
     return keep;
@@ -199,7 +201,7 @@ function startGame(room) {
   room.seats = [];
   room.slotOf = {};
   humans.forEach((t, i) => {
-    room.seats.push({ name: room.names[t], look: room.looks[t] || '', human: true });
+    room.seats.push({ name: room.names[t], look: room.looks[t] || '', map: (room.maps && room.maps[t]) || '', human: true });
     room.slotOf[t] = i;
   });
   while (room.seats.length < 8) room.seats.push({ human: false });
@@ -225,6 +227,7 @@ function sendCatchup(c, room) {
 function onHello(c, m) {
   c.name = cleanName(m.name);
   c.look = cleanLook(m.look);
+  c.map = cleanLook(m.map);
   c.icon = cleanIcon(m.icon);
   const room = roomOfToken(c.token);
   send(c, { t: 'welcome', token: c.token, name: c.name, room: room ? room.code : null });
@@ -232,6 +235,8 @@ function onHello(c, m) {
   c.room = room.code;
   room.names[c.token] = c.name;
   room.looks[c.token] = c.look;
+  if (!room.maps) room.maps = {};
+  room.maps[c.token] = c.map;
   room.icons[c.token] = c.icon;
   if (room.state === 'playing' && !room.parked.has(c.token)) {
     sendCatchup(c, room);
@@ -249,7 +254,7 @@ function onMessage(c, m) {
   if (m.t === 'create') {
     if (room) leaveRoom(c, false);
     const code = newCode();
-    const r = { code, host: c.token, members: [c.token], names: { [c.token]: c.name }, looks: { [c.token]: c.look }, icons: { [c.token]: c.icon }, state: 'lobby', timer: null, created: Date.now() };
+    const r = { code, host: c.token, members: [c.token], names: { [c.token]: c.name }, looks: { [c.token]: c.look }, maps: { [c.token]: c.map || '' }, icons: { [c.token]: c.icon }, state: 'lobby', timer: null, created: Date.now() };
     rooms.set(code, r);
     c.room = code;
     broadcastRoom(r);
@@ -265,6 +270,8 @@ function onMessage(c, m) {
     if (!r.members.includes(c.token)) r.members.push(c.token);
     r.names[c.token] = c.name;
     r.looks[c.token] = c.look;
+    if (!r.maps) r.maps = {};
+    r.maps[c.token] = c.map || '';
     r.icons[c.token] = c.icon;
     c.room = code;
     broadcastRoom(r);

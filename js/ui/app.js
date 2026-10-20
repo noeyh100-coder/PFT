@@ -7,7 +7,7 @@ class App {
     this.net = o.net || null;
     this.game = this.mode === 'mp'
       ? new Game({ seed: o.seed, seats: o.seats, localSlot: o.slot, realtime: true })
-      : new Game({ humanName: o.name || '나', look: o.look, realtime: true });
+      : new Game({ humanName: o.name || '나', look: o.look, map: o.map, realtime: true });
     this.human = this.game.human;
     this.driver = new Driver(this.game, { mp: this.mode === 'mp' });
     this.pending = [];
@@ -755,6 +755,7 @@ class App {
       return;
     }
     this.taxiRoundStart();
+    if (this.rightMode === 'damage') this.rightMode = 'players';
     if (this.game.phase === 'planning') {
       const inc = this.game.lastIncome;
       if (inc && info.type !== 'encounter') {
@@ -1956,6 +1957,8 @@ class App {
       this.setTimer(g.carousel.duration - g.carousel.time, g.carousel.duration);
       tn.dataset.tip = g.carousel.encounter ? '조우자' : PHASE_LABEL.carousel;
     }
+    if (d.state === 'combat' && this.lastDrvState !== 'combat' && !this.replaying && this.rightMode !== 'damage') this.setRightMode('damage');
+    this.lastDrvState = d.state;
     this.taxiFx().update(dt);
     this.taxiPlanTick();
     if (this.boxKey) this.updateBoxTimer();
@@ -2093,7 +2096,6 @@ class App {
     this.combatRunning = false;
     this.lastMatches = g.matches.slice();
     if (this.replaying) return;
-    this.rightMode = 'damage';
     const h = this.human;
     const banner = this.$('banner');
     if (h.lastResult && h.alive) {

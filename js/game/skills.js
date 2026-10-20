@@ -406,7 +406,7 @@ const SKILL_HELPERS = {
 
   hit(u, t, mult, o) {
     const opt = o || {};
-    if (!t || !t.alive || t.hidden || typeMult(u.skillType, t.defTypes) <= 0) return 0;
+    if (!t || !t.alive || t.hidden || this.effMult(u, t) <= 0) return 0;
     const cfg = CONFIG.combat;
     const diff = this.rank(u, 'acc') + (opt.acc || 0) - this.rank(t, 'eva');
     if (!opt.sure && diff < 0) {
@@ -529,13 +529,13 @@ const SKILL_HELPERS = {
   },
 
   dashTo(u, t, dur) {
-    if (!t || t.serpent || Hex.dist(u.r, u.c, t.r, t.c) <= 1) return;
+    if (!t || t.gyaraFx || Hex.dist(u.r, u.c, t.r, t.c) <= 1) return;
     const cell = this.freeNear(t.r, t.c, u.r, u.c);
     if (cell) this.moveTo(u, cell[0], cell[1], dur || CONFIG.combat.dashTime);
   },
 
   knock(u, t, n) {
-    if (!t || !t.alive || t.serpent) return;
+    if (!t || !t.alive || t.gyaraFx) return;
     for (let i = 0; i < n; i++) {
       let best = null;
       let bestD = Hex.dist(u.r, u.c, t.r, t.c);
@@ -553,7 +553,7 @@ const SKILL_HELPERS = {
   },
 
   throwFar(u, t) {
-    if (!t || !t.alive || t.serpent) return;
+    if (!t || !t.alive || t.gyaraFx) return;
     let best = null;
     let bestD = -1;
     for (let r = 0; r < BOARD_ROWS; r++) {
@@ -1035,7 +1035,7 @@ const SKILLS = {
     S.hitAll(u, S.ring(u, t.r, t.c, 1), P.m, { onHit: o => S.debuff(u, o, 'spd', -2, 4) });
   },
   '힘흡수'(S, u, t, P) {
-    const cands = S.foesOf(u).filter(o => S.rank(o, 'atk') >= 0 && !o.serpent).sort(strongerFirst);
+    const cands = S.foesOf(u).filter(o => S.rank(o, 'atk') >= 0).sort(strongerFirst);
     const tg = cands[0] || t;
     S.perma(tg, 'atk', -1);
     S.emit({ type: 'hitfx', target: tg.uid, kind: '풀' });
@@ -1131,7 +1131,7 @@ const SKILLS = {
         const tg = S.lowestHp(u);
         if (!tg) return;
         S.skillTarget = tg;
-        const cell = tg.serpent ? null : S.freeNear(tg.r, tg.c, u.r, u.c);
+        const cell = tg.gyaraFx ? null : S.freeNear(tg.r, tg.c, u.r, u.c);
         if (cell) S.moveTo(u, cell[0], cell[1], 0.12);
         S.hit(u, tg, P.m, {});
         if (P.splash) S.hitAll(u, S.ring(u, tg.r, tg.c, 1).filter(o => o !== tg), P.m * P.splash, {});
@@ -1247,7 +1247,7 @@ const SKILLS = {
       const tg = S.farthestWithin(u, 3) || S.aliveOr(u, t);
       if (!tg) return;
       S.skillTarget = tg;
-      const cell = tg.serpent ? null : S.freeNear(tg.r, tg.c, tg.r, tg.c);
+      const cell = tg.gyaraFx ? null : S.freeNear(tg.r, tg.c, tg.r, tg.c);
       if (cell) S.moveTo(u, cell[0], cell[1], 0.05);
       S.hit(u, tg, P.m, { ignoreShield: P.pierce });
     };
@@ -1393,7 +1393,7 @@ const SKILLS = {
       S.emit({ type: 'buff', target: u.uid, kind: 'future' });
       return;
     }
-    const pool = S.foesOf(u).filter(o => !o.serpent);
+    const pool = S.foesOf(u).filter(o => !o.gyaraFx);
     const picks = [];
     while (picks.length < 2 && pool.length) picks.push(pool.splice(S.rng.int(pool.length), 1)[0]);
     if (!picks.length) return;
@@ -1555,7 +1555,7 @@ const SKILLS = {
     for (let i = 0; i < n; i++) {
       S.later(0.15 + (i * (dur - 0.15)) / n, () => {
         if (!u.alive) return;
-        const foes = S.foesOf(u).filter(o => !o.serpent);
+        const foes = S.foesOf(u).filter(o => !o.gyaraFx);
         if (!foes.length) return;
         const base = foes[S.rng.int(foes.length)];
         const cells = [[base.r, base.c]].concat(Hex.neighbors(base.r, base.c));

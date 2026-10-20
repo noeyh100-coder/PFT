@@ -58,6 +58,24 @@ const ITEM_LUCKY_BOX = { id: 'lucky-box', name: '행운의 아이템 상자', ic
 
 const ITEM_GLOVES = { id: 'thiefs-gloves', name: '도적의 장갑', icon: 'thiefs-gloves', kind: 'completed', special: true, gloves: true, unique: true, desc: '아이템 3칸을 모두 차지합니다. 라운드마다 무작위 완성 아이템 2개를 새로 끼고 싸웁니다.' };
 
+const ITEM_GIMMICKS = [
+  { id: 'mega-stone', name: '메가스톤', icon: 'mega-stone', gimmick: 'mega', desc: '장착한 포켓몬이 메가진화합니다. 공격·특수공격 중 높은 쪽이 2랭크, 공격 속도가 30% 오르고 최대 PP가 30% 줄어듭니다. 메가진화 모습이 없는 포켓몬은 무지갯빛 테두리가 일렁입니다.' },
+  { id: 'z-crystal', name: 'Z크리스탈', icon: 'z-crystal', gimmick: 'z', desc: '전투마다 첫 스킬이 Z기술로 바뀌어 피해와 효과가 2배가 됩니다.' },
+  { id: 'max-mushrooms', name: '다이버섯', icon: 'max-mushrooms', gimmick: 'dmax', desc: '전투가 시작되면 다이맥스합니다. 스킬을 3번 쓸 때까지 최대 체력이 1.5배가 되고, 스킬이 다이맥스 기술로 바뀌어 피해와 효과가 1.5배가 됩니다.' },
+  { id: 'tera-orb', name: '테라스탈오브', icon: 'tera-orb', gimmick: 'tera', desc: '장착한 포켓몬이 테라스탈합니다. 받는 모든 공격은 효과가 별로(피해 5/6배), 주는 모든 공격은 효과가 굉장함(피해 1.2배) 판정을 받습니다.' }
+];
+
+const MEGA_FORMS = {
+  Charizard: { en: 'Charizard-Mega-X', name: '메가리자몽X' },
+  Kangaskhan: { en: 'Kangaskhan-Mega', name: '메가캥카' },
+  Slowbro: { en: 'Slowbro-Mega', name: '메가야도란' },
+  Aerodactyl: { en: 'Aerodactyl-Mega', name: '메가프테라' },
+  Steelix: { en: 'Steelix-Mega', name: '메가강철톤' },
+  Gengar: { en: 'Gengar-Mega', name: '메가팬텀' },
+  Alakazam: { en: 'Alakazam-Mega', name: '메가후딘' },
+  Mewtwo: { en: 'Mewtwo-Mega-Y', name: '메가뮤츠Y' }
+};
+
 const REC_ITEMS = {
   phys: ['choice-band', 'expert-belt', 'black-belt', 'punching-glove', 'metronome', 'scope-lens', 'spell-tag', 'shell-bell', 'silver-wing', 'covert-cloak', 'focus-sash', 'dragon-fang'],
   spec: ['choice-specs', 'expert-belt', 'black-glasses', 'soul-dew', 'twisted-spoon', 'max-ether', 'ether', 'choice-scarf', 'black-sludge', 'zoom-lens', 'dragon-fang'],
@@ -134,6 +152,7 @@ const ITEMS = (function () {
   map[ITEM_GOLDEN_MAGNET.id] = Object.assign({ stats: {} }, ITEM_GOLDEN_MAGNET);
   map[ITEM_LUCKY_BOX.id] = Object.assign({ stats: {} }, ITEM_LUCKY_BOX);
   map[ITEM_GLOVES.id] = Object.assign({ stats: {} }, ITEM_GLOVES);
+  for (const g of ITEM_GIMMICKS) map[g.id] = Object.assign({ kind: 'completed', special: true, unique: true, stats: {} }, g);
   for (const c of ITEM_CANDIES) map[c.id] = Object.assign({ kind: 'consumable', candy: true, stats: {} }, c);
   for (const c of ITEM_DUPLICATORS) map[c.id] = Object.assign({ kind: 'consumable', dup: true, stats: {} }, c);
   map[ITEM_DICE.id] = Object.assign({ kind: 'consumable', traitShop: true, stats: {} }, ITEM_DICE);

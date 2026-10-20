@@ -136,6 +136,7 @@ const ITEM_FX = {
     u.items = items.slice();
     u.it = B.it;
     this.augItemMods(u);
+    this.gimmickMods(u, A.it, B.it, live);
     if (!live) return;
     const hpAfter = u.base.hp * (1 + u.pct.hp) + u.flatHp;
     const d = Math.round(hpAfter - hpBefore);
@@ -301,7 +302,7 @@ const ITEM_FX = {
     }
     if (it['kings-rock']) {
       let c = 0;
-      for (const o of this.units) if (o.alive && o.side !== u.side && !o.serpent && Hex.dist(u.r, u.c, o.r, o.c) <= 2) c++;
+      for (const o of this.units) if (o.alive && o.side !== u.side && Hex.dist(u.r, u.c, o.r, o.c) <= 2) c++;
       u.kingN = Math.min(4, c) * it['kings-rock'];
     }
     if (u.hasAura) {
@@ -309,7 +310,7 @@ const ITEM_FX = {
       if (T.aura >= 0.5) {
         T.aura = 0;
         for (const o of this.units) {
-          if (!o.alive || o.side === u.side || o.serpent) continue;
+          if (!o.alive || o.side === u.side) continue;
           const d = Hex.dist(u.r, u.c, o.r, o.c);
           if (d > 2) continue;
           if (it['full-incense']) {
@@ -390,7 +391,7 @@ const ITEM_FX = {
     this.addShield(u, u.maxHp * pct);
     this.emit({ type: 'buff', target: u.uid, kind: 'tshield' });
     if (!u.it['rusted-shield-3']) return;
-    const foes = this.units.filter(o => this.canTarget(u, o) && !o.serpent).sort((a, b) => Hex.dist(u.r, u.c, a.r, a.c) - Hex.dist(u.r, u.c, b.r, b.c) || a.uid - b.uid).slice(0, 3);
+    const foes = this.units.filter(o => this.canTarget(u, o)).sort((a, b) => Hex.dist(u.r, u.c, a.r, a.c) - Hex.dist(u.r, u.c, b.r, b.c) || a.uid - b.uid).slice(0, 3);
     for (const o of foes) {
       this.emit({ type: 'hitfx', target: o.uid, kind: '땅' });
       this.dealDamage(u, o, u.maxHp * 0.15 * u.it['rusted-shield-3'], { special: true, kind: 'quakefx' });
@@ -431,13 +432,13 @@ const ITEM_FX = {
           if (this.time >= t.grisCd) {
             t.grisCd = this.time + 2;
             this.emit({ type: 'skillfx', uid: t.uid, r: t.r, c: t.c, radius: 1, kind: '바위' });
-            for (const e of this.units.filter(x => this.canTarget(t, x) && !x.serpent && Hex.dist(t.r, t.c, x.r, x.c) <= 1)) {
+            for (const e of this.units.filter(x => this.canTarget(t, x) && Hex.dist(t.r, t.c, x.r, x.c) <= 1)) {
               this.dealDamage(t, e, best * TR_GRIS_PCT[top], { special: true, kind: 'griseous' });
             }
           }
           if (g[3] && this.time >= t.grisCd2 && t.alive) {
             t.grisCd2 = this.time + 3;
-            for (const e of this.units.filter(x => this.canTarget(t, x) && !x.serpent && Hex.dist(t.r, t.c, x.r, x.c) <= 4)) {
+            for (const e of this.units.filter(x => this.canTarget(t, x) && Hex.dist(t.r, t.c, x.r, x.c) <= 4)) {
               this.dealDamage(t, e, best * 0.5 * g[3], { trueDmg: true, kind: 'griseous' });
             }
           }
@@ -476,7 +477,7 @@ const ITEM_FX = {
       let best = null;
       let bestD = -1;
       for (const o of this.units) {
-        if (!this.canTarget(src, o) || o.serpent) continue;
+        if (!this.canTarget(src, o)) continue;
         const d = Hex.dist(src.r, src.c, o.r, o.c);
         if (d <= 3 && d > bestD) {
           best = o;
@@ -485,7 +486,7 @@ const ITEM_FX = {
       }
       if (best) {
         const cell = this.freeNear(best.r, best.c, best.r, best.c);
-        if (cell && !src.serpent) this.moveTo(src, cell[0], cell[1], 0.1);
+        if (cell && !src.gyaraFx) this.moveTo(src, cell[0], cell[1], 0.1);
         this.emit({ type: 'dash', uid: src.uid, target: best.uid });
         this.dealDamage(src, best, this.atkStat(src), { special: false, kind: 'sword' });
       }
@@ -529,7 +530,7 @@ const ITEM_FX = {
     let m = 1;
     const it = src.it;
     if (it) {
-      if (it['expert-belt']) m *= 1 + (typeMult(src.skillType, t.defTypes) > 1 ? 0.6 : 0.1) * it['expert-belt'];
+      if (it['expert-belt']) m *= 1 + (this.effMult(src, t) > 1 ? 0.6 : 0.1) * it['expert-belt'];
       if (it['black-belt'] && t.maxHp >= 1300) m *= 1 + 0.45 * it['black-belt'];
       if (it['metronome']) {
         const tg = src.target ? src.target.uid : t.uid;
@@ -559,7 +560,7 @@ const ITEM_FX = {
     if (!ti) return;
     if (ti['soothe-bell']) this.gainPP(t, 2 * ti['soothe-bell']);
     if (ti['booster-energy']) this.boostStack(t);
-    if (ti['weakness-policy'] && t.wpReady && typeMult(src.skillType, t.defTypes) > 1) {
+    if (ti['weakness-policy'] && t.wpReady && this.effMult(src, t) > 1) {
       const k = t.wpK || 1;
       t.wpReady = false;
       t.wpFired = true;
@@ -608,7 +609,7 @@ const ITEM_FX = {
     if (it['booster-energy'] && dmg > 0) this.boostStack(u);
     if (it['kings-rock'] && t.alive && this.rng.next() < 0.1 * it['kings-rock']) this.stun(t, 1.5, u.side, 'flinch');
     if (it['silver-wing']) {
-      const others = this.units.filter(o => o !== t && !o.serpent && this.canTarget(u, o)).sort((a, b) => Hex.dist(u.r, u.c, a.r, a.c) - Hex.dist(u.r, u.c, b.r, b.c) || a.uid - b.uid).slice(0, 2 * it['silver-wing']);
+      const others = this.units.filter(o => o !== t && this.canTarget(u, o)).sort((a, b) => Hex.dist(u.r, u.c, a.r, a.c) - Hex.dist(u.r, u.c, b.r, b.c) || a.uid - b.uid).slice(0, 2 * it['silver-wing']);
       for (const o of others) {
         this.emit({ type: 'attack', uid: u.uid, target: o.uid, ranged: true, special: u.special });
         this.dealDamage(u, o, raw * 0.3, { special: u.special, kind: 'proj' });

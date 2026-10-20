@@ -8,15 +8,10 @@ const ROUND_ICON = { encounter: 'encounter', pve: 'ball', pvp: 'sword', carousel
 const HOVER_COLORS = { 1: '#f2f2f2', 2: '#86ffa2', 3: '#8fd0ff', 4: '#eaa8ff', 5: '#ffe486', 6: '#a99bff' };
 const TRAIT_ICON_FIT = { '적응가': 0.66 };
 const TIER_COLORS = ['#101014', '#d08a4c', '#e4e9f2', '#ffd75a'];
-const ITEM_STAT_BG = { hp: [111, 210, 106], atk: [255, 138, 42], spa: [162, 89, 224], pp: [63, 140, 255], def: [242, 194, 58], spd: [95, 200, 240], spe: [244, 228, 138], crit: [232, 58, 58] };
 const ITEM_TREASURE_BG = 'rgb(122, 82, 48)';
+const ITEM_COMPONENT_BG = 'rgb(12, 12, 16)';
 
-function itemStatRgb(id, dark) {
-  const d = ITEMS.map[id];
-  const k = d && d.stats ? Object.keys(d.stats)[0] : null;
-  const c = ITEM_STAT_BG[k];
-  if (!c) return null;
-  const f = dark ? 0.5 : 1;
+function itemShade(c, f) {
   return 'rgb(' + c.map(v => Math.round(v * f)).join(', ') + ')';
 }
 
@@ -24,13 +19,10 @@ function itemBg(raw) {
   const id = itemBase(raw);
   const d = itemDef(id);
   if (!d) return null;
-  if (d.kind === 'component') return itemStatRgb(id, true);
+  if (d.kind === 'component') return ITEM_COMPONENT_BG;
   if (d.kind === 'treasure') return ITEM_TREASURE_BG;
-  if (d.kind === 'completed' && d.from && d.from.length === 2) {
-    const a = itemStatRgb(d.from[0], false);
-    const b = itemStatRgb(d.from[1], false);
-    if (a && b) return 'linear-gradient(135deg, ' + a + ' 0%, ' + b + ' 100%)';
-  }
+  const c = d.kind === 'completed' ? ITEM_ICON_COLORS[id] : null;
+  if (c) return 'linear-gradient(135deg, ' + itemShade(c, 0.85) + ' 0%, ' + itemShade(c, 0.45) + ' 100%)';
   return null;
 }
 
@@ -188,7 +180,10 @@ const View = {
     if (opts.cost >= 6) el.classList.add('c6');
     const ring = this.el('div', 'cost-ring');
     ring.style.boxShadow = '0 0 0 2px ' + (COST_COLORS[opts.cost] || '#888');
-    let orb = opts.form ? Sprites.make(opts.form, { star: opts.star, dir: opts.dir }) : null;
+    const mega = !!(opts.form && opts.items && opts.items.some(x => itemBase(x) === 'mega-stone'));
+    const mf = mega ? MEGA_FORMS[opts.form.en] : null;
+    let orb = opts.form ? Sprites.make(mf ? { en: mf.en } : opts.form, { star: opts.star, dir: opts.dir }) : null;
+    if (mega) el.classList.add(mf ? 'mega' : 'mega-rainbow');
     if (orb) {
       ring.style.display = 'none';
       el.classList.add('has-spr', 'spr-s' + orb._spr.d.s);
@@ -276,7 +271,7 @@ const View = {
     if (!d) return '';
     if (d.kind === 'component') return '조합 아이템';
     if (d.radiant) return d.unique ? '찬란한 아이템 · 고유' : '찬란한 아이템';
-    if (d.gloves) return '특수 아이템 · 고유';
+    if (d.gloves || d.gimmick) return '특수 아이템 · 고유';
     if (d.kind === 'completed') return d.unique ? '완성 아이템 · 고유' : '완성 아이템';
     if (d.kind === 'treasure') return '채굴 보물 · ' + TREASURE_TIER_NAME[d.tier];
     if (d.box) return '아이템 상자';

@@ -43,7 +43,8 @@ class Game {
     let k = 0;
     this.players.forEach((p, i) => {
       p.strategist = want[i] || (free.length ? free[k++ % free.length] : looks[i % looks.length]);
-      p.mapId = maps[i % maps.length];
+      const wm = p.isHuman ? (o.seats ? o.seats[i] && o.seats[i].map : o.map) : null;
+      p.mapId = CONFIG.maps.includes(wm) ? wm : maps[i % maps.length];
       p.seaTiles = this.rollSea();
     });
     this.realtime = !!o.realtime;
@@ -229,6 +230,11 @@ class Game {
       } else {
         p.bugRounds = 0;
         p.bugShop = false;
+      }
+      const enc = encounterDef(this.encounter);
+      if (enc && enc.item && this.stage === 4 && this.round === 7) {
+        this.augItem(p, enc.item);
+        this.notify(p, enc.id + ': ' + enc.gift + ' 받았습니다', 'loot');
       }
       if (this.encounter === '나옹' && this.round === 1 && encounterGold(this.stage)) {
         const n = encounterGold(this.stage);

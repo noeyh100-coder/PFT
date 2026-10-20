@@ -1,4 +1,8 @@
 const STRAT_FRAME = { w: 16, h: 24, px: 2.5, foot: 22.8 };
+const STRAT_GROUPS = {
+  hat: ['TrAA', 'TrAB', 'TrAJ', 'TrAK', 'TrAX', 'TrAY', 'TrAZ', 'TrBA', 'TrBB', 'TrBH', 'TrBI', 'TrBJ', 'TrBL', 'TrBM', 'TrBN', 'TrBR', 'TrBS', 'TrBT', 'TrCA', 'TrCD'],
+  elder: ['TrAU', 'TrAV', 'TrAW', 'TrBG']
+};
 const Assets = {
   status: {},
   listeners: [],
@@ -113,6 +117,10 @@ const ICON_BITMAPS = {
   as: ['............', '.Y.....Y....', '..Y.....Y...', '...Y.....Y..', '....Y.....Y.', '.....Y.....Y', '....Y.....Y.', '...Y.....Y..', '..Y.....Y...', '.Y.....Y....', '............', '............'],
   crit: ['R...........', '.R..........', '..R.........', '...R........', '....R...RR..', '.....R.RRR..', '......RRRR..', '.....RRRRR..', '....RRRRRR..', '............', '............', '............'],
   vamp: ['............', '.RRRRRRRRRR.', '.RWRRRRRRWR.', '.RWWRRRRWWR.', '..WWR..RWW..', '..WW....WW..', '...W....W...', '...W....W...', '............', '............', '............', '............'],
+  arena: ['............', '............', '...WWWWWW...', '...W....W...', '..W......W..', '..W......W..', '.W........W.', '.W........W.', 'WWWWWWWWWWWW', '............', '............', '............'],
+  trainer: ['....RRRR....', '...RRRRRR...', '..RRWWRRRRR.', '...KKKKKK...', '...KWWWWK...', '....WWWW....', '...BBBBBB...', '..BBBBBBBB..', '..BBBBBBBB..', '..BB.BB.BB..', '....B..B....', '............'],
+  search: ['..WWWW......', '.W....W.....', 'W......W....', 'W......W....', 'W......W....', 'W......W....', '.W....W.....', '..WWWWWW....', '.......WW...', '........WW..', '.........WW.', '............'],
+  trophy: ['.YYYYYYYYYY.', 'YY.YYYYYY.YY', 'Y..YYYYYY..Y', 'YY.YYYYYY.YY', '.YYYYYYYYYY.', '...YYYYYY...', '....YYYY....', '.....YY.....', '.....YY.....', '...NNNNNN...', '...NNNNNN...', '............'],
   home: ['.....WW.....', '....WWWW....', '...WWWWWW...', '..WWWWWWWW..', '.WWWWWWWWWW.', 'WWWWWWWWWWWW', '.WWWWWWWWWW.', '.WWWNNNWWWW.', '.WWWNNNWWWW.', '.WWWNNNWWWW.', '.WWWNNNWWWW.', '............'],
   info: ['....WWWW....', '..WWWWWWWW..', '.WWWWKKWWWW.', '.WWWWKKWWWW.', 'WWWWWWWWWWWW', 'WWWWKKKWWWWW', 'WWWWWKKWWWWW', 'WWWWWKKWWWWW', '.WWWWKKWWWW.', '.WWWKKKKWWW.', '..WWWWWWWW..', '....WWWW....'],
   evo: ['....GG......', '...GGGG.....', '..GG.GGG....', '.....GG.....', '.....GG.....', '..WWWWWWWW..', '..W......W..', '..W.YYYY.W..', '..W.YYYY.W..', '..W......W..', '..WWWWWWWW..', '............'],

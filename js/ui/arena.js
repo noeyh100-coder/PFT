@@ -159,7 +159,6 @@ class Arena {
     this.boardCount = document.getElementById('board-count');
     this.benchLayer = document.getElementById('bench-layer');
     this.cunits = {};
-    this.serpents = {};
     this.shadowEls = { A: [], B: [] };
     this.benchPlayers = { top: null, bottom: null };
     this.sim = null;
@@ -328,14 +327,12 @@ class Arena {
     this.unitLayer.innerHTML = '';
     this.fx.innerHTML = '';
     this.cunits = {};
-    this.serpents = {};
     this.shadowEls = { A: [], B: [] };
     this.sim = null;
   }
 
   clearFieldFx() {
-    this.unitLayer.querySelectorAll('.sea-tile, .fx-flood, .fx-frost, .serpent-seg, .shadow-token').forEach(el => el.remove());
-    this.serpents = {};
+    this.unitLayer.querySelectorAll('.sea-tile, .fx-flood, .fx-frost, .shadow-token').forEach(el => el.remove());
     this.shadowEls = { A: [], B: [] };
   }
 
@@ -380,7 +377,7 @@ class Arena {
       if (st.seaOn && st.sea) for (const k of st.sea) cells.push(this.mapCell(Math.floor(k / 10), k % 10));
     }
     if (cells.length) this.renderSea(cells);
-    if (sim.units.some(u => u.serpent && u.alive)) this.fieldLayer('fx-flood');
+    if (sim.units.some(u => u.gyara && u.alive)) this.fieldLayer('fx-flood');
   }
 
   placeToken(el, r, c) {
@@ -439,106 +436,88 @@ class Arena {
     this.updateBars();
   }
 
-  serpentFlat(x, y) {
-    let col = x;
-    let row = y / SERPENT.yk;
-    if (this.flip) {
-      col = BOARD_COLS - 0.5 - col;
-      row = BOARD_ROWS - 1 - row;
+  updateGyara() {
+    if (!this.sim) return;
+    const now = performance.now();
+    for (const u of this.sim.units) {
+      if (!u.gyara) continue;
+      const e = this.cunits[u.uid];
+      if (!e || !e.el._spr) continue;
+      const st = e.el._spr;
+      const F = u.gyaraFx;
+      const air = !!F && (F.phase === 'sky' || F.phase === 'fall');
+      let sub = 0;
+      if (!u.alive) sub = 0;
+      else if (F && F.phase === 'dive') sub = Math.min(1.15, (F.t / GYARA.dive) * 1.15);
+      else if (F && F.phase === 'pool') sub = 1.15;
+      else if (!F) {
+        const want = e.walkUntil > now ? 0.5 : 0;
+        e.gSub = (e.gSub || 0) + (want - (e.gSub || 0)) * 0.18;
+        if (Math.abs(e.gSub - want) < 0.01) e.gSub = want;
+        sub = e.gSub;
+      }
+      if (F && !air) e.gSub = sub;
+      if (air) {
+        const cell = F.phase === 'sky' ? F.at : F.home;
+        const f = this.combatFlat(cell[0], cell[1]);
+        e.el.style.transitionDuration = '0s';
+        const p = placeSprite(e.el, f.x, f.y, UNIT_ORIGIN.x, UNIT_ORIGIN.y, UNIT_SCALE);
+        const out = p.y + 220;
+        let lift;
+        if (F.phase === 'sky') {
+          const k = Math.min(1, F.t / 0.5);
+          lift = Math.pow(k, 1.6) * out;
+          Sprites.face(st, SPRITE_DIR.up);
+        } else {
+          const k = Math.min(1, F.t / GYARA.fall);
+          lift = out * (1 - k) * (1 - k);
+          Sprites.face(st, SPRITE_DIR.down);
+        }
+        e.el.style.top = Math.round(p.y - lift) + 'px';
+        e.el.style.zIndex = String(2000);
+        e.gAir = true;
+        sub = 0;
+      } else if (e.gAir) {
+        e.gAir = false;
+        const f = this.combatFlat(u.r, u.c);
+        e.el.style.transitionDuration = '0s';
+        placeSprite(e.el, f.x, f.y, UNIT_ORIGIN.x, UNIT_ORIGIN.y, UNIT_SCALE);
+        e.pos = Proj.toScreen(f.x, f.y);
+      }
+      e.el.classList.toggle('airborne', air);
+      e.el.classList.toggle('wet', sub > 0.04 && !air);
+      e.el.classList.toggle('submerged', !!F && F.phase === 'pool');
+      this.gyaraClip(st, air ? 0 : sub, now);
     }
-    return { x: View.BOARD_X + col * View.CELL_W + View.CELL_W / 2, y: View.BOARD_Y + row * View.ROW_STEP + View.CELL_H / 2 };
   }
 
-  createSerpent(u) {
-    const segs = [];
-    for (let i = 1; i < SERPENT.segs; i++) {
-      const el = document.createElement('div');
-      el.className = 'serpent-seg' + (i === SERPENT.segs - 1 ? ' tail' : i % 2 === 1 && i < SERPENT.segs - 3 ? ' fin' : '');
-      this.unitLayer.appendChild(el);
-      segs.push(el);
+  gyaraClip(st, sub, now) {
+    if (!st.an) return;
+    const an = st.an;
+    const sc = st.scale;
+    const k = st.star || 1;
+    const b = st.d.b;
+    const ch = b[3] - b[1];
+    const foot = (an.h / 2 + SPRITE_FOOT) * sc;
+    if (sub <= 0.001) {
+      st.img.style.translate = '';
+      st.img.style.clipPath = '';
+      return;
     }
-    this.serpents[u.uid] = { u, segs };
-  }
-
-  updateSerpents() {
-    for (const uid in this.serpents) {
-      const sp = this.serpents[uid];
-      const u = sp.u;
-      const e = this.cunits[uid];
-      if (!u.alive || !e) {
-        for (const el of sp.segs) el.remove();
-        delete this.serpents[uid];
-        continue;
-      }
-      const S = u.serpent;
-      const segs = S.segs;
-      const swim = S.mode === 'swim';
-      const pts = segs.map(g => {
-        const f = this.serpentFlat(g.x, g.y);
-        const p = Proj.toScreen(f.x, f.y);
-        const s = Proj.depthScale(f.y);
-        return { x: p.x, y: p.y - Math.max(0, g.h) * 36 * s, s };
-      });
-      for (let i = 1; i < segs.length; i++) {
-        const el = sp.segs[i - 1];
-        const g = segs[i];
-        if (!swim || g.h <= -0.3) {
-          el.style.display = 'none';
-          continue;
-        }
-        const pt = pts[i];
-        const pv = pts[i - 1];
-        const s = pt.s;
-        const size = Math.max(16, 40 - i * 1.2) * s;
-        const ang = Math.atan2(pv.y - pt.y, pv.x - pt.x) * 180 / Math.PI;
-        const w = g.h <= 0 ? size : size * 1.3;
-        const h = g.h <= 0 ? size * 0.45 : size * 0.86;
-        el.style.display = '';
-        el.classList.toggle('sub', g.h <= 0);
-        el.style.width = w + 'px';
-        el.style.height = h + 'px';
-        el.style.left = (pt.x - w / 2) + 'px';
-        el.style.top = (pt.y - h / 2 - (g.h <= 0 ? 0 : size * 0.3)) + 'px';
-        el.style.transform = 'rotate(' + ang.toFixed(1) + 'deg)';
-        el.style.zIndex = String(100 + Math.round(pt.y));
-      }
-      let hx = S.x;
-      let hy = S.y;
-      let lift = 0;
-      let visible = true;
-      if (swim) {
-        const h0 = segs[0].h;
-        lift = Math.max(0, h0) * 44;
-        visible = h0 > -0.2;
-      } else if (S.mode === 'dive') {
-        visible = S.modeT < 0.35;
-      } else if (S.mode === 'rise') {
-        lift = Math.sin((S.modeT / 0.6) * Math.PI / 2) * 110;
-      } else if (S.mode === 'sky') {
-        const m = hexMetric(S.impact[0], S.impact[1]);
-        const c0 = S.center || { x: S.x, y: S.y };
-        const k = Math.min(1, S.modeT / 0.8);
-        hx = c0.x + (m.x - c0.x) * k;
-        hy = c0.y + (m.y - c0.y) * k;
-        lift = 110 * (1 - k) + 60 * Math.sin(k * Math.PI);
-        visible = k < 0.97;
-      }
-      const f = this.serpentFlat(hx, hy);
-      e.el.style.transitionDuration = '0s';
-      const p = placeSprite(e.el, f.x, f.y, UNIT_ORIGIN.x, UNIT_ORIGIN.y, UNIT_SCALE * 1.35);
-      if (e.el._spr) {
-        const st = e.el._spr;
-        if (!sp.last) sp.last = { x: p.x, y: p.y };
-        else if (Math.hypot(p.x - sp.last.x, p.y - sp.last.y) > 3) {
-          Sprites.face(st, Sprites.dirFrom(p.x - sp.last.x, p.y - sp.last.y));
-          sp.last = { x: p.x, y: p.y };
-        }
-        Sprites.base(st, swim ? 'walk' : 'idle', this.app.speed || 1);
-      }
-      e.el.style.top = Math.round(p.y - lift) + 'px';
-      e.el.style.zIndex = String(101 + Math.round(p.y));
-      e.el.classList.toggle('submerged', !visible);
+    const sink = sub * ch * sc;
+    st.img.style.translate = '0px ' + (sink * k).toFixed(2) + 'px';
+    const yc = foot - sink;
+    const W = an.w * sc;
+    const step = 3 * sc;
+    const n = Math.ceil(an.w / 3);
+    const ph = Math.floor(now / 160);
+    const pts = ['0px 0px', W.toFixed(1) + 'px 0px'];
+    for (let i = n - 1; i >= 0; i--) {
+      const wv = ((i + ph) % 4 === 0 ? -1 : (i + ph) % 4 === 2 ? 1 : 0) * sc;
+      const y = (yc + wv).toFixed(1) + 'px';
+      pts.push(Math.min(W, (i + 1) * step).toFixed(1) + 'px ' + y, (i * step).toFixed(1) + 'px ' + y);
     }
+    st.img.style.clipPath = 'polygon(' + pts.join(', ') + ')';
   }
 
   drawShadows(side, count) {
@@ -592,6 +571,8 @@ class Arena {
       items: u.items,
       dir: this.isFoeSide(u.side) ? SPRITE_DIR.down : SPRITE_DIR.up
     });
+    if (u.dmax) el.classList.add('dmax');
+    if (u.tera) el.classList.add('tera');
     const barSet = View.unitBars(el, u.maxHp);
     const { hpFill, shFill, manaFill } = barSet;
     const status = document.createElement('div');
@@ -604,16 +585,18 @@ class Arena {
     el.addEventListener('pointerdown', e => this.app.onTokenPointerDown(e, { combat: u }, el));
     this.unitLayer.appendChild(el);
     const aug = this.sim && this.sim.side[u.side] ? this.sim.side[u.side].aug : null;
-    if (aug && el._spr && !u.serpent) {
+    if (aug && el._spr) {
       const k = (aug.has.has('bigstrong') ? 1.2 : 1) * (aug.has.has('shrink') ? 0.78 : 1);
       if (k !== 1) Sprites.setScale(el._spr, k);
     }
     this.cunits[u.uid] = { el, hpFill, shFill, manaFill, barSet, itemEls: [], itemKey: null, flags: '', pos: Proj.toScreen(f.x, f.y), walkUntil: 0, walkDir: null };
     this.syncItemRow(this.cunits[u.uid], u);
-    if (u.serpent) {
-      el.classList.add('serpent-head');
-      if (el._spr) Sprites.setScale(el._spr, 0.62);
-      if (!this.serpents[u.uid]) this.createSerpent(u);
+    if (u.gyara) {
+      el.classList.add('gyara');
+      const water = document.createElement('div');
+      water.className = 'gya-water';
+      water.innerHTML = '<i class="foam"></i><b></b><b></b><b></b><b></b>';
+      el.appendChild(water);
     }
     if (u.egg) el.classList.add('egg');
   }
@@ -678,7 +661,7 @@ class Arena {
         e.flags = flags;
       }
     }
-    this.updateSerpents();
+    this.updateGyara();
     this.updateSprites();
   }
 
@@ -688,7 +671,7 @@ class Arena {
     if (!e || !u || !e.el._spr) return;
     const st = e.el._spr;
     const t = targetUid != null ? this.sim.byUid[targetUid] : null;
-    if (t && !u.serpent) {
+    if (t && !u.gyaraFx) {
       const a = this.combatPos(u.r, u.c);
       const b = this.combatPos(t.r, t.c);
       Sprites.face(st, Sprites.dirFrom(b.x - a.x, b.y - a.y));
@@ -711,7 +694,7 @@ class Arena {
     const speed = this.app.speed || 1;
     for (const u of this.sim.units) {
       const e = this.cunits[u.uid];
-      if (!e || !e.el._spr || u.serpent) continue;
+      if (!e || !e.el._spr || u.gyaraFx) continue;
       const st = e.el._spr;
       st.paused = !!(u.alive && (u.frozenUntil > time || u.egg));
       const asleep = (u.sleep && !u.sleep.awake) || u.stunUntil > time;
@@ -809,6 +792,16 @@ class Arena {
         if (label) this.floatText(ev.target, label, 'st-' + ev.kind);
       } else if (ev.type === 'fail') {
         this.floatText(ev.target, ev.kind === 'para' ? '몸이 저림' : '혼란', 'st-' + ev.kind);
+      } else if (ev.type === 'gimmick') {
+        const e = this.cunits[ev.uid];
+        if (ev.kind === 'move') this.floatText(ev.uid, ev.move, 'zmove');
+        else if (ev.kind === 'dmax') {
+          if (e) e.el.classList.toggle('dmax', !!ev.on);
+          if (ev.on) this.floatText(ev.uid, '다이맥스!', 'zmove');
+        } else if (ev.kind === 'tera') {
+          if (e) e.el.classList.toggle('tera', !!ev.on);
+          if (ev.on) this.floatText(ev.uid, '테라스탈!', 'zmove');
+        } else if (ev.kind === 'mega' && ev.on) this.floatText(ev.uid, '메가진화!', 'zmove');
       } else if (ev.type === 'retype') {
         const txt = ev.kind === 'mew' ? ev.move : ev.kind === 'mimic' ? '흉내: ' + ev.value : ev.kind === 'suggest' ? '자기암시' : (ev.kind === 'def' ? '방어 ' : '') + ev.value;
         this.floatText(ev.uid, txt, 'retype');
@@ -858,12 +851,20 @@ class Arena {
         el.style.clipPath = this.fieldPolygon();
         this.fx.appendChild(el);
         setTimeout(() => el.remove(), 800);
-      } else if (ev.type === 'serpent') {
-        if (ev.mode === 'rise') this.cellFx(ev.r, ev.c, 'fx-splash', 2.2, 700);
-        if (ev.mode === 'sky') this.cellFx(ev.r, ev.c, 'fx-target', 3.2, 800 / speed);
-        if (ev.mode === 'dive') {
-          const u = this.sim && this.sim.byUid[ev.uid];
-          if (u) this.cellFx(u.r, u.c, 'fx-splash', 1.2, 500);
+      } else if (ev.type === 'gyara') {
+        if (ev.mode === 'dive') this.cellFx(ev.r, ev.c, 'fx-splash', 1.4, 600);
+        else if (ev.mode === 'pool') {
+          const w = this.cellFx(ev.r, ev.c, 'fx-whirl', 3.2, (ev.dur * 1000) / speed);
+          w.style.animationDuration = (ev.dur / speed) + 's';
+          w.appendChild(document.createElement('i'));
+        } else if (ev.mode === 'burst') {
+          this.cellFx(ev.r, ev.c, 'fx-splash', 3, 700);
+          this.cellFx(ev.r, ev.c, 'fx-wave', 5.2, 650);
+          this.flash(this.root, 'shake', 380);
+        } else if (ev.mode === 'fall') this.cellFx(ev.r, ev.c, 'fx-target', 1.6, (GYARA.fall * 1000) / speed);
+        else if (ev.mode === 'land') {
+          this.cellFx(ev.r, ev.c, 'fx-splash', 1.8, 600);
+          this.cellFx(ev.r, ev.c, 'fx-wave', 2.6, 500);
         }
       } else if (ev.type === 'splash') {
         this.cellFx(ev.r, ev.c, 'fx-wave', 6.4, 650);
