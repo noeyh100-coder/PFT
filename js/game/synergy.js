@@ -65,12 +65,10 @@ function computeSynergies(owner, insts) {
     }
     if (best) dittoBonus = best.id;
   }
-  const augT = (owner && owner.augTraits) || {};
-  for (const id in augT) if (augT[id] && TRAIT_DATA.map[id] && !groups[id]) groups[id] = [];
   for (const id in groups) {
     const td = TRAIT_DATA.map[id];
     const g = groups[id];
-    const extra = (id === dittoBonus ? 1 : 0) + (augT[id] || 0);
+    const extra = id === dittoBonus ? 1 : 0;
     let count = g.length + extra;
     let pairCosts = [];
     let star3 = 0;

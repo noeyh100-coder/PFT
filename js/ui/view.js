@@ -6,7 +6,33 @@ const CLASS_COLORS = {
 
 const ROUND_ICON = { encounter: 'encounter', pve: 'ball', pvp: 'sword', carousel: 'sushi' };
 const HOVER_COLORS = { 1: '#f2f2f2', 2: '#86ffa2', 3: '#8fd0ff', 4: '#eaa8ff', 5: '#ffe486', 6: '#a99bff' };
+const TRAIT_ICON_FIT = { '적응가': 0.66 };
 const TIER_COLORS = ['#101014', '#d08a4c', '#e4e9f2', '#ffd75a'];
+const ITEM_STAT_BG = { hp: [111, 210, 106], atk: [255, 138, 42], spa: [162, 89, 224], pp: [63, 140, 255], def: [242, 194, 58], spd: [95, 200, 240], spe: [244, 228, 138], crit: [232, 58, 58] };
+const ITEM_TREASURE_BG = 'rgb(122, 82, 48)';
+
+function itemStatRgb(id, dark) {
+  const d = ITEMS.map[id];
+  const k = d && d.stats ? Object.keys(d.stats)[0] : null;
+  const c = ITEM_STAT_BG[k];
+  if (!c) return null;
+  const f = dark ? 0.5 : 1;
+  return 'rgb(' + c.map(v => Math.round(v * f)).join(', ') + ')';
+}
+
+function itemBg(raw) {
+  const id = itemBase(raw);
+  const d = itemDef(id);
+  if (!d) return null;
+  if (d.kind === 'component') return itemStatRgb(id, true);
+  if (d.kind === 'treasure') return ITEM_TREASURE_BG;
+  if (d.kind === 'completed' && d.from && d.from.length === 2) {
+    const a = itemStatRgb(d.from[0], false);
+    const b = itemStatRgb(d.from[1], false);
+    if (a && b) return 'linear-gradient(135deg, ' + a + ' 0%, ' + b + ' 100%)';
+  }
+  return null;
+}
 
 const View = {
   planned: new Set(),
@@ -90,6 +116,7 @@ const View = {
     const g = TRAIT_ICONS[id];
     const w = g[0].length;
     const h = g.length;
+    if (TRAIT_ICON_FIT[id]) scale *= TRAIT_ICON_FIT[id];
     let full = '';
     let half = '';
     g.forEach((row, y) => {
@@ -186,7 +213,8 @@ const View = {
     return el;
   },
 
-  itemStack(u, id, time) {
+  itemStack(u, raw, time) {
+    const id = itemBase(raw);
     if (id === 'booster-energy') return u.boostStacks || 0;
     if (id === 'soul-dew') return u.dewPct || 0;
     if (id === 'choice-scarf') return u.scarfPct || 0;
@@ -201,9 +229,29 @@ const View = {
 
   itemIcon(id, size) {
     const d = itemDef(id);
-    const el = this.el('div', 'item-ico' + (d ? ' k-' + d.kind : ''));
+    const el = this.el('div', 'item-ico' + (d ? ' k-' + d.kind : '') + (d && (d.radiant || d.glow) ? ' radiant' : ''));
     el.style.width = size + 'px';
     el.style.height = size + 'px';
+    if (d && d.placeholder) {
+      el.classList.add('ph');
+      const name = itemIconName(id);
+      this.missingIcons = this.missingIcons || {};
+      if (this.missingIcons[name] === true) el.classList.add('noimg');
+      else if (this.missingIcons[name] === undefined) {
+        this.missingIcons[name] = 'wait';
+        const probe = new Image();
+        probe.onload = () => {
+          this.missingIcons[name] = false;
+        };
+        probe.onerror = () => {
+          this.missingIcons[name] = true;
+          for (const e of document.querySelectorAll('.item-ico.ph[data-ico="' + name + '"]')) e.classList.add('noimg');
+        };
+        probe.src = 'img/item/' + name + '.png';
+      }
+      el.dataset.ico = name;
+      el.style.fontSize = Math.max(8, Math.round(size * 0.62)) + 'px';
+    }
     if (d && d.kind === 'treasure') {
       el.classList.add('tier' + d.tier);
       el.style.setProperty('--tier-col', TIER_COLORS[d.tier]);
@@ -214,7 +262,12 @@ const View = {
       el.style.fontSize = Math.max(8, Math.round(size * 0.62)) + 'px';
       el.style.lineHeight = size + 'px';
     } else {
-      el.style.backgroundImage = 'url("img/item/' + itemIconName(id) + '.png")';
+      const url = 'url("img/item/' + itemIconName(id) + '.png")';
+      const bg = itemBg(id);
+      if (bg) {
+        el.classList.add('has-bg');
+        el.style.backgroundImage = url + ', ' + (bg.indexOf('gradient') >= 0 ? bg : 'linear-gradient(' + bg + ', ' + bg + ')');
+      } else el.style.backgroundImage = url;
     }
     return el;
   },
@@ -222,6 +275,8 @@ const View = {
   itemKindLabel(d) {
     if (!d) return '';
     if (d.kind === 'component') return '조합 아이템';
+    if (d.radiant) return d.unique ? '찬란한 아이템 · 고유' : '찬란한 아이템';
+    if (d.gloves) return '특수 아이템 · 고유';
     if (d.kind === 'completed') return d.unique ? '완성 아이템 · 고유' : '완성 아이템';
     if (d.kind === 'treasure') return '채굴 보물 · ' + TREASURE_TIER_NAME[d.tier];
     if (d.box) return '아이템 상자';
@@ -274,7 +329,7 @@ const View = {
       return;
     }
     if (d.desc) box.appendChild(this.el('div', 'it-desc', d.desc));
-    if (d.kind === 'completed') {
+    if (d.kind === 'completed' && d.from && !d.radiant) {
       const from = this.el('div', 'it-from');
       from.appendChild(icon(d.from[0], 26));
       from.appendChild(this.el('span', 'it-op', '+'));
@@ -289,7 +344,7 @@ const View = {
     el.style.width = size + 'px';
     el.style.height = size + 'px';
     const img = this.el('i');
-    if (d) img.style.backgroundImage = 'url("img/aug/' + d.icon + '.png")';
+    if (d) img.style.backgroundImage = 'url("' + augIconUrl(d) + '")';
     el.appendChild(img);
     return el;
   },
@@ -312,7 +367,8 @@ const View = {
       medal.appendChild(this.el('div', 'augc-ring'));
       const core = this.el('div', 'augc-core');
       const ico = this.el('i');
-      if (d) ico.style.backgroundImage = 'url("img/aug/' + d.icon + '.png")';
+      if (d) ico.style.backgroundImage = 'url("' + augIconUrl(d) + '")';
+      if (d && d.icon.indexOf('item/') === 0) ico.classList.add('from-item');
       core.appendChild(ico);
       medal.appendChild(core);
       medal.appendChild(this.el('span', 'augc-gem'));
@@ -324,11 +380,12 @@ const View = {
       card.appendChild(body);
       card.addEventListener('click', () => hooks.pick(n));
       col.appendChild(card);
-      const used = !!(offer.rerolls && offer.rerolls[n]);
+      const left = offer.rerolls ? Math.max(0, offer.rerolls[n] | 0) : 0;
+      const used = left <= 0;
       const rr = this.el('button', 'augc-reroll' + (used ? ' used' : ''));
-      rr.innerHTML = iconSvg('refresh', 16) + '<span>' + (used ? 0 : 1) + '</span>';
+      rr.innerHTML = iconSvg('refresh', 16) + '<span>' + left + '</span>';
       rr.disabled = used;
-      rr.dataset.tip = used ? '이미 새로고침했습니다' : '이 증강 새로고침 (1회)';
+      rr.dataset.tip = used ? '더 새로고침할 수 없습니다' : '이 증강 새로고침 (남은 횟수 ' + left + ')';
       rr.addEventListener('click', () => hooks.reroll(n));
       col.appendChild(rr);
       row.appendChild(col);
@@ -344,7 +401,7 @@ const View = {
     head.appendChild(this.el('b', null, d ? d.name : '아이템 상자'));
     head.appendChild(this.el('span', 'box-timer', ''));
     box.appendChild(head);
-    box.appendChild(this.el('div', 'box-sub', '아이템 하나를 고르세요'));
+    box.appendChild(this.el('div', 'box-sub', b.unit ? b.unit + '에게 추천하는 아이템 중 하나를 고르세요' : '아이템 하나를 고르세요'));
     const row = this.el('div', 'box-row');
     if (b.choices.length > 4) row.classList.add('six');
     b.choices.forEach((id, n) => {
@@ -366,18 +423,15 @@ const View = {
     box.innerHTML = '';
     const offer = p.mineOffer;
     if (!offer) return;
-    const head = this.el('div', 'mine-head');
-    head.appendChild(this.el('b', null, '채굴장'));
-    head.appendChild(this.el('span', 'mine-cost', '채굴 스택 ' + Math.floor(p.mine) + ' · 받으면 -' + offer.th));
-    box.appendChild(head);
-    const row = this.el('div', 'mine-rewards');
+    box.appendChild(this.el('div', 'mine-tab', '채굴장'));
+    box.appendChild(this.el('div', 'mine-stack-n', '채굴 스택 ' + Math.floor(p.mine) + ' · 받으면 -' + offer.th));
+    const inner = this.el('div', 'mine-inner');
     for (const e of offer.list) {
       const cell = this.el('div', 'mine-cell');
       const pic = this.el('div', 'mine-pic');
       let label = '';
       if (e.k === 'item') {
-        const ico = this.itemIcon(e.id, 44);
-        pic.appendChild(ico);
+        pic.appendChild(this.itemIcon(e.id, 44));
         pic.dataset.item = e.id;
         label = itemDef(e.id).name;
       } else if (e.k === 'gold') {
@@ -397,26 +451,28 @@ const View = {
       }
       cell.appendChild(pic);
       cell.appendChild(this.el('div', 'mine-label', label));
-      row.appendChild(cell);
+      inner.appendChild(cell);
     }
-    box.appendChild(row);
-    const actions = this.el('div', 'mine-actions');
+    box.appendChild(inner);
+    const side = this.el('div', 'mine-side');
     const take = this.el('button', 'mine-take');
-    take.innerHTML = iconSvg('check', 16);
     take.appendChild(this.el('span', null, '모두 받기'));
+    take.insertAdjacentHTML('beforeend', iconSvg('down', 20));
     take.addEventListener('click', () => hooks.take());
-    const skip = this.el('button', 'mine-skip', '받지 않기');
+    const skip = this.el('button', 'mine-skip');
+    skip.appendChild(this.el('span', null, '더 채굴하기'));
     skip.addEventListener('click', () => hooks.skip());
-    actions.appendChild(take);
-    actions.appendChild(skip);
-    box.appendChild(actions);
+    side.appendChild(take);
+    side.appendChild(skip);
+    box.appendChild(side);
   },
 
   itemPreview(stats, items, evolvable) {
     const out = Object.assign({}, stats);
-    const list = (items || []).filter(id => id !== 'magnet' && itemDef(id));
+    const list = (items || []).filter(id => itemDef(id) && !isConsumable(id));
     if (!list.length) return out;
-    const n = id => list.filter(x => x === id).length;
+    const counts = itemCountMap(list);
+    const n = id => counts[id] || 0;
     const rk = { atk: 0, spa: 0, def: 0, spd: 0, spe: 0, crit: 0 };
     let hp = 0;
     let pp = 0;
@@ -426,7 +482,7 @@ const View = {
       hp += st.hp || 0;
       pp += st.pp || 0;
     }
-    const evo = evolvable && n('eviolite') ? 1.2 : 1;
+    const evo = evolvable ? 1 + 0.2 * n('eviolite') : 1;
     const mult = k => rankMult(Math.max(-6, Math.min(6, k)));
     out.hp = Math.round(stats.hp * evo * (1 + 0.2 * n('big-root')) + hp);
     out.pa = Math.round(stats.pa * evo * (1 + 0.3 * n('choice-band')) * mult(rk.atk));
@@ -508,7 +564,9 @@ const View = {
       }
       list.push({ id, idx, count: 1 });
     });
-    const per = 10;
+    const two = list.length > 10;
+    const per = two ? 20 : 10;
+    container.classList.toggle('two', two);
     const pages = Math.max(1, Math.ceil(list.length / per));
     const pg = Math.min(page || 0, pages - 1);
     for (let i = 0; i < per; i++) {
@@ -641,7 +699,7 @@ const View = {
       '후딘': '윤겔라가 스킬로 적을 재운 시간 합계 ' + u.hypnosisSeconds + '초를 채운 뒤 윤겔라가 전투에 참여하면 진화',
       '뮤': '한 전투에서 서로 다른 타입 시너지 ' + u.mewTypes + '개 켜기',
       '뮤츠': '뮤가 참여한 PvP 전투로 유전자 ' + u.geneStack + ' 모으기',
-      '프리져': '필드의 얼음 타입 포켓몬 별 합계 ' + u.iceStarTotal + ' 이상으로 전투 시작',
+      '프리져': '필드에 있는 서로 다른 얼음 타입 포켓몬의 별 합계 ' + u.iceStarTotal + ' 이상으로 전투 시작 (같은 계열은 가장 높은 별 하나만 셈)',
       '썬더': '전기 시너지 낙뢰를 적에게 누적 ' + u.electricBolts + '번 맞히기',
       '파이어': '불꽃 시너지 화염 피해 누적 ' + u.burnDamage
     };
@@ -655,33 +713,27 @@ const View = {
     const base = def.stageForms ? def.stageForms[0] : def.forms[0];
     const form = formName && FORM_INDEX[formName] ? FORM_INDEX[formName] : base;
     const br = def.branches ? def.branches.find(b => b.form.name === form.name) : null;
+    const open = def.unlockOnly && owner && owner.unlockedShop && owner.unlockedShop.has(def.id);
+    const top = this.el('div', 'ut-top');
     const head = this.el('div', 'ut-head');
     const pic = this.el('div', 'ut-pic');
     paintCost(pic, def.cost);
-    const spr = Sprites.portrait(form, 40, { fill: 0.9, max: 2 });
+    const spr = Sprites.portrait(form, 44, { fill: 0.9, max: 2 });
     if (spr) pic.appendChild(spr);
     head.appendChild(pic);
     const info = this.el('div', 'ut-info');
-    info.appendChild(this.el('b', null, form.name + (form.name !== def.id ? ' (' + def.id + ' 계열)' : '')));
-    const sub = this.el('div', 'ut-sub');
-    sub.innerHTML = iconSvg('coin', 11);
-    sub.appendChild(document.createTextNode(def.cost + '코스트'));
-    if (def.unlockOnly) {
-      const open = owner && owner.unlockedShop && owner.unlockedShop.has(def.id);
-      const chip = this.el('span', 'ut-chip' + (open ? ' open' : ''));
-      chip.innerHTML = iconSvg(open ? 'unlock' : 'lock', 11);
-      chip.appendChild(document.createTextNode(open ? '해금됨' : '잠김'));
-      sub.appendChild(chip);
-    }
-    if (note) sub.appendChild(this.el('span', 'ut-note', note));
-    info.appendChild(sub);
-    head.appendChild(info);
-    container.appendChild(head);
-    const role = this.el('div', 'ut-row');
-    role.innerHTML = iconSvg('role', 12);
+    const nm = this.el('div', 'ut-name');
+    nm.appendChild(this.el('b', null, form.name));
+    const cost = this.el('span', 'ut-cost');
+    cost.innerHTML = iconSvg('coin', 11);
+    cost.appendChild(document.createTextNode(def.cost + '코스트'));
+    nm.appendChild(cost);
+    info.appendChild(nm);
+    const role = this.el('div', 'ut-role');
     role.appendChild(this.el('span', 'ut-k', '역할군'));
     role.appendChild(this.el('span', null, form.role || roleOf(form, computeStats(form, def.cost, 1, 1))));
-    container.appendChild(role);
+    if (note) role.appendChild(this.el('span', 'ut-note', note));
+    info.appendChild(role);
     const tr = [];
     for (const x of form.types.concat(br && br.traits ? br.traits : def.traits, def.uniques)) if (!tr.includes(x)) tr.push(x);
     const traits = this.el('div', 'ut-traits');
@@ -690,25 +742,149 @@ const View = {
       if (def.uniqueStar && def.uniques.includes(t)) mt.appendChild(this.el('small', null, def.uniqueStar + '성부터'));
       traits.appendChild(mt);
     }
-    container.appendChild(traits);
-    if (NORMAL_EFFECTS[def.id] && form.types.includes('노말')) container.appendChild(this.el('div', 'ut-line', '노말 효과: ' + NORMAL_EFFECTS[def.id].text));
-    const evo = this.el('div', 'ut-evo');
-    this.renderEvo(evo, def, owner, { size: 26 });
-    container.appendChild(evo);
-    const g = typeof app !== 'undefined' && app && app.game ? app.game : null;
-    if (g && g.pool && g.pool.max[def.id] != null) {
-      const stock = this.el('div', 'ut-row');
-      stock.innerHTML = iconSvg('ball', 12);
-      stock.appendChild(this.el('span', 'ut-k', '창고'));
-      stock.appendChild(this.el('span', null, '남은 수 ' + g.pool.remaining(def.id) + '/' + g.pool.max[def.id]));
-      container.appendChild(stock);
+    info.appendChild(traits);
+    if (typeof ADAPT !== 'undefined' && ADAPT[def.id]) {
+      const lab = { atk: '공격↑', spa: '특공↑', dmg: '딜↑', tank: '탱↑', eq: '딜=탱' };
+      const box = this.el('div', 'ut-adapt');
+      for (const k in ADAPT[def.id].modes) {
+        const m = ADAPT[def.id].modes[k];
+        box.appendChild(this.el('div', null, lab[k] + ' ' + m.skill + ' · ' + m.role + ' · ' + m.range + '칸 → ' + ADAPT[def.id].evo[k]));
+      }
+      info.appendChild(box);
     }
+    head.appendChild(info);
     if (def.unlockOnly) {
+      const chip = this.el('span', 'ut-chip' + (open ? ' open' : ''));
+      chip.innerHTML = iconSvg(open ? 'unlock' : 'lock', 11);
+      chip.appendChild(document.createTextNode(open ? '해금됨' : '잠김'));
+      head.appendChild(chip);
+    }
+    top.appendChild(head);
+    container.appendChild(top);
+    if (def.unlockOnly && !open) {
       const how = this.el('div', 'ut-unlock');
+      how.innerHTML = iconSvg('lock', 11);
       how.appendChild(this.el('span', 'ut-k', '해금 조건'));
       how.appendChild(this.el('span', null, this.unlockHow(def.id)));
       container.appendChild(how);
     }
+    if (NORMAL_EFFECTS[def.id] && form.types.includes('노말')) container.appendChild(this.el('div', 'ut-line', '노말 효과: ' + NORMAL_EFFECTS[def.id].text));
+    const evo = this.el('div', 'ut-evo');
+    evo.appendChild(this.el('div', 'evo-title', '진화 계보'));
+    evo.appendChild(this.renderLineage(def, owner, form.name));
+    container.appendChild(evo);
+    const g = typeof app !== 'undefined' && app && app.game ? app.game : null;
+    if (g && g.pool && g.pool.max[def.id] != null) {
+      const stock = this.el('div', 'ut-stock');
+      stock.innerHTML = iconSvg('ball', 12);
+      stock.appendChild(this.el('span', 'ut-k', '상점 창고 남은 수'));
+      stock.appendChild(this.el('b', null, g.pool.remaining(def.id) + '/' + g.pool.max[def.id]));
+      container.appendChild(stock);
+    }
+  },
+
+  lineageStages(d) {
+    const stages = [];
+    if (d.stageForms) {
+      d.stageForms.forEach((f, i) => stages.push([f, i === 0 ? '기본' : '다운로드 ' + (i === 1 ? CONFIG.unlock.downloadStage1 : CONFIG.unlock.downloadStage2)]));
+      return stages;
+    }
+    d.forms.forEach((f, i) => {
+      if (d.branches && i >= d.branchStar - 1) return;
+      const last = stages[stages.length - 1];
+      if (last && last[0].name === f.name) last[1] = last[1].replace(/성$/, '') + '·' + (i + 1) + '성';
+      else stages.push([f, (i + 1) + '성']);
+    });
+    return stages;
+  },
+
+  lineageCard(f, d, label, traits, cur, pick) {
+    const card = this.el('div', 'lc' + (cur ? ' cur' : '') + (pick ? ' pick' : ''));
+    const box = this.el('div', 'lc-pic');
+    paintCost(box, d.cost);
+    const spr = Sprites.portrait(f, 30, { fill: 0.9, max: 2, still: true });
+    if (spr) box.appendChild(spr);
+    card.appendChild(box);
+    const nm = this.el('div', 'lc-name');
+    nm.appendChild(this.el('b', null, f.name));
+    nm.appendChild(this.el('span', null, ' (' + d.cost + '코스트)'));
+    card.appendChild(nm);
+    if (label) card.appendChild(this.el('div', 'lc-star', label));
+    const icons = this.el('div', 'lc-icons');
+    for (const t of f.types) icons.appendChild(this.hex(t, null, true));
+    for (const t of traits || []) if (TRAIT_DATA.map[t] && TRAIT_DATA.map[t].kind === 'class') icons.appendChild(this.hex(t, null, true));
+    card.appendChild(icons);
+    const st = skillTextOf(f);
+    const skill = (st && st.name) || f.skill || '';
+    if (skill) card.appendChild(this.el('div', 'lc-skill', skill));
+    return card;
+  },
+
+  lineageArrow(text) {
+    const a = this.el('div', 'lc-arrow' + (text ? ' txt' : ''));
+    a.appendChild(this.el('b', null, '→'));
+    if (text) a.appendChild(this.el('small', null, text.replace(/^해금: /, '')));
+    return a;
+  },
+
+  renderLineage(def, owner, curName) {
+    const links = this.evoLinks();
+    const chain = [def.id];
+    for (let i = 0; i < chain.length; i++) {
+      for (const [a, b] of links) {
+        if (a === chain[i] && !chain.includes(b)) chain.push(b);
+        if (b === chain[i] && !chain.includes(a)) chain.push(a);
+      }
+    }
+    const kids = id => links.filter(([a, b]) => a === id && chain.includes(b) && UNITS[b]);
+    const roots = chain.filter(id => UNITS[id] && !links.some(([a, b]) => b === id && chain.includes(a)));
+    const wrap = this.el('div', 'lineage');
+    const unitRow = id => {
+      const d = UNITS[id];
+      const row = this.el('div', 'ln-row');
+      const stages = this.lineageStages(d);
+      const isCur = f => id === def.id && f.name === curName;
+      if (d.branches && d.branches.length >= 6) {
+        const grid = this.el('div', 'ln-grid');
+        const center = stages[Math.min(stages.length - 1, Math.max(0, d.branchStar - 2))];
+        const bl = d.branchStar < 3 ? d.branchStar + '·3성' : d.branchStar + '성';
+        const cells = d.branches.map(b => this.lineageCard(b.form, d, bl, b.traits || d.traits, isCur(b.form), owner && owner.branch && owner.branch[d.id] === b.key));
+        cells.splice(4, 0, this.lineageCard(center[0], d, center[1], d.traits, isCur(center[0])));
+        cells.forEach((c, i) => {
+          if (i !== 4) c.classList.add('ln-dir-' + i);
+          else c.classList.add('ln-mid');
+          grid.appendChild(c);
+        });
+        row.appendChild(grid);
+        return row;
+      }
+      stages.forEach(([f, label], i) => {
+        if (i) row.appendChild(this.lineageArrow(''));
+        row.appendChild(this.lineageCard(f, d, label, d.traits, isCur(f)));
+      });
+      const subs = [];
+      if (d.branches) {
+        const bl = d.branchStar < 3 ? d.branchStar + '·3성' : d.branchStar + '성';
+        for (const b of d.branches) subs.push([this.lineageArrow(''), this.lineageCard(b.form, d, bl, b.traits || d.traits, isCur(b.form), owner && owner.branch && owner.branch[d.id] === b.key)]);
+      }
+      for (const [, b, text] of kids(id)) subs.push([this.lineageArrow(text), unitRow(b)]);
+      if (subs.length === 1) {
+        row.appendChild(subs[0][0]);
+        row.appendChild(subs[0][1]);
+      } else if (subs.length) {
+        const col = this.el('div', 'ln-col');
+        for (const [arrow, node] of subs) {
+          const r = this.el('div', 'ln-row');
+          r.appendChild(arrow);
+          r.appendChild(node);
+          col.appendChild(r);
+        }
+        row.appendChild(col);
+      }
+      return row;
+    };
+    for (const id of roots) wrap.appendChild(unitRow(id));
+    return wrap;
   },
 
   renderTraitTip(container, id, owner, region) {
@@ -867,8 +1043,8 @@ const View = {
 
   infoFromInstance(inst, owner) {
     const def = UNITS[inst.unitId];
-    const form = formOf(def, inst.star, owner, inst);
-    const raw = instanceStats(inst, owner);
+    const form = shownForm(def, inst.star, owner, inst);
+    const raw = form === formOf(def, inst.star, owner, inst) ? instanceStats(inst, owner) : applyFeast(computeStats(form, def.cost, inst.star, def.unlockOnly ? UNLOCK_STAT_BONUS : 1, { boost: def.boost }), inst.feast);
     const items = inst.items || [];
     const stats = this.itemPreview(raw, items, canEvolveFurther(inst, owner));
     const base = computeStats(form, def.cost, inst.star, def.unlockOnly ? UNLOCK_STAT_BONUS : 1, { boost: def.boost });
@@ -964,7 +1140,7 @@ const View = {
     container.appendChild(hp);
     container.appendChild(pp);
     const row = this.el('div', 'ip-row');
-    const st = !t.creep && t.form ? SKILL_TEXT[t.form.name] : null;
+    const st = !t.creep && t.form ? skillTextOf(t.form) : null;
     const skill = this.el('div', 'ip-skill', st ? st.name : t.creep ? '야생' : '스킬');
     if (st) skill.dataset.tip = st.name + ' (' + st.type + ')\n' + st.text + (hooks.skillNote ? hooks.skillNote(t) : '');
     const skillUrl = Assets.skillUrl(t.form);
@@ -1062,7 +1238,7 @@ const View = {
       cell.appendChild(box2);
       cell.appendChild(this.el('div', null, f.name));
       if (label) cell.appendChild(this.el('small', null, label));
-      const st = typeof SKILL_TEXT !== 'undefined' ? SKILL_TEXT[f.name] : null;
+      const st = skillTextOf(f);
       const skill = (st && st.name) || f.skill || '';
       const types = this.el('div', 'evo-types' + (prev && prev.types.join() !== f.types.join() ? ' chg' : ''));
       for (const t of f.types) types.appendChild(this.hex(t, null, true));

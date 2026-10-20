@@ -50,7 +50,19 @@ const ITEM_COMPLETED = [
   { id: 'max-ether', name: 'PP맥스', from: ['leppa-berry', 'leppa-berry'], bonus: { pp: 4 }, desc: '시작 PP가 더 많고, 스킬을 쓴 뒤 PP를 12 얻습니다.' }
 ];
 
-const ITEM_MAGNET = { id: 'magnet', name: '자석', kind: 'consumable', desc: '아이템을 가진 기물에게 쓰면 그 기물의 아이템을 모두 빼서 아이템 칸으로 돌려줍니다.' };
+const ITEM_MAGNET = { id: 'magnet', name: '자석', kind: 'consumable', magnet: true, desc: '아이템을 가진 기물에게 쓰면 그 기물의 아이템을 모두 빼서 아이템 칸으로 돌려줍니다.' };
+
+const ITEM_GOLDEN_MAGNET = { id: 'golden-magnet', name: '황금 자석', kind: 'consumable', magnet: true, keep: true, label: '무한 자석', desc: '아이템을 가진 기물에게 쓰면 그 기물의 아이템을 모두 빼서 아이템 칸으로 돌려줍니다. 써도 사라지지 않습니다.' };
+
+const ITEM_LUCKY_BOX = { id: 'lucky-box', name: '행운의 아이템 상자', icon: 'lucky-box', kind: 'consumable', lucky: true, placeholder: true, label: '추천 아이템', desc: '포켓몬에게 쓰면 그 포켓몬에게 맞는 추천 완성 아이템 4개 중 하나를 골라 아이템 칸에 받습니다.' };
+
+const ITEM_GLOVES = { id: 'thiefs-gloves', name: '도적의 장갑', icon: 'thiefs-gloves', kind: 'completed', special: true, gloves: true, unique: true, desc: '아이템 3칸을 모두 차지합니다. 라운드마다 무작위 완성 아이템 2개를 새로 끼고 싸웁니다.' };
+
+const REC_ITEMS = {
+  phys: ['choice-band', 'expert-belt', 'black-belt', 'punching-glove', 'metronome', 'scope-lens', 'spell-tag', 'shell-bell', 'silver-wing', 'covert-cloak', 'focus-sash', 'dragon-fang'],
+  spec: ['choice-specs', 'expert-belt', 'black-glasses', 'soul-dew', 'twisted-spoon', 'max-ether', 'ether', 'choice-scarf', 'black-sludge', 'zoom-lens', 'dragon-fang'],
+  tank: ['rocky-helmet', 'assault-vest', 'kings-rock', 'big-root', 'super-potion', 'flame-orb', 'full-incense', 'lax-incense', 'shell-armor', 'mental-herb', 'booster-energy', 'soothe-bell', 'weakness-policy']
+};
 
 const ITEM_CANDIES = [
   { id: 'rare-candy', name: '이상한사탕', icon: 'rare-candy', maxCost: 5, desc: '기물에게 쓰면 별이 1 오릅니다.' }
@@ -62,12 +74,13 @@ const ITEM_DUPLICATORS = [
   { id: 'exp-l', name: '경험사탕L', icon: 'exp-candy-l', maxCost: 5, label: '챔피언 복제기', desc: '기물에게 쓰면 그 기물의 1성 복사본 하나를 대기석에 얻습니다.' }
 ];
 
-const ITEM_DICE = { id: 'loaded-dice', name: '속임수주사위', icon: 'loaded-dice', label: '재조합기', desc: '아이템을 가진 기물에게 쓰면 그 기물의 아이템을 모두 같은 종류의 다른 무작위 아이템으로 바꿔 아이템 칸으로 돌려줍니다. (조합은 조합끼리, 완성은 완성끼리, 보물은 같은 티어끼리)' };
+const ITEM_DICE = { id: 'loaded-dice', name: '두드리짱의 망치', icon: 'tinkaton-hammer', label: '시너지 상점', desc: '포켓몬에게 주면 소모되며, 상점 5칸이 그 포켓몬과 시너지(타입·직업)가 하나 이상 겹치는 포켓몬으로 바뀝니다. (무료, 현재 레벨의 상점 확률을 따름)' };
 
 const ITEM_BOXES = [
   { id: 'poke-box', name: '작은 모으령 상자', icon: 'gimmi-small', box: 'component', desc: '클릭해서 열면 서로 다른 조합 아이템 4개 중 하나를 고릅니다.' },
   { id: 'great-box', name: '큰 모으령 상자', icon: 'gimmi-big', box: 'completed', desc: '클릭해서 열면 서로 다른 완성 아이템 4개 중 하나를 고릅니다.' },
-  { id: 'forge-box', name: '대장간 상자', icon: 'dynite-ore', box: 'treasure3', desc: '클릭해서 열면 서로 다른 3티어 보물 4개 중 하나를 고릅니다.' }
+  { id: 'forge-box', name: '대장간 상자', icon: 'dynite-ore', box: 'treasure3', desc: '클릭해서 열면 서로 다른 3티어 보물 4개 중 하나를 고릅니다.' },
+  { id: 'radiant-box', name: '찬란한 모으령 상자', icon: 'gimmi-big', box: 'radiant', glow: true, desc: '클릭해서 열면 서로 다른 찬란한 아이템 5개 중 하나를 고릅니다. (찬란한 아이템: 완성 아이템의 두 배 효과)' }
 ];
 
 const TREASURE_TIER_NAME = ['0티어', '1티어', '2티어', '3티어'];
@@ -108,19 +121,77 @@ const ITEMS = (function () {
     map[c.id] = Object.assign({ kind: 'completed' }, c, { stats });
     recipe[c.from.slice().sort().join('+')] = c.id;
   }
+  const radiants = [];
+  for (const c of ITEM_COMPLETED) {
+    const b = map[c.id];
+    const stats = {};
+    for (const k in b.stats) stats[k] = b.stats[k] * 2;
+    const id = 'radiant-' + c.id;
+    map[id] = Object.assign({}, b, { id, base: c.id, radiant: true, name: '찬란한 ' + c.name, icon: c.icon || c.id, stats, desc: '효과와 능력치가 두 배로 적용됩니다. (원래 효과: ' + c.desc + ')' });
+    radiants.push(id);
+  }
   map[ITEM_MAGNET.id] = Object.assign({ stats: {} }, ITEM_MAGNET);
+  map[ITEM_GOLDEN_MAGNET.id] = Object.assign({ stats: {} }, ITEM_GOLDEN_MAGNET);
+  map[ITEM_LUCKY_BOX.id] = Object.assign({ stats: {} }, ITEM_LUCKY_BOX);
+  map[ITEM_GLOVES.id] = Object.assign({ stats: {} }, ITEM_GLOVES);
   for (const c of ITEM_CANDIES) map[c.id] = Object.assign({ kind: 'consumable', candy: true, stats: {} }, c);
   for (const c of ITEM_DUPLICATORS) map[c.id] = Object.assign({ kind: 'consumable', dup: true, stats: {} }, c);
-  map[ITEM_DICE.id] = Object.assign({ kind: 'consumable', reforge: true, stats: {} }, ITEM_DICE);
+  map[ITEM_DICE.id] = Object.assign({ kind: 'consumable', traitShop: true, stats: {} }, ITEM_DICE);
   for (const b of ITEM_BOXES) map[b.id] = Object.assign({ kind: 'consumable', stats: {} }, b);
   for (const t of ITEM_TREASURES) map[t.id] = Object.assign({ kind: 'treasure', stats: {} }, t);
   const tiers = [[], [], [], []];
   for (const t of ITEM_TREASURES) tiers[t.tier].push(t.id);
-  return { map, recipe, components: ITEM_COMPONENTS.map(c => c.id), completed: ITEM_COMPLETED.map(c => c.id), treasures: tiers };
+  return { map, recipe, components: ITEM_COMPONENTS.map(c => c.id), completed: ITEM_COMPLETED.map(c => c.id), radiants, treasures: tiers };
 })();
 
 function itemDef(id) {
   return ITEMS.map[id] || null;
+}
+
+function itemBase(id) {
+  const d = ITEMS.map[id];
+  return d && d.base ? d.base : id;
+}
+
+function itemWeight(id) {
+  const d = ITEMS.map[id];
+  return d && d.radiant ? 2 : 1;
+}
+
+function itemCountMap(list) {
+  const it = {};
+  for (const id of list || []) {
+    const b = itemBase(id);
+    it[b] = (it[b] || 0) + itemWeight(id);
+  }
+  return it;
+}
+
+function isMagnet(id) {
+  const d = ITEMS.map[id];
+  return !!d && !!d.magnet;
+}
+
+function isGearItem(id) {
+  const d = ITEMS.map[id];
+  return !!d && d.kind !== 'consumable';
+}
+
+function itemSlotsUsed(items) {
+  return (items || []).some(id => ITEMS.map[id] && ITEMS.map[id].gloves) ? 3 : (items || []).length;
+}
+
+function uniqueClash(items, id, skip) {
+  const d = ITEMS.map[id];
+  if (!d || !d.unique) return false;
+  const b = itemBase(id);
+  return (items || []).some((x, i) => i !== skip && itemBase(x) === b);
+}
+
+function recommendedPool(form) {
+  const role = (form && form.role) || '';
+  if (role.indexOf('탱커') >= 0) return REC_ITEMS.tank;
+  return form && form.special ? REC_ITEMS.spec : REC_ITEMS.phys;
 }
 
 function combineItems(a, b) {
@@ -162,7 +233,7 @@ function itemTipText(id) {
       const out = combineItems(id, other);
       if (out) lines.push(d.name + ' + ' + itemDef(other).name + ' = ' + itemDef(out).name);
     }
-  } else if (d.kind === 'completed') {
+  } else if (d.kind === 'completed' && d.from && !d.radiant) {
     lines.push('');
     lines.push(itemDef(d.from[0]).name + ' + ' + itemDef(d.from[1]).name + ' = ' + d.name);
   } else if (d.kind === 'treasure') {

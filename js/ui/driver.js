@@ -61,9 +61,13 @@ class Driver {
         s.x = s.tx = sp.x;
         s.y = s.ty = sp.y;
         s.carry = null;
-        s.speed = p.isHuman && !p.afk ? WALK_SPEED : CONFIG.carousel.moveSpeed;
+        s.speed = (p.isHuman && !p.afk ? WALK_SPEED : CONFIG.carousel.moveSpeed) * g.stratSpeed(p, true);
       }
     }
+  }
+
+  walkSpeed(id, carousel) {
+    return WALK_SPEED * this.game.stratSpeed(this.game.players[id], carousel);
   }
 
   homeSlot(id) {
@@ -72,7 +76,7 @@ class Driver {
     s.at = id;
     s.x = s.tx = s.hx = HOME_BOTTOM.x;
     s.y = s.ty = s.hy = HOME_BOTTOM.y;
-    s.speed = WALK_SPEED;
+    s.speed = this.walkSpeed(id, false);
   }
 
   homeAll() {
@@ -82,7 +86,7 @@ class Driver {
       s.at = Number(id);
       s.x = s.tx = s.hx;
       s.y = s.ty = s.hy;
-      s.speed = WALK_SPEED;
+      s.speed = this.walkSpeed(Number(id), false);
     }
   }
 
@@ -235,7 +239,7 @@ class Driver {
         }
       }
       this.state = 'carouselEnd';
-      this.wait = car.encounter ? 0.9 : 1.7;
+      this.wait = 1.7;
       this.emit('carouselDone');
     }
   }
@@ -247,10 +251,26 @@ class Driver {
       s.y = s.ty = s.hy = HOME_BOTTOM.y;
       s.at = p.id;
       s.carry = null;
-      s.speed = WALK_SPEED;
+      s.speed = this.walkSpeed(p.id, false);
     }
     this.emit('carouselEnd');
     this.afterResult();
+  }
+
+  orbAhead(pid, s) {
+    if (this.state === 'carousel' || this.state === 'carouselEnd' || s.at !== pid) return false;
+    const p = this.game.players[pid];
+    if (!p || !p.isHuman || !p.orbs || !p.orbs.length) return false;
+    const dx = s.tx - s.x;
+    const dy = s.ty - s.y;
+    const L2 = dx * dx + dy * dy;
+    if (L2 < 1) return false;
+    for (const o of p.orbs) {
+      const op = orbFlatPos(o);
+      const t = Math.max(0, Math.min(1, ((op.x - s.x) * dx + (op.y - s.y) * dy) / L2));
+      if (Math.hypot(op.x - (s.x + dx * t), op.y - (s.y + dy * t)) < 39) return true;
+    }
+    return false;
   }
 
   moveStrats(dt) {
@@ -262,9 +282,11 @@ class Driver {
       if (d < 1) {
         s.x = s.tx;
         s.y = s.ty;
+        s.v = s.speed;
         continue;
       }
-      const st = Math.min(d, s.speed * dt);
+      s.v = s.speed * (this.orbAhead(Number(id), s) ? ORB_RUN : 1);
+      const st = Math.min(d, s.v * dt);
       s.x += (dx / d) * st;
       s.y += (dy / d) * st;
     }
@@ -316,14 +338,19 @@ class Driver {
         }
         break;
       }
-      case 'sell':
+      case 'sell': {
         if (!shopPhase) return;
-        res = g.sell(p, inst(a.iid)) ? res : { ok: false, reason: '전투 중에는 필드의 기물을 팔 수 없습니다' };
+        const u = inst(a.iid);
+        const chk = g.sellCheck(p, u);
+        res = chk.ok && g.sell(p, u) ? res : { ok: false, reason: chk.reason || '팔 수 없습니다' };
         break;
-      case 'reroll':
+      }
+      case 'reroll': {
         if (!shopPhase) return;
-        res = g.reroll(p) ? res : { ok: false, reason: '골드가 부족합니다' };
+        const chk = g.rerollCheck(p);
+        res = chk.ok && g.reroll(p) ? res : { ok: false, reason: chk.reason || '골드가 부족합니다' };
         break;
+      }
       case 'xp':
         if (!shopPhase) return;
         res = g.buyXp(p) ? res : { ok: false, reason: p.level >= p.maxLevel() ? '최대 레벨입니다' : '골드가 부족합니다' };
@@ -433,7 +460,7 @@ class Driver {
         }
         s.tx = x;
         s.ty = y;
-        s.speed = (this.state === 'carousel' ? WALK_SPEED : WALK_SPEED * (a.run ? ORB_RUN : 1));
+        s.speed = this.walkSpeed(pid, this.state === 'carousel');
         break;
       }
       case 'visit': {
@@ -453,7 +480,7 @@ class Driver {
         const spot = to === pid ? { x: s.hx, y: s.hy } : VISIT_SPOT;
         s.x = s.tx = spot.x;
         s.y = s.ty = spot.y;
-        s.speed = WALK_SPEED;
+        s.speed = this.walkSpeed(pid, false);
         break;
       }
       case 'dbg':
@@ -483,7 +510,7 @@ class Driver {
     };
     mix(g.stage + '-' + g.round + g.phase + this.state);
     for (const p of g.players) {
-      mix(p.hp + '|' + p.gold + '|' + p.level + '|' + p.xp + '|' + p.alive + '|' + p.mine + '|' + p.shop.join(',') + '|' + p.items.join(',') + '|' + (p.boxOpen ? p.boxOpen.choices.join(',') : '') + '|' + p.augs.map(x => x.id + (x.trait || '')).join(',') + '|' + (p.augOffer ? p.augOffer.choices.map(x => x.id).join(',') : ''));
+      mix(p.hp + '|' + p.gold + '|' + p.level + '|' + p.xp + '|' + p.alive + '|' + p.mine + '|' + p.shop.join(',') + '|' + p.items.join(',') + '|' + (p.boxOpen ? p.boxOpen.choices.join(',') : '') + '|' + p.augs.map(x => x.id).join(',') + '|' + (p.augOffer ? p.augOffer.choices.map(x => x.id).join(',') : '') + '|' + p.freeRolls + '|' + JSON.stringify(p.augState));
       for (const u of p.allUnits()) mix(u.iid + u.unitId + u.star + (u.loc ? u.loc.zone + (u.loc.r != null ? u.loc.r + ',' + u.loc.c : u.loc.i) : '') + (u.items || []).join(','));
     }
     return h.toString(16);

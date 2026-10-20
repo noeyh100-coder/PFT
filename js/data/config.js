@@ -34,7 +34,7 @@ const CONFIG = {
   },
   stageDamage: { 1: 0, 2: 2, 3: 5, 4: 8, 5: 10, 6: 12, 7: 17, 8: 25 },
   unitDamage: { 1: 1, 2: 2, 3: 3 },
-  encounterTime: 8,
+  encounterTime: 11,
   diceChance: 0.15,
   boxTime: 20,
   augAuto: 5,

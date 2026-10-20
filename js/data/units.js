@@ -458,7 +458,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "타격대"
+   "적응가"
   ],
   "uniques": [],
   "forms": [
@@ -470,7 +470,7 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": false,
-    "role": "물리 탱커",
+    "role": "물리 전사",
     "skill": "깨뜨리다",
     "skillType": "격투",
     "stats": {
@@ -490,7 +490,7 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": false,
-    "role": "물리 탱커",
+    "role": "물리 전사",
     "skill": "깨뜨리다",
     "skillType": "격투",
     "stats": {
@@ -510,7 +510,7 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": false,
-    "role": "물리 탱커",
+    "role": "물리 전사",
     "skill": "깨뜨리다",
     "skillType": "격투",
     "stats": {
@@ -536,8 +536,8 @@ const UNIT_DATA = [
      ],
      "range": 1,
      "special": false,
-     "role": "물리 탱커",
-     "skill": "폭발펀치",
+     "role": "물리 전사",
+     "skill": "깨뜨리다",
      "skillType": "격투",
      "stats": {
       "hp": 90,
@@ -561,7 +561,7 @@ const UNIT_DATA = [
      "range": 4,
      "special": true,
      "role": "특수 마법사",
-     "skill": "탁류",
+     "skill": "거품광선",
      "skillType": "물",
      "stats": {
       "hp": 90,
@@ -572,9 +572,7 @@ const UNIT_DATA = [
       "spe": 70
      }
     },
-    "traits": [
-     "주문술사"
-    ]
+    "traits": null
    }
   ]
  },
@@ -826,7 +824,7 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": false,
-    "role": "물리 전사",
+    "role": "물리 탱커",
     "skill": "뿔찌르기",
     "skillType": "노말",
     "stats": {
@@ -846,7 +844,7 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": false,
-    "role": "물리 전사",
+    "role": "물리 탱커",
     "skill": "뿔찌르기",
     "skillType": "노말",
     "stats": {
@@ -866,7 +864,7 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": false,
-    "role": "물리 전사",
+    "role": "물리 탱커",
     "skill": "뿔찌르기",
     "skillType": "노말",
     "stats": {
@@ -3152,7 +3150,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "주문술사"
+   "적응가"
   ],
   "uniques": [],
   "forms": [
@@ -3234,8 +3232,8 @@ const UNIT_DATA = [
      "range": 4,
      "special": true,
      "role": "특수 마법사",
-     "skill": "힘흡수",
-     "skillType": "풀",
+     "skill": "애시드봄",
+     "skillType": "독",
      "stats": {
       "hp": 75,
       "atk": 80,
@@ -3255,9 +3253,9 @@ const UNIT_DATA = [
      "types": [
       "풀"
      ],
-     "range": 4,
+     "range": 1,
      "special": true,
-     "role": "특수 마법사",
+     "role": "특수 탱커",
      "skill": "꽃잎댄스",
      "skillType": "풀",
      "stats": {
@@ -4441,7 +4439,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "타격대"
+   "적응가"
   ],
   "uniques": [],
   "forms": [
@@ -4516,9 +4514,9 @@ const UNIT_DATA = [
      "types": [
       "격투"
      ],
-     "range": 3,
+     "range": 4,
      "special": false,
-     "role": "물리 전사",
+     "role": "물리 마법사",
      "skill": "로킥",
      "skillType": "격투",
      "stats": {
@@ -4543,7 +4541,7 @@ const UNIT_DATA = [
      "range": 1,
      "special": false,
      "role": "물리 탱커",
-     "skill": "힘껏펀치",
+     "skill": "판별",
      "skillType": "격투",
      "stats": {
       "hp": 50,
@@ -4567,7 +4565,7 @@ const UNIT_DATA = [
      "range": 1,
      "special": false,
      "role": "물리 전사",
-     "skill": "트리플킥",
+     "skill": "마하펀치",
      "skillType": "격투",
      "stats": {
       "hp": 50,
@@ -5706,7 +5704,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "매복자"
+   "적응가"
   ],
   "uniques": [],
   "forms": [
@@ -5720,7 +5718,7 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 전사",
-    "skill": "연속자르기",
+    "skill": "시저크로스",
     "skillType": "벌레",
     "stats": {
      "hp": 70,
@@ -5741,7 +5739,7 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 전사",
-    "skill": "연속자르기",
+    "skill": "시저크로스",
     "skillType": "벌레",
     "stats": {
      "hp": 70,
@@ -5762,7 +5760,7 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 전사",
-    "skill": "연속자르기",
+    "skill": "시저크로스",
     "skillType": "벌레",
     "stats": {
      "hp": 70,
@@ -5787,7 +5785,7 @@ const UNIT_DATA = [
      ],
      "range": 1,
      "special": false,
-     "role": "물리 전사",
+     "role": "물리 탱커",
      "skill": "불릿펀치",
      "skillType": "강철",
      "stats": {
@@ -5799,9 +5797,7 @@ const UNIT_DATA = [
       "spe": 65
      }
     },
-    "traits": [
-     "학살자"
-    ]
+    "traits": null
    },
    {
     "key": "사마자르",
@@ -5826,9 +5822,7 @@ const UNIT_DATA = [
       "spe": 85
      }
     },
-    "traits": [
-     "타격대"
-    ]
+    "traits": null
    }
   ]
  },

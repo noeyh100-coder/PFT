@@ -27,8 +27,7 @@ function treasureSum(n, table) {
 
 const ITEM_FX = {
   itemStatic(items, evolvable) {
-    const it = {};
-    for (const id of items) it[id] = (it[id] || 0) + 1;
+    const it = itemCountMap(items);
     const n = id => it[id] || 0;
     const S = { it, rk: { atk: 0, spa: 0, def: 0, spd: 0, spe: 0, crit: 0 }, hp: 0, pp: 0, pa: 0, sa: 0, hpPct: 0, vamp: 0, range: 0 };
     for (const id of items) {
@@ -37,20 +36,20 @@ const ITEM_FX = {
       if (st.hp) S.hp += st.hp;
       if (st.pp) S.pp += st.pp;
     }
-    S.evo = !!(evolvable && n('eviolite'));
+    S.evo = evolvable ? n('eviolite') : 0;
     S.pa = 0.3 * n('choice-band');
     S.sa = 0.25 * n('choice-specs');
     S.vamp = 0.4 * n('shell-bell');
     S.hpPct = 0.2 * n('big-root');
     S.range = n('zoom-lens');
-    S.herb = n('mental-herb') > 0;
+    S.herb = n('mental-herb');
     S.critPa = n('punching-glove');
     S.critSa = n('black-glasses');
     S.alwaysCrit = n('scope-lens') > 0;
-    S.critGuard = n('shell-armor') > 0;
-    S.cloak = n('covert-cloak') > 0;
-    S.sash = n('focus-sash') > 0;
-    S.wp = n('weakness-policy') > 0;
+    S.critGuard = n('shell-armor');
+    S.cloak = n('covert-cloak');
+    S.sash = n('focus-sash');
+    S.wp = n('weakness-policy');
     S.aura = ITEM_AURA.some(id => n(id));
     S.shield = treasureTop(treasureCounts(it, 'rusted-shield')) > 0;
     S.life = treasureTop(treasureCounts(it, 'life-orb'));
@@ -85,7 +84,7 @@ const ITEM_FX = {
     u.wpFired = false;
     u.sashFired = false;
     u.herbUntil = 0;
-    const list = (spec.items || []).filter(id => id !== 'magnet' && typeof itemDef === 'function' && itemDef(id) && !isConsumable(id));
+    const list = (spec.items || []).filter(id => typeof itemDef === 'function' && itemDef(id) && !isConsumable(id));
     this.swapItems(u, list, !!spec.evolvable, false);
     u.itemPP = this.itemStatic(list, !!spec.evolvable).pp;
   },
@@ -95,7 +94,7 @@ const ITEM_FX = {
     const B = this.itemStatic(items, evolvable);
     const hpBefore = u.base.hp * (1 + u.pct.hp) + u.flatHp;
     if (A.evo !== B.evo) {
-      const f = B.evo ? 1.2 : 1 / 1.2;
+      const f = (1 + 0.2 * B.evo) / (1 + 0.2 * A.evo);
       for (const k of ['hp', 'pa', 'sa', 'armor', 'mr']) u.base[k] = Math.round(u.base[k] * f);
     }
     for (const k of ITEM_RANK_KEYS) u.rk[k] += B.rk[k] - A.rk[k];
@@ -109,22 +108,22 @@ const ITEM_FX = {
       u.ranged = u.range > 1;
     }
     if (B.herb && !A.herb) {
-      u.herbUntil = 18;
-      u.ccImmuneUntil = Math.max(u.ccImmuneUntil, 18);
-      u.herbGuard = true;
-    } else if (!B.herb) {
-      if (A.herb && live && u.ccImmuneUntil <= u.herbUntil) u.ccImmuneUntil = Math.min(u.ccImmuneUntil, this.time);
-      u.herbGuard = false;
-    }
+      u.herbUntil = 18 * B.herb;
+      u.ccImmuneUntil = Math.max(u.ccImmuneUntil, u.herbUntil);
+    } else if (!B.herb && A.herb && live && u.ccImmuneUntil <= u.herbUntil) u.ccImmuneUntil = Math.min(u.ccImmuneUntil, this.time);
+    u.herbGuard = B.herb;
     if (live) this.itemRevert(u, A.it, B.it);
     u.skillCritPa = B.critPa;
     u.skillCritSa = B.critSa;
     u.alwaysCrit = B.alwaysCrit;
     u.critGuard = B.critGuard;
     u.hasAura = B.aura;
-    if (B.cloak !== A.cloak) u.cloakReady = B.cloak;
-    if (B.sash !== A.sash) u.sashReady = B.sash;
-    if (B.wp !== A.wp) u.wpReady = B.wp;
+    if (B.cloak !== A.cloak) u.cloakReady = B.cloak > 0;
+    if (B.sash !== A.sash) u.sashReady = B.sash > 0;
+    if (B.wp !== A.wp) u.wpReady = B.wp > 0;
+    u.cloakK = B.cloak;
+    u.sashK = B.sash;
+    u.wpK = B.wp;
     if (B.shield && !A.shield) {
       u.trShieldReady = true;
       u.itemTick.shield = 0;
@@ -136,6 +135,7 @@ const ITEM_FX = {
     u.orbShieldDur = TR_LIFE_SHIELD[B.life];
     u.items = items.slice();
     u.it = B.it;
+    this.augItemMods(u);
     if (!live) return;
     const hpAfter = u.base.hp * (1 + u.pct.hp) + u.flatHp;
     const d = Math.round(hpAfter - hpBefore);
@@ -169,23 +169,23 @@ const ITEM_FX = {
       u.scarfPct = 0;
     }
     if (gone('booster-energy') && u.boostStacks) {
-      u.pct.pa -= 0.03 * u.boostStacks;
-      u.pct.sa -= 0.03 * u.boostStacks;
-      if (u.boostStacks >= 25) {
-        u.rk.def -= 2;
-        u.rk.spd -= 2;
-      }
+      u.pct.pa -= u.boostGain || 0;
+      u.pct.sa -= u.boostGain || 0;
+      u.rk.def -= u.boostDef || 0;
+      u.rk.spd -= u.boostDef || 0;
       u.boostStacks = 0;
+      u.boostGain = 0;
+      u.boostDef = 0;
     }
     if (gone('kings-rock')) u.kingN = 0;
     if (gone('weakness-policy') && u.wpFired) {
-      u.pct.pa -= 0.3;
-      u.pct.sa -= 0.3;
+      u.pct.pa -= u.wpGain || 0.3;
+      u.pct.sa -= u.wpGain || 0.3;
       u.wpFired = false;
     }
     if (gone('focus-sash') && u.sashFired) {
-      u.pct.pa -= 0.2;
-      u.pct.sa -= 0.2;
+      u.pct.pa -= u.sashGain || 0.2;
+      u.pct.sa -= u.sashGain || 0.2;
       u.sashFired = false;
     }
     if (gone('red-orb-3') && u.redAs) {
@@ -239,12 +239,15 @@ const ITEM_FX = {
 
   boostStack(u) {
     if (u.boostStacks >= 25) return;
+    const k = (u.it && u.it['booster-energy']) || 1;
     u.boostStacks += 1;
-    u.pct.pa += 0.03;
-    u.pct.sa += 0.03;
+    u.pct.pa += 0.03 * k;
+    u.pct.sa += 0.03 * k;
+    u.boostGain = (u.boostGain || 0) + 0.03 * k;
     if (u.boostStacks === 25) {
-      u.rk.def += 2;
-      u.rk.spd += 2;
+      u.rk.def += 2 * k;
+      u.rk.spd += 2 * k;
+      u.boostDef = 2 * k;
       this.emit({ type: 'buff', target: u.uid, kind: 'boost' });
     }
   },
@@ -310,15 +313,15 @@ const ITEM_FX = {
           const d = Hex.dist(u.r, u.c, o.r, o.c);
           if (d > 2) continue;
           if (it['full-incense']) {
-            this.tagDebuff(o, 'spd', -1, 0.7, 'fullinc');
-            this.tagDebuff(o, 'spe', -1, 0.7, 'fullinc');
+            this.tagDebuff(o, 'spd', -it['full-incense'], 0.7, 'fullinc');
+            this.tagDebuff(o, 'spe', -it['full-incense'], 0.7, 'fullinc');
           }
           if (it['lax-incense']) {
-            this.tagDebuff(o, 'def', -1, 0.7, 'laxinc');
-            this.tagDebuff(o, 'acc', -1, 0.7, 'laxinc');
+            this.tagDebuff(o, 'def', -it['lax-incense'], 0.7, 'laxinc');
+            this.tagDebuff(o, 'acc', -it['lax-incense'], 0.7, 'laxinc');
           }
           if (it['flame-orb'] && d <= 1) {
-            this.antiHealOn(o, 0.33, 0.7);
+            this.antiHealOn(o, Math.min(0.9, 0.33 * it['flame-orb']), 0.7);
             this.itemBurn(o, u, 1);
           }
         }
@@ -348,13 +351,8 @@ const ITEM_FX = {
         hpDmg = Math.max(0, t.hp - 1);
         this.emit({ type: 'buff', target: t.uid, kind: 'endure' });
       } else if (t.sashReady) {
-        t.sashReady = false;
-        t.sashFired = true;
-        t.endureUntil = this.time + 2;
+        this.sashFire(t);
         hpDmg = Math.max(0, t.hp - 1);
-        t.pct.pa += 0.2;
-        t.pct.sa += 0.2;
-        this.emit({ type: 'buff', target: t.uid, kind: 'sash' });
       }
     }
     const real = Math.min(hpDmg, t.hp);
@@ -542,8 +540,8 @@ const ITEM_FX = {
         m *= 1 + 0.3 * it['metronome'] * Math.floor((this.time - src.metroSince) / 3);
       }
     }
-    if (t.critGuard) m *= 0.85;
-    if (t.herbGuard && t.ccImmuneUntil > this.time) m *= 0.75;
+    if (t.critGuard) m *= Math.max(0.1, 1 - 0.15 * t.critGuard);
+    if (t.herbGuard && t.ccImmuneUntil > this.time) m *= Math.max(0.1, 1 - 0.25 * t.herbGuard);
     return m;
   },
 
@@ -551,35 +549,49 @@ const ITEM_FX = {
     const si = src.it;
     if (si) {
       if (si['black-sludge']) {
-        this.antiHealOn(t, 0.33, 4);
+        this.antiHealOn(t, Math.min(0.9, 0.33 * si['black-sludge']), 4);
         this.itemBurn(t, src, 3);
       }
-      if (si['spell-tag']) this.tagDebuff(t, 'def', -3, 6, 'spelltag');
-      if (si['twisted-spoon']) this.tagDebuff(t, 'spd', -3, 6, 'spoon');
+      if (si['spell-tag']) this.tagDebuff(t, 'def', -3 * si['spell-tag'], 6, 'spelltag');
+      if (si['twisted-spoon']) this.tagDebuff(t, 'spd', -3 * si['twisted-spoon'], 6, 'spoon');
     }
     const ti = t.it;
     if (!ti) return;
     if (ti['soothe-bell']) this.gainPP(t, 2 * ti['soothe-bell']);
     if (ti['booster-energy']) this.boostStack(t);
     if (ti['weakness-policy'] && t.wpReady && typeMult(src.skillType, t.defTypes) > 1) {
+      const k = t.wpK || 1;
       t.wpReady = false;
       t.wpFired = true;
-      this.addShield(t, t.maxHp * 0.3);
-      t.pct.pa += 0.3;
-      t.pct.sa += 0.3;
+      t.wpGain = 0.3 * k;
+      this.addShield(t, t.maxHp * 0.3 * k);
+      t.pct.pa += t.wpGain;
+      t.pct.sa += t.wpGain;
       this.emit({ type: 'buff', target: t.uid, kind: 'policy' });
     }
-    if (ti['rocky-helmet'] && o.kind === 'basic' && src.alive && total > 0) this.dealDamage(t, src, total * 0.5 * ti['rocky-helmet'], { trueDmg: true, kind: 'reflect' });
+    if (ti['rocky-helmet'] && o.kind === 'basic' && src.alive && total > 0) this.dealDamage(t, src, total * 0.5 * ti['rocky-helmet'] * (1 + this.augHelmet(t)), { trueDmg: true, kind: 'reflect' });
   },
 
   itemCloak(t) {
     if (!t.cloakReady || !t.alive || t.hp > t.maxHp * 0.4) return;
+    const k = t.cloakK || 1;
     t.cloakReady = false;
     t.hidden = true;
-    t.untargetUntil = this.time + 2;
+    t.untargetUntil = this.time + 2 * k;
     this.emit({ type: 'hide', uid: t.uid, on: true });
     this.emit({ type: 'buff', target: t.uid, kind: 'cloak' });
-    this.heal(t, (t.maxHp - t.hp) * 0.6, t);
+    this.heal(t, (t.maxHp - t.hp) * Math.min(1, 0.6 * k), t);
+  },
+
+  sashFire(t) {
+    const k = t.sashK || 1;
+    t.sashReady = false;
+    t.sashFired = true;
+    t.endureUntil = this.time + 2 * k;
+    t.sashGain = 0.2 * k;
+    t.pct.pa += t.sashGain;
+    t.pct.sa += t.sashGain;
+    this.emit({ type: 'buff', target: t.uid, kind: 'sash' });
   },
 
   itemOnBasic(u, t, raw, dmg, crit) {
@@ -594,7 +606,7 @@ const ITEM_FX = {
       u.scarfPct += 2 * it['choice-scarf'];
     }
     if (it['booster-energy'] && dmg > 0) this.boostStack(u);
-    if (it['kings-rock'] && t.alive && this.rng.next() < 0.1) this.stun(t, 1.5, u.side, 'flinch');
+    if (it['kings-rock'] && t.alive && this.rng.next() < 0.1 * it['kings-rock']) this.stun(t, 1.5, u.side, 'flinch');
     if (it['silver-wing']) {
       const others = this.units.filter(o => o !== t && !o.serpent && this.canTarget(u, o)).sort((a, b) => Hex.dist(u.r, u.c, a.r, a.c) - Hex.dist(u.r, u.c, b.r, b.c) || a.uid - b.uid).slice(0, 2 * it['silver-wing']);
       for (const o of others) {

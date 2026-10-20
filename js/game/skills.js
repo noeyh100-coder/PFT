@@ -1,3 +1,8 @@
+function skillParamsOf(form) {
+  if (!form || typeof SKILL_P === 'undefined') return {};
+  return SKILL_P[form.name + '·' + form.skill] || SKILL_P[form.name] || {};
+}
+
 const SKILL_P = {
   '캐터피': { m: 1.5, spe: -2 },
   '단데기': { def: 2, dur: 5, shield: 0.15, reflect: 0.2 },
@@ -170,7 +175,18 @@ const SKILL_P = {
   '망키': { m: 1.8 },
   '성원숭': { m: 2.1 },
   '저승갓숭': { m: 1.8 },
-  '스라크': { m: 1.7 },
+  '스라크': { m: 1.9, crit: 1 },
+  '스라크·벌레먹기': { m: 1.6, heal: 0.4 },
+  '발챙이·거품광선': { m: 1.8, behind: 1 },
+  '슈륙챙이·거품광선': { m: 2.1, behind: 1 },
+  '뚜벅쵸·꽃잎댄스': { m: 0.6, dur: 2 },
+  '냄새꼬·꽃잎댄스': { m: 0.7, dur: 2 },
+  '라플레시아·애시드봄': { m: 2.3 },
+  '배루키·로킥': { m: 1.7 },
+  '배루키·판별': { m: 1.6, dur: 1.5, def: 1 },
+  '홍수몬·판별': { m: 2.2, dur: 2, def: 2 },
+  '카포에라·마하펀치': { m: 2.0 },
+  '왕구리·거품광선': { m: 2.4, behind: 2 },
   '핫삼': { m: 0.8 },
   '사마자르': { m: 2.0, rock: 0.5 },
   '프테라': { m: 2.2 },
@@ -406,10 +422,10 @@ const SKILL_HELPERS = {
     const special = opt.special != null ? opt.special : u.special;
     const cr = Math.max(0, Math.min(table.length - 1, this.rank(u, 'crit') + (opt.crit || 0) + ((special ? u.skillCritSa : u.skillCritPa) || 0)));
     const roll = this.rng.next();
-    const crit = roll < table[cr] + (u.critAdd || 0);
-    let raw = opt.raw != null ? opt.raw : this.offense(u) * mult;
+    const crit = roll < table[cr];
+    let raw = opt.raw != null ? opt.raw : this.offense(u) * mult * (u.pwStar || 1);
     raw *= (1 + u.skillAmp) * this.skillScale;
-    if (crit) raw *= cfg.critMult;
+    if (crit) raw *= cfg.critMult + (u.critDmg || 0);
     if (diff > 0) raw *= 1 + cfg.hitBonus;
     if (u.waterSkillAmp) raw *= 1 + u.waterSkillAmp;
     const dmg = this.dealDamage(u, t, raw, { special, crit, kind: 'skill', ignoreShield: opt.ignoreShield, armor: opt.armor, ignoreUp: opt.ignoreUp });
@@ -611,7 +627,7 @@ const SKILL_HELPERS = {
 
   skillParams(u) {
     if (u.mew) return { m: 1.5, r: 2 };
-    return (u.form && SKILL_P[u.form.name]) || {};
+    return skillParamsOf(u.form);
   },
 
   skillName(u) {
@@ -934,7 +950,7 @@ const SKILLS = {
     S.emit({ type: 'retype', uid: u.uid, kind: 'mimic', value: src.form.skill });
     const keepType = u.skillType;
     u.skillType = src.skillType;
-    SKILLS[src.form.skill](S, u, t, SKILL_P[src.form.name] || {});
+    SKILLS[src.form.skill](S, u, t, skillParamsOf(src.form));
     u.skillType = keepType;
   },
   '리플렉터'(S, u, t, P) {
@@ -1275,6 +1291,29 @@ const SKILLS = {
     S.healAmt(u, u, total * 0.5, true);
     S.buff(u, 'def', P.buff, 5);
     S.buff(u, 'spd', P.buff, 5);
+  },
+  '거품광선'(S, u, t, P) {
+    const list = [t].concat(S.behind(u, t, P.behind || 1));
+    S.emit({ type: 'skillfx', uid: u.uid, r: t.r, c: t.c, radius: 1, kind: '물' });
+    S.hitAll(u, list, P.m, { onHit: o => S.debuff(u, o, 'spe', -1, 4) });
+  },
+  '판별'(S, u, t, P) {
+    const dur = P.dur || 1.5;
+    u.bulkUntil = S.time + dur;
+    S.emit({ type: 'buff', target: u.uid, kind: 'shield' });
+    S.later(dur, () => {
+      if (!u.alive) return;
+      const list = S.ring(u, u.r, u.c, 1);
+      S.ringFx(u, u.r, u.c, 1);
+      S.hitAll(u, list, P.m, {});
+      S.buff(u, 'def', P.def || 1, 4);
+    });
+  },
+  '벌레먹기'(S, u, t, P) {
+    const d = S.hit(u, t, P.m, {});
+    if (d > 0) S.healAmt(u, u, d * (P.heal || 0.4));
+    if (t.alive) S.debuff(u, t, 'atk', -1, 4);
+    S.buff(u, 'def', 1, 4);
   },
   '시저크로스'(S, u, t, P) {
     S.hit(u, t, P.m, { crit: P.crit });

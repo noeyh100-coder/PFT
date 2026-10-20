@@ -1,1216 +1,1608 @@
 const AUG_TIER_NAME = ['', '실버', '골드', '프리즘'];
 
+const AUG_ROUNDS = ['2-1', '3-2', '4-2'];
+
 const AUGMENTS = [
  {
-  "id": "cyber1",
+  "id": "latebloom",
   "tier": 1,
-  "name": "사이버네틱 이식 I",
-  "src": "Cybernetic Implants I",
-  "icon": "cell-battery",
-  "desc": "아이템을 든 아군 체력 +120, 공격·특수공격 +6%"
+  "name": "후발 주자",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "berry-juice",
+  "desc": "전장 및 대기석에 있는 포켓몬을 판매합니다. 무작위 1코스트 2성 포켓몬 4명을 획득합니다. 다음 3라운드 동안 상점이 비활성화됩니다."
  },
  {
-  "id": "cyber2",
-  "tier": 2,
-  "name": "사이버네틱 몸집 II",
-  "src": "Cybernetic Bulk II",
-  "icon": "cell-battery",
-  "desc": "아이템을 든 아군 체력 +220, 공격·특수공격 +10%"
- },
- {
-  "id": "cyber3",
-  "tier": 3,
-  "name": "사이버네틱 업링크 III",
-  "src": "Cybernetic Uplink III",
-  "icon": "cell-battery",
-  "desc": "아이템을 든 아군 체력 +350, 공격·특수공격 +15%, 2초마다 PP 3"
- },
- {
-  "id": "feather1",
+  "id": "latespec",
   "tier": 1,
-  "name": "경량급 I",
-  "src": "Featherweights I",
-  "icon": "fluffy-tail",
-  "desc": "1·2코 아군 공격 속도 +15%, 스피드 +1랭크"
+  "name": "후반 전문가",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "luck-incense",
+  "desc": "9레벨에 도달하면 36골드를 획득합니다."
  },
  {
-  "id": "feather2",
-  "tier": 2,
-  "name": "경량급 II",
-  "src": "Featherweights II",
-  "icon": "fluffy-tail",
-  "desc": "1·2코 아군 공격 속도 +25%, 스피드 +2랭크"
- },
- {
-  "id": "feather3",
-  "tier": 3,
-  "name": "경량급 III",
-  "src": "Featherweights III",
-  "icon": "fluffy-tail",
-  "desc": "1·2코 아군 공격 속도 +40%, 스피드 +3랭크"
- },
- {
-  "id": "bigfriend1",
+  "id": "efficient",
   "tier": 1,
-  "name": "큰 친구 I",
-  "src": "Big Friend I",
-  "icon": "iron-ball",
-  "desc": "필드에 4·5코 아군이 있으면 아군 받는 피해 −6%"
- },
- {
-  "id": "bigfriend2",
-  "tier": 2,
-  "name": "큰 친구 II",
-  "src": "Big Friend II",
-  "icon": "iron-ball",
-  "desc": "필드에 4·5코 아군이 있으면 아군 받는 피해 −10%"
- },
- {
-  "id": "bigfriend3",
-  "tier": 3,
-  "name": "큰 친구 III",
-  "src": "Big Friend III",
-  "icon": "iron-ball",
-  "desc": "필드에 4·5코 아군이 있으면 아군 받는 피해 −16%"
- },
- {
-  "id": "double1",
-  "tier": 1,
-  "name": "문제가 두배 I",
-  "src": "Double Trouble I",
-  "icon": "poke-doll",
-  "desc": "같은 기물이 딱 2마리면 둘 다 공격·특수공격·방어·특수방어 +15%"
- },
- {
-  "id": "double2",
-  "tier": 2,
-  "name": "문제가 두배 II",
-  "src": "Double Trouble II",
-  "icon": "poke-doll",
-  "desc": "같은 기물이 딱 2마리면 둘 다 공격·특수공격·방어·특수방어 +25%"
- },
- {
-  "id": "double3",
-  "tier": 3,
-  "name": "문제가 두배 III",
-  "src": "Double Trouble III",
-  "icon": "poke-doll",
-  "desc": "같은 기물이 딱 2마리면 둘 다 공격·특수공격·방어·특수방어 +40%"
- },
- {
-  "id": "triforce1",
-  "tier": 1,
-  "name": "삼위일체 I",
-  "src": "Tri Force I",
-  "icon": "star-piece",
-  "desc": "3코 아군 체력 +150, 공격 속도 +10%"
- },
- {
-  "id": "triforce2",
-  "tier": 2,
-  "name": "삼위일체 II",
-  "src": "Tri Force II",
-  "icon": "star-piece",
-  "desc": "3코 아군 체력 +250, 공격 속도 +18%"
- },
- {
-  "id": "triforce3",
-  "tier": 3,
-  "name": "삼위일체 III",
-  "src": "Tri Force III",
-  "icon": "star-piece",
-  "desc": "3코 아군 체력 +400, 공격 속도 +28%"
- },
- {
-  "id": "battery1",
-  "tier": 1,
-  "name": "푸른 배터리 I",
-  "src": "Blue Battery I",
-  "icon": "pp-up",
-  "desc": "아군이 스킬을 쓴 뒤 PP 4 돌려받음"
- },
- {
-  "id": "battery2",
-  "tier": 2,
-  "name": "푸른 배터리 II",
-  "src": "Blue Battery II",
-  "icon": "pp-up",
-  "desc": "아군이 스킬을 쓴 뒤 PP 16 돌려받음"
- },
- {
-  "id": "battery3",
-  "tier": 3,
-  "name": "푸른 배터리 III",
-  "src": "Blue Battery III",
-  "icon": "pp-up",
-  "desc": "아군이 스킬을 쓴 뒤 PP 24 돌려받음"
- },
- {
-  "id": "electro1",
-  "tier": 1,
-  "name": "전기 충전 I",
-  "src": "Electrocharge I",
-  "icon": "electric-seed",
-  "desc": "아군이 급소를 맞으면 주변 1칸 적에게 특수 피해 60 (기물마다 0.5초 대기)"
- },
- {
-  "id": "electro2",
-  "tier": 2,
-  "name": "전기 충전 II",
-  "src": "Electrocharge II",
-  "icon": "electric-seed",
-  "desc": "아군이 급소를 맞으면 주변 1칸 적에게 특수 피해 110 (기물마다 0.5초 대기)"
- },
- {
-  "id": "electro3",
-  "tier": 3,
-  "name": "전기 충전 III",
-  "src": "Electrocharge III",
-  "icon": "electric-seed",
-  "desc": "아군이 급소를 맞으면 주변 1칸 적에게 특수 피해 180 (기물마다 0.5초 대기)"
- },
- {
-  "id": "exiles1",
-  "tier": 1,
-  "name": "추방자 I",
-  "src": "Exiles I",
-  "icon": "escape-rope",
-  "desc": "전투 시작 시 인접한 아군이 없는 아군에게 최대 체력 20% 보호막 (8초)"
- },
- {
-  "id": "exiles2",
-  "tier": 2,
-  "name": "추방자 II",
-  "src": "Exiles II",
-  "icon": "escape-rope",
-  "desc": "전투 시작 시 인접한 아군이 없는 아군에게 최대 체력 35% 보호막 (8초)"
- },
- {
-  "id": "exiles3",
-  "tier": 3,
-  "name": "추방자 III",
-  "src": "Exiles III",
-  "icon": "escape-rope",
-  "desc": "전투 시작 시 인접한 아군이 없는 아군에게 최대 체력 55% 보호막 (8초)"
- },
- {
-  "id": "training1",
-  "tier": 1,
-  "name": "전투 훈련 I",
-  "src": "Combat Training I",
-  "icon": "macho-brace",
-  "desc": "전투에서 살아남을 때마다 그 기물의 공격·특수공격 +1% 영구 (최대 15%)"
- },
- {
-  "id": "training2",
-  "tier": 2,
-  "name": "전투 훈련 II",
-  "src": "Combat Training II",
-  "icon": "macho-brace",
-  "desc": "전투에서 살아남을 때마다 그 기물의 공격·특수공격 +1.5% 영구 (최대 25%)"
- },
- {
-  "id": "training3",
-  "tier": 3,
-  "name": "전투 훈련 III",
-  "src": "Combat Training III",
-  "icon": "macho-brace",
-  "desc": "전투에서 살아남을 때마다 그 기물의 공격·특수공격 +2% 영구 (최대 40%)"
- },
- {
-  "id": "manaflow1",
-  "tier": 1,
-  "name": "마나 흐름 I",
-  "src": "Manaflow I",
-  "icon": "pp-max",
-  "desc": "아군 시작 PP +10"
- },
- {
-  "id": "manaflow2",
-  "tier": 2,
-  "name": "마나 흐름 II",
-  "src": "Manaflow II",
-  "icon": "pp-max",
-  "desc": "아군 시작 PP +20"
- },
- {
-  "id": "manaflow3",
-  "tier": 3,
-  "name": "마나 흐름 III",
-  "src": "Manaflow III",
-  "icon": "pp-max",
-  "desc": "아군 시작 PP +30"
- },
- {
-  "id": "spoils1",
-  "tier": 1,
-  "name": "전리품 I",
-  "src": "Spoils of War I",
-  "icon": "amulet-coin",
-  "desc": "아군이 적을 처치하면 15% 확률로 1골드"
- },
- {
-  "id": "spoils2",
-  "tier": 2,
-  "name": "전리품 II",
-  "src": "Spoils of War II",
-  "icon": "amulet-coin",
-  "desc": "아군이 적을 처치하면 25% 확률로 1골드 (전투당 최대 5)"
- },
- {
-  "id": "spoils3",
-  "tier": 3,
-  "name": "전리품 III",
-  "src": "Spoils of War III",
-  "icon": "amulet-coin",
-  "desc": "아군이 적을 처치하면 40% 확률로 1골드 (전투당 최대 8)"
- },
- {
-  "id": "pumping1",
-  "tier": 1,
-  "name": "펌핑 I",
-  "src": "Pumping Up I",
-  "icon": "protein",
-  "desc": "아군 공격 속도 +5%, 이후 라운드마다 +0.5%"
- },
- {
-  "id": "pumping2",
-  "tier": 2,
-  "name": "펌핑 II",
-  "src": "Pumping Up II",
-  "icon": "protein",
-  "desc": "아군 공격 속도 +8%, 이후 라운드마다 +1%"
- },
- {
-  "id": "pumping3",
-  "tier": 3,
-  "name": "펌핑 III",
-  "src": "Pumping Up III",
-  "icon": "protein",
-  "desc": "아군 공격 속도 +12%, 이후 라운드마다 +1.5%"
- },
- {
-  "id": "united1",
-  "tier": 1,
-  "name": "단결 I",
-  "src": "Stand United I",
-  "icon": "soothe-bell",
-  "desc": "켜진 시너지 하나마다 아군 공격·특수공격 +1.5%"
- },
- {
-  "id": "united2",
-  "tier": 2,
-  "name": "단결 II",
-  "src": "Stand United II",
-  "icon": "soothe-bell",
-  "desc": "켜진 시너지 하나마다 아군 공격·특수공격 +2.5%"
- },
- {
-  "id": "united3",
-  "tier": 3,
-  "name": "단결 III",
-  "src": "Stand United III",
-  "icon": "soothe-bell",
-  "desc": "켜진 시너지 하나마다 아군 공격·특수공격 +4%"
- },
- {
-  "id": "scoped1",
-  "tier": 1,
-  "name": "조준경 부착 I",
-  "src": "Scoped Weapons I",
-  "icon": "wide-lens",
-  "desc": "뒤 두 줄 아군 사거리 +1, 공격 속도 +6%"
- },
- {
-  "id": "scoped2",
-  "tier": 2,
-  "name": "조준경 부착 II",
-  "src": "Scoped Weapons II",
-  "icon": "wide-lens",
-  "desc": "뒤 두 줄 아군 사거리 +1, 공격 속도 +12%"
- },
- {
-  "id": "scoped3",
-  "tier": 3,
-  "name": "조준경 부착 III",
-  "src": "Scoped Weapons III",
-  "icon": "wide-lens",
-  "desc": "뒤 두 줄 아군 사거리 +2, 공격 속도 +20%"
+  "name": "효율적인 소비자",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "moomoo-milk",
+  "desc": "다음 회전초밥 4회 동안 선택한 포켓몬의 복사본을 하나 더 획득합니다. 즉시 4골드를 획득합니다."
  },
  {
   "id": "thrill1",
   "tier": 1,
-  "name": "사냥의 전율 I",
-  "src": "Thrill of the Hunt I",
+  "name": "사냥의 전율I",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
   "icon": "razor-fang",
-  "desc": "아군이 적을 처치하면 체력 250 회복"
+  "desc": "적이 사망하면 가장 가까운 아군이 체력을 220 회복합니다."
+ },
+ {
+  "id": "swordsdance",
+  "tier": 1,
+  "name": "칼춤",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "x-attack",
+  "desc": "아군이 공격을 10% 얻습니다. 5초마다 5% 더 얻습니다."
+ },
+ {
+  "id": "calmmind",
+  "tier": 1,
+  "name": "명상",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "x-sp-atk",
+  "desc": "아군이 특수공격을 10% 얻습니다. 5초마다 5% 더 얻습니다."
+ },
+ {
+  "id": "cooperate",
+  "tier": 1,
+  "name": "협력",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "exp-share",
+  "desc": "무작위 조합 아이템 1개와 무작위 3코스트 포켓몬 2명을 획득합니다."
+ },
+ {
+  "id": "onetwothree",
+  "tier": 1,
+  "name": "하나, 둘, 셋",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "poke-ball",
+  "desc": "1코스트 포켓몬 1명, 2코스트 포켓몬 2명, 3코스트 포켓몬 1명을 획득합니다."
+ },
+ {
+  "id": "onetwofive",
+  "tier": 1,
+  "name": "하나, 둘, 다섯!",
+  "rounds": [
+   "4-2"
+  ],
+  "icon": "great-ball",
+  "desc": "무작위 조합 아이템 1개, 2골드, 무작위 5코스트 포켓몬 1명을 획득합니다."
+ },
+ {
+  "id": "pandora1",
+  "tier": 1,
+  "name": "판도라의 아이템",
+  "rounds": [
+   "2-1",
+   "3-2",
+   "4-2"
+  ],
+  "icon": "enigma-berry",
+  "desc": "라운드 시작: 아이템 칸의 아이템이 같은 종류의 무작위 아이템으로 변합니다. 무작위 조합 아이템 1개를 획득합니다."
+ },
+ {
+  "id": "bigfriend",
+  "tier": 1,
+  "name": "커다란 친구",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "heavy-duty-boots",
+  "desc": "체력이 1750 이상인 아군 옆에서 전투를 시작하는 아군이 내구력을 10% 얻습니다. 먹다남은음식 1개를 획득합니다."
+ },
+ {
+  "id": "exiles1",
+  "tier": 1,
+  "name": "추방자I",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "escape-rope",
+  "desc": "인접한 포켓몬 없이 전투를 시작하는 아군 포켓몬이 10초 동안 최대 체력의 20%에 해당하는 보호막을 획득합니다."
+ },
+ {
+  "id": "shaymin1",
+  "tier": 1,
+  "name": "쉐이미의 축복I",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "sacred-ash",
+  "desc": "아군이 모든 피해 흡혈을 12% 얻습니다. 초과 회복량은 최대 200의 피해를 흡수하는 보호막으로 전환됩니다."
+ },
+ {
+  "id": "patientblessing",
+  "tier": 1,
+  "name": "참는 자에게 복을",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "sitrus-berry",
+  "desc": "라운드마다, 지난 라운드에서 포켓몬을 구매하지 않았다면 무료 새로고침을 2회 얻습니다."
+ },
+ {
+  "id": "augpower",
+  "tier": 1,
+  "name": "증강된 힘",
+  "rounds": [
+   "2-1",
+   "3-2"
+  ],
+  "icon": "dynamax-candy",
+  "desc": "다음 증강이 한 등급 높아집니다."
+ },
+ {
+  "id": "laststand",
+  "tier": 1,
+  "name": "배수의진",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "adrenaline-orb",
+  "desc": "전방 가로 1열 중앙에서 전투를 시작하는 아군 포켓몬이 피해 증폭을 15%, 최대 체력을 25% 얻습니다."
+ },
+ {
+  "id": "craft",
+  "tier": 1,
+  "name": "정교한 공예",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "electric-seed",
+  "desc": "완성 아이템을 만들 때마다 무료 새로고침을 2회 얻습니다."
+ },
+ {
+  "id": "lunchmoney",
+  "tier": 1,
+  "name": "점심값",
+  "rounds": [
+   "2-1",
+   "3-2"
+  ],
+  "icon": "lansat-berry",
+  "desc": "적 전략가에게 7의 피해를 입힐 때마다 2골드를 획득합니다."
+ },
+ {
+  "id": "spoils1",
+  "tier": 1,
+  "name": "전리품I",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "poke-ball",
+  "desc": "적 처치 시 25% 확률로 전리품을 획득합니다."
+ },
+ {
+  "id": "wishful",
+  "tier": 1,
+  "name": "희망사항",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "max-potion",
+  "desc": "전투 시작 10초 후 아군이 잃은 체력의 40%를 회복합니다."
+ },
+ {
+  "id": "smallbag",
+  "tier": 1,
+  "name": "작은 꾸러미",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "item/gimmi-small",
+  "desc": "무작위 조합 아이템 2개를 획득합니다."
+ },
+ {
+  "id": "makeshift1",
+  "tier": 1,
+  "name": "임시변통 방어구I",
+  "rounds": [
+   "2-1",
+   "3-2"
+  ],
+  "icon": "iron",
+  "desc": "아이템이 없는 아군이 방어와 특수방어를 30 얻습니다."
+ },
+ {
+  "id": "pallet",
+  "tier": 1,
+  "name": "태초마을",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "premier-ball",
+  "desc": "전장과 대기석의 모든 아군 포켓몬을 제거합니다. 무작위 3코스트 2성 포켓몬 2명, 2코스트 2성 포켓몬 3명, 1코스트 2성 포켓몬 1명을 획득합니다."
+ },
+ {
+  "id": "silverspoon",
+  "tier": 1,
+  "name": "은수저",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "pearl-string",
+  "desc": "10의 경험치를 획득합니다."
+ },
+ {
+  "id": "silverfate1",
+  "tier": 1,
+  "name": "은빛 운명",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "wishing-piece",
+  "desc": "무작위 실버 증강을 얻고 2골드를 획득합니다."
+ },
+ {
+  "id": "silverfate2",
+  "tier": 1,
+  "name": "은빛 운명+",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "wishing-piece",
+  "desc": "무작위 실버 증강을 얻고 4골드를 획득합니다."
+ },
+ {
+  "id": "gimmiuse",
+  "tier": 1,
+  "name": "유용한 모으령",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "item/gimmi-small",
+  "desc": "작은 모으령 상자(조합 아이템 상자) 1개와 3골드를 획득합니다."
+ },
+ {
+  "id": "shellbreak1",
+  "tier": 1,
+  "name": "껍질 깨기I",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "x-attack",
+  "desc": "후방 가로 1열에서 전투를 시작한 아군이 전투 시작 시 체력이 80%로 조정되지만 피해 증폭을 17% 얻습니다."
+ },
+ {
+  "id": "noconnect",
+  "tier": 1,
+  "name": "연결 불가",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "starf-berry",
+  "desc": "가지고 있는 1코스트 포켓몬마다 그 포켓몬의 1성 복사본을 1명씩 획득합니다."
+ },
+ {
+  "id": "itembag",
+  "tier": 1,
+  "name": "아이템 꾸러미",
+  "rounds": [
+   "2-1",
+   "3-2",
+   "4-2"
+  ],
+  "icon": "item/gimmi-big",
+  "desc": "무작위 완성 아이템 1개를 획득합니다."
+ },
+ {
+  "id": "winning",
+  "tier": 1,
+  "name": "승승장구",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "x-speed",
+  "desc": "지난 전투에 배치한 포켓몬의 별 레벨을 올릴 때마다 무료 상점 새로고침 2회를 얻습니다. 2골드를 획득합니다."
+ },
+ {
+  "id": "survivor",
+  "tier": 1,
+  "name": "생존자",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "focus-band",
+  "desc": "4골드를 획득합니다. 플레이어 3명이 탈락하면 100골드를 추가로 획득합니다."
+ },
+ {
+  "id": "rerollday",
+  "tier": 1,
+  "name": "새로고침의 날",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "room-service",
+  "desc": "무료 상점 새로고침을 10회 얻습니다."
+ },
+ {
+  "id": "crumbs",
+  "tier": 1,
+  "name": "부스러기",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "jaboca-berry",
+  "desc": "다음 회전초밥 2회에서 선택되지 않은 포켓몬 1명과 해당 포켓몬이 보유한 아이템을 획득합니다. 1골드를 획득합니다."
+ },
+ {
+  "id": "titan",
+  "tier": 1,
+  "name": "거대한 거인",
+  "rounds": [
+   "2-1",
+   "3-2"
+  ],
+  "icon": "big-mushroom",
+  "desc": "현재 및 최대 플레이어 체력이 25 증가합니다. 회전초밥에서 일찍 움직일 수 있지만 이동 속도가 큰 폭으로 감소합니다."
+ },
+ {
+  "id": "predict",
+  "tier": 1,
+  "name": "결과 예측",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "lucky-egg",
+  "desc": "연승을 4연승으로 설정합니다. 4골드를 획득합니다."
+ },
+ {
+  "id": "boxing",
+  "tier": 1,
+  "name": "권투 교습",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "item/punching-glove",
+  "desc": "아군이 전방에서 전투를 시작하는 아군 하나당 체력을 30 얻습니다."
+ },
+ {
+  "id": "smallcandy",
+  "tier": 1,
+  "name": "조금 달콤한 사탕",
+  "rounds": [
+   "2-1",
+   "3-2"
+  ],
+  "icon": "item/exp-candy-m",
+  "desc": "경험사탕M을 획득합니다. 플레이어 대상 전투를 5회 치른 후 다시 획득합니다."
+ },
+ {
+  "id": "useful",
+  "tier": 1,
+  "name": "다 쓸 데가 있다니까",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "bottle-cap",
+  "desc": "아이템을 장착하지 않은 아군 포켓몬이 사망하면 40% 확률로 1골드를 떨어뜨립니다."
+ },
+ {
+  "id": "buddy1",
+  "tier": 1,
+  "name": "단짝I",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "x-defense",
+  "desc": "둘이서 고립된 아군(서로만 붙어 있는 두 아군)이 전투 시작 시 공격 속도를 10%, 방어를 13 얻습니다."
+ },
+ {
+  "id": "cataclysm",
+  "tier": 1,
+  "name": "대격변 생성기",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "dynite-ore",
+  "desc": "전장의 포켓몬들이 1코스트 더 높은 무작위 포켓몬으로 영구히 바뀝니다. 자석 2개를 획득합니다."
+ },
+ {
+  "id": "lateclass",
+  "tier": 2,
+  "name": "후반 학습",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "protein",
+  "desc": "매 플레이어 대상 전투 라운드 시작 시 경험치를 2 얻습니다. 아군 5코스트 포켓몬이 체력을 12%, 공격 속도를 12% 얻습니다."
  },
  {
   "id": "thrill2",
   "tier": 2,
-  "name": "사냥의 전율 II",
-  "src": "Thrill of the Hunt II",
+  "name": "사냥의 전율II",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
   "icon": "razor-fang",
-  "desc": "아군이 적을 처치하면 체력 450 회복"
+  "desc": "적이 사망하면 가장 가까운 아군이 체력을 500 회복합니다."
  },
  {
-  "id": "thrill3",
-  "tier": 3,
-  "name": "사냥의 전율 III",
-  "src": "Thrill of the Hunt III",
-  "icon": "razor-fang",
-  "desc": "아군이 적을 처치하면 체력 700 회복, 공격 속도 +10% (중첩)"
- },
- {
-  "id": "glass1",
-  "tier": 1,
-  "name": "유리 대포 I",
-  "src": "Glass Cannon I",
-  "icon": "x-attack",
-  "desc": "뒤 두 줄 아군 최대 체력 −10%, 피해 +13%"
- },
- {
-  "id": "glass2",
+  "id": "chaos",
   "tier": 2,
-  "name": "유리 대포 II",
-  "src": "Glass Cannon II",
-  "icon": "x-attack",
-  "desc": "뒤 두 줄 아군 최대 체력 −20%, 피해 +25%"
- },
- {
-  "id": "glass3",
-  "tier": 3,
-  "name": "유리 대포 III",
-  "src": "Glass Cannon III",
-  "icon": "x-attack",
-  "desc": "뒤 두 줄 아군 최대 체력 −25%, 피해 +40%"
- },
- {
-  "id": "celestial1",
-  "tier": 1,
-  "name": "천상의 축복 I",
-  "src": "Celestial Blessing I",
-  "icon": "comet-shard",
-  "desc": "아군 흡혈 +8%, 넘친 회복은 보호막으로 (최대 200)"
- },
- {
-  "id": "celestial2",
-  "tier": 2,
-  "name": "천상의 축복 II",
-  "src": "Celestial Blessing II",
-  "icon": "comet-shard",
-  "desc": "아군 흡혈 +15%, 넘친 회복은 보호막으로 (최대 350)"
- },
- {
-  "id": "celestial3",
-  "tier": 3,
-  "name": "천상의 축복 III",
-  "src": "Celestial Blessing III",
-  "icon": "comet-shard",
-  "desc": "아군 흡혈 +25%, 넘친 회복은 보호막으로 (최대 600)"
- },
- {
-  "id": "unified1",
-  "tier": 1,
-  "name": "단합된 저항 I",
-  "src": "Unified Resistance I",
-  "icon": "guard-spec",
-  "desc": "아군 방어·특수방어 +8, 체력 50% 이하일 때 2배"
- },
- {
-  "id": "unified2",
-  "tier": 2,
-  "name": "단합된 저항 II",
-  "src": "Unified Resistance II",
-  "icon": "guard-spec",
-  "desc": "아군 방어·특수방어 +14, 체력 50% 이하일 때 2배"
- },
- {
-  "id": "unified3",
-  "tier": 3,
-  "name": "단합된 저항 III",
-  "src": "Unified Resistance III",
-  "icon": "guard-spec",
-  "desc": "아군 방어·특수방어 +22, 체력 50% 이하일 때 2배"
- },
- {
-  "id": "firstaid1",
-  "tier": 1,
-  "name": "구급 상자 I",
-  "src": "First Aid Kit I",
-  "icon": "full-restore",
-  "desc": "아군이 받는 치유·보호막 +15%"
- },
- {
-  "id": "firstaid2",
-  "tier": 2,
-  "name": "구급 상자 II",
-  "src": "First Aid Kit II",
-  "icon": "full-restore",
-  "desc": "아군이 받는 치유·보호막 +30%"
- },
- {
-  "id": "firstaid3",
-  "tier": 3,
-  "name": "구급 상자 III",
-  "src": "First Aid Kit III",
-  "icon": "full-restore",
-  "desc": "아군이 받는 치유·보호막 +50%"
- },
- {
-  "id": "built1",
-  "tier": 1,
-  "name": "특별 제작 I",
-  "src": "Built Different I",
-  "icon": "muscle-band",
-  "desc": "켜진 시너지가 없는 아군 체력 +200, 공격 속도 +25%"
- },
- {
-  "id": "built2",
-  "tier": 2,
-  "name": "특별 제작 II",
-  "src": "Built Different II",
-  "icon": "muscle-band",
-  "desc": "켜진 시너지가 없는 아군 체력 +350, 공격 속도 +45%"
- },
- {
-  "id": "built3",
-  "tier": 3,
-  "name": "특별 제작 III",
-  "src": "Built Different III",
-  "icon": "muscle-band",
-  "desc": "켜진 시너지가 없는 아군 체력 +500, 공격 속도 +65%"
- },
- {
-  "id": "distance1",
-  "tier": 1,
-  "name": "거리두기 I",
-  "src": "Social Distancing I",
-  "icon": "safety-goggles",
-  "desc": "인접한 아군이 없는 아군 공격·특수공격 +12%"
- },
- {
-  "id": "distance2",
-  "tier": 2,
-  "name": "거리두기 II",
-  "src": "Social Distancing II",
-  "icon": "safety-goggles",
-  "desc": "인접한 아군이 없는 아군 공격·특수공격 +22%"
- },
- {
-  "id": "distance3",
-  "tier": 3,
-  "name": "거리두기 III",
-  "src": "Social Distancing III",
-  "icon": "safety-goggles",
-  "desc": "인접한 아군이 없는 아군 공격·특수공격 +35%"
- },
- {
-  "id": "knife1",
-  "tier": 1,
-  "name": "칼날의 끝 I",
-  "src": "Knife's Edge I",
-  "icon": "expert-belt",
-  "desc": "앞 두 줄 아군 공격·특수공격 +12%"
- },
- {
-  "id": "knife2",
-  "tier": 2,
-  "name": "칼날의 끝 II",
-  "src": "Knife's Edge II",
-  "icon": "expert-belt",
-  "desc": "앞 두 줄 아군 공격·특수공격 +22%"
- },
- {
-  "id": "knife3",
-  "tier": 3,
-  "name": "칼날의 끝 III",
-  "src": "Knife's Edge III",
-  "icon": "expert-belt",
-  "desc": "앞 두 줄 아군 공격·특수공격 +35%"
- },
- {
-  "id": "lotus1",
-  "tier": 1,
-  "name": "보석 연꽃 I",
-  "src": "Jeweled Lotus I",
-  "icon": "lansat-berry",
-  "desc": "아군 스킬도 급소가 터지고, 급소율 +10%"
- },
- {
-  "id": "lotus2",
-  "tier": 2,
-  "name": "보석 연꽃 II",
-  "src": "Jeweled Lotus II",
-  "icon": "lansat-berry",
-  "desc": "아군 스킬도 급소가 터지고, 급소율 +20%"
- },
- {
-  "id": "lotus3",
-  "tier": 3,
-  "name": "보석 연꽃 III",
-  "src": "Jeweled Lotus III",
-  "icon": "lansat-berry",
-  "desc": "아군 스킬도 급소가 터지고, 급소율 +35%"
- },
- {
-  "id": "rolling1",
-  "tier": 2,
-  "name": "끝없는 새로고침 I",
-  "src": "Rolling for Days I",
+  "name": "혼돈 마법",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
   "icon": "shiny-charm",
-  "desc": "즉시 7골드. 라운드마다 무료 새로고침 1회"
+  "desc": "주문술사가 시작 PP를 15 얻습니다. 주문술사가 PP를 150 사용할 때마다 마법 효과가 전장을 강타해 모든 적에게 최대 체력의 10%만큼 특수 피해를 입힙니다."
  },
  {
-  "id": "rolling2",
+  "id": "shellup",
   "tier": 2,
-  "name": "끝없는 새로고침 II",
-  "src": "Rolling for Days II",
-  "icon": "shiny-charm",
-  "desc": "라운드마다 무료 새로고침 2회"
+  "name": "강화된 조개",
+  "rounds": [
+   "2-1",
+   "3-2"
+  ],
+  "icon": "item/shell-bell",
+  "desc": "조개껍질방울 1개를 획득합니다. 전투 시작: 조개껍질방울을 장착한 아군이 체력을 20% 잃지만, 체력의 30%에 해당하는 보호막을 얻고 공격을 10% 얻습니다."
  },
  {
-  "id": "rolling3",
-  "tier": 3,
-  "name": "끝없는 새로고침 III",
-  "src": "Rolling for Days III",
-  "icon": "shiny-charm",
-  "desc": "라운드마다 무료 새로고침 3회"
- },
- {
-  "id": "heart",
-  "tier": 1,
-  "name": "시너지의 마음",
-  "src": "Heart",
-  "icon": "sweet-heart",
-  "desc": "무작위 시너지 +1"
- },
- {
-  "id": "soul",
+  "id": "boomlearn1",
   "tier": 2,
-  "name": "시너지의 영혼",
-  "src": "Soul",
-  "icon": "wishing-piece",
-  "desc": "무작위 시너지 +1, 그 시너지 기물 체력 +150"
+  "name": "폭발적인 학습",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "zinc",
+  "desc": "즉시 및 다음 3번의 라운드 시작 시 경험치를 7 얻습니다."
  },
  {
-  "id": "crown",
-  "tier": 3,
-  "name": "시너지의 왕관",
-  "src": "Crown",
-  "icon": "relic-gold",
-  "desc": "무작위 시너지 +2"
+  "id": "boomlearn2",
+  "tier": 2,
+  "name": "폭발적인 학습+",
+  "rounds": [
+   "4-2"
+  ],
+  "icon": "zinc",
+  "desc": "즉시 및 다음 3번의 라운드 시작 시 경험치를 10 얻습니다."
  },
  {
-  "id": "compbag",
-  "tier": 1,
-  "name": "부품 꾸러미",
-  "src": "Component Grab Bag",
+  "id": "pandora2",
+  "tier": 2,
+  "name": "판도라의 아이템II",
+  "rounds": [
+   "2-1",
+   "3-2",
+   "4-2"
+  ],
+  "icon": "enigma-berry",
+  "desc": "라운드 시작: 아이템 칸의 아이템이 같은 종류의 무작위 아이템으로 변합니다. 무작위 조합 아이템 2개를 획득합니다."
+ },
+ {
+  "id": "pandorabench",
+  "tier": 2,
+  "name": "판도라의 대기석",
+  "rounds": [
+   "2-1",
+   "3-2"
+  ],
+  "icon": "eject-button",
+  "desc": "라운드가 시작될 때마다 대기석 가장 오른쪽 3명의 포켓몬이 동일한 코스트의 무작위 포켓몬으로 변신합니다. 6골드를 획득합니다."
+ },
+ {
+  "id": "custom",
+  "tier": 2,
+  "name": "특별 맞춤 설정",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
   "icon": "luxury-ball",
-  "desc": "조합 아이템 2개"
+  "desc": "행운의 아이템 상자, 자석, 10골드를 획득합니다. 포켓몬에게 행운의 아이템 상자를 사용하면 그 포켓몬의 추천 아이템 중 하나를 선택할 수 있습니다!"
  },
  {
   "id": "bigbag",
   "tier": 2,
   "name": "큰 꾸러미",
-  "src": "Big Grab Bag",
-  "icon": "ultra-ball",
-  "desc": "조합 아이템 3개 + 속임수주사위 1개 + 2골드"
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "item/tinkaton-hammer",
+  "desc": "무작위 조합 아이템 3개, 2골드, 두드리짱의 망치를 획득합니다."
  },
  {
-  "id": "heroicbag",
-  "tier": 3,
-  "name": "영웅의 꾸러미",
-  "src": "Heroic Grab Bag",
-  "icon": "master-ball",
-  "desc": "완성 아이템 2개 + 속임수주사위 2개 + 6골드"
+  "id": "campaign",
+  "tier": 2,
+  "name": "출정",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "quick-ball",
+  "desc": "2코스트 2성 포켓몬 1명을 획득합니다. 플레이어에게 80의 피해를 입히면 고코스트 포켓몬과 아이템이 들어 있는 상자 1개(5코스트 포켓몬 1명, 큰 모으령 상자 1개)를 획득합니다."
  },
  {
-  "id": "windfall",
-  "tier": 1,
-  "name": "뜻밖의 횡재",
-  "src": "Windfall",
-  "icon": "nugget",
-  "desc": "즉시 8골드"
+  "id": "exiles2",
+  "tier": 2,
+  "name": "추방자II",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "escape-rope",
+  "desc": "인접한 포켓몬 없이 전투를 시작하는 아군 포켓몬이 10초 동안 최대 체력의 30%에 해당하는 보호막을 획득합니다."
  },
  {
-  "id": "patient",
-  "tier": 1,
-  "name": "차분한 학습",
-  "src": "Patient Study",
-  "icon": "exp-share",
-  "desc": "PvP에서 이기면 경험치 2, 지면 경험치 4"
+  "id": "ascend",
+  "tier": 2,
+  "name": "초월",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "max-revive",
+  "desc": "전투 시작 12초 후, 피해 증폭을 35% 얻습니다."
  },
  {
-  "id": "richer",
-  "tier": 1,
-  "name": "부익부",
-  "src": "Rich Get Richer",
-  "icon": "big-nugget",
-  "desc": "이자 최대치 +1"
+  "id": "shaymin2",
+  "tier": 2,
+  "name": "쉐이미의 축복II",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "sacred-ash",
+  "desc": "아군이 모든 피해 흡혈을 18% 얻습니다. 초과 회복량은 최대 400의 피해를 흡수하는 보호막으로 전환됩니다."
  },
  {
-  "id": "calcloss",
-  "tier": 1,
-  "name": "계산된 패배",
-  "src": "Calculated Loss",
-  "icon": "eject-button",
-  "desc": "PvP에서 질 때마다 2골드 + 무료 새로고침 1회"
+  "id": "opticshop",
+  "tier": 2,
+  "name": "안경점",
+  "rounds": [
+   "4-2"
+  ],
+  "icon": "wide-lens",
+  "desc": "박식안경으로 제작되는 무작위 완성 아이템 2개를 획득합니다."
  },
  {
-  "id": "starter",
-  "tier": 1,
-  "name": "초보자 키트",
-  "src": "Starter Kit",
-  "icon": "heal-ball",
-  "desc": "무작위 2코 기물 2마리 + 1골드"
+  "id": "earlyedu",
+  "tier": 2,
+  "name": "조기 교육",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "calcium",
+  "desc": "아군이 공격 및 특수공격을 8% 얻습니다. 이 수치는 플레이어 대상 전투가 끝날 때마다 1% 증가합니다. 1코스트 포켓몬은 두 배로 얻습니다."
  },
  {
-  "id": "pbench",
-  "tier": 1,
-  "name": "판도라의 대기석",
-  "src": "Pandora's Bench",
-  "icon": "red-card",
-  "desc": "즉시 3골드. 라운드 시작마다 대기석 왼쪽 4칸의 기물이 같은 코스트의 무작위 기물로 바뀜 (별 유지)"
+  "id": "haste",
+  "tier": 2,
+  "name": "고속이동",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "quick-claw",
+  "desc": "전투 시작 시 아군이 3초 동안 공격 속도를 25% 얻습니다. 처치 관여 시 아군이 다음 대상에게 돌진하고 동일한 추가 효과를 다시 얻습니다."
  },
  {
-  "id": "censer",
-  "tier": 1,
-  "name": "열정의 향로",
-  "src": "Ardent Censer",
-  "icon": "lax-incense",
-  "desc": "아군이 다른 아군을 치유하거나 보호막을 주면 받은 아군 공격 속도 +15% (3초)"
+  "id": "mindlink",
+  "tier": 2,
+  "name": "정신 결속",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "soothe-bell",
+  "desc": "포켓몬이 4초마다 최대 체력의 5%를 회복합니다. 잃은 플레이어 체력 10당 체력 회복량이 0.5% 증가합니다."
  },
  {
-  "id": "sunfire",
-  "tier": 1,
-  "name": "태양불꽃 보드",
-  "src": "Sunfire Board",
-  "icon": "adrenaline-orb",
-  "desc": "전투 시작과 5초마다 무작위 적 2명에게 화상 + 치유 33% 감소 (3초)"
+  "id": "spoils2",
+  "tier": 2,
+  "name": "전리품II",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "great-ball",
+  "desc": "적 처치 시 30% 확률로 전리품을 획득합니다."
  },
  {
-  "id": "weakspot",
-  "tier": 1,
-  "name": "약점",
-  "src": "Weakspot",
+  "id": "recycle1",
+  "tier": 2,
+  "name": "재활용 쓰레기통",
+  "rounds": [
+   "2-1"
+  ],
   "icon": "blunder-policy",
-  "desc": "아군 기본 공격이 대상의 치유를 33% 줄임 (3초)"
+  "desc": "지금 무작위 완성 아이템 1개를 획득하고 플레이어 대상 전투 8회 후에 조합 아이템 1개를 획득합니다. 포켓몬을 판매하면 완성 아이템이 조합 아이템으로 분해됩니다."
  },
  {
-  "id": "makeshift",
-  "tier": 1,
-  "name": "임시방편 갑옷",
-  "src": "Makeshift Armor",
-  "icon": "heavy-duty-boots",
-  "desc": "아이템이 없는 아군 방어·특수방어 +20"
+  "id": "recycle2",
+  "tier": 2,
+  "name": "재활용 쓰레기통",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "blunder-policy",
+  "desc": "지금 무작위 완성 아이템 1개를 획득하고 플레이어 대상 전투 4회 후에 조합 아이템 1개를 획득합니다. 포켓몬을 판매하면 완성 아이템이 조합 아이템으로 분해됩니다."
+ },
+ {
+  "id": "doublekill",
+  "tier": 2,
+  "name": "재빠른 더블 킬",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "item/choice-scarf",
+  "desc": "구애스카프를 1개 획득합니다. 플레이어 2명이 탈락하면 40골드를 획득합니다."
+ },
+ {
+  "id": "littlebuddies",
+  "tier": 2,
+  "name": "작은 친구들",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "poke-doll",
+  "desc": "아군 4코스트, 5코스트 포켓몬이 전장에 있는 아군 1코스트 및 2코스트 포켓몬 1명당 체력을 55, 공격 속도를 6% 얻습니다."
+ },
+ {
+  "id": "makeshift2",
+  "tier": 2,
+  "name": "임시변통 방어구II",
+  "rounds": [
+   "2-1",
+   "3-2"
+  ],
+  "icon": "iron",
+  "desc": "아이템이 없는 아군이 방어와 특수방어를 50 얻습니다."
+ },
+ {
+  "id": "dualtech",
+  "tier": 2,
+  "name": "이중 기술",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "pp-up",
+  "desc": "무작위 2코스트 2성 포켓몬 1명과 무작위 1코스트 2성 포켓몬 2명을 획득합니다."
+ },
+ {
+  "id": "favorable",
+  "tier": 2,
+  "name": "유리한 조건",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "lemonade",
+  "desc": "회전초밥에서 포켓몬을 선택할 수 없습니다. 회전초밥 라운드마다 추가로 플레이어 체력을 6 얻고 8골드를 획득합니다. 회전초밥 보상을 선택하지 않으면 선택되지 않은 포켓몬과 해당 포켓몬의 아이템을 획득합니다."
+ },
+ {
+  "id": "shellbreak2",
+  "tier": 2,
+  "name": "껍질 깨기II",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "x-attack",
+  "desc": "후방 가로 1열에서 전투를 시작한 아군이 전투 시작 시 체력이 80%로 조정되지만 피해 증폭을 30% 얻습니다."
+ },
+ {
+  "id": "indecisive1",
+  "tier": 2,
+  "name": "우유부단I",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "ability-capsule",
+  "desc": "3라운드 후 동일한 등급의 새 증강을 선택합니다. 즉시 4골드를 획득합니다."
+ },
+ {
+  "id": "polymath",
+  "tier": 2,
+  "name": "박학다식",
+  "rounds": [
+   "2-1",
+   "3-2",
+   "4-2"
+  ],
+  "icon": "x-sp-atk",
+  "desc": "박식안경과 방호패드를 획득합니다. 아군이 특수공격을 8%, 방어를 6 얻습니다."
+ },
+ {
+  "id": "lastpoke",
+  "tier": 2,
+  "name": "마지막 포켓몬",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "heal-ball",
+  "desc": "추천 아이템을 장착한 5코스트 2성 포켓몬을 획득합니다. 이 포켓몬은 스테이지 4-3부터 배치할 수 있습니다."
+ },
+ {
+  "id": "savings",
+  "tier": 2,
+  "name": "예금 계좌",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "gold-bottle-cap",
+  "desc": "이자로 50골드를 획득하면 30골드를 획득합니다. 최대 이자가 7골드로 증가합니다. 즉시 4골드를 획득합니다."
+ },
+ {
+  "id": "bronze1",
+  "tier": 2,
+  "name": "영원한 브론즈I",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "absorb-bulb",
+  "desc": "아군이 브론즈 등급 시너지당 피해 증폭을 2.5% 얻습니다."
+ },
+ {
+  "id": "cavity1",
+  "tier": 2,
+  "name": "이빨 썩겠어",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "item/exp-candy-m",
+  "desc": "경험사탕M 2개와 5골드를 획득합니다."
+ },
+ {
+  "id": "cavity2",
+  "tier": 2,
+  "name": "이빨 썩겠어+",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "item/exp-candy-m",
+  "desc": "경험사탕M 2개와 8골드를 획득합니다."
+ },
+ {
+  "id": "cavity3",
+  "tier": 2,
+  "name": "이빨 썩겠어++",
+  "rounds": [
+   "4-2"
+  ],
+  "icon": "item/exp-candy-m",
+  "desc": "경험사탕M 2개와 14골드를 획득합니다."
+ },
+ {
+  "id": "energywave",
+  "tier": 2,
+  "name": "에너지 파동",
+  "rounds": [
+   "2-1",
+   "3-2",
+   "4-2"
+  ],
+  "icon": "cell-battery",
+  "desc": "기본 공격 5회마다 기본 공격 피해량의 200%에 해당하는 추가 고정 피해를 입힙니다."
+ },
+ {
+  "id": "soulbeat",
+  "tier": 2,
+  "name": "소울비트",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "sweet-heart",
+  "desc": "아군이 체력을 44, 공격을 4%, 특수공격을 4%, 방어를 4, 특수방어를 4, 공격 속도를 4%, 시작 PP를 4 얻습니다."
+ },
+ {
+  "id": "clutter",
+  "tier": 2,
+  "name": "어수선한 마음",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "berry-juice",
+  "desc": "즉시 무작위 1코스트 포켓몬 4명을 획득합니다. 플레이어 대상 전투 라운드 종료 시 대기석에 포켓몬이 가득 찼다면 3의 경험치를 획득합니다."
+ },
+ {
+  "id": "rocketway",
+  "tier": 2,
+  "name": "로켓단의 방식",
+  "rounds": [
+   "4-2"
+  ],
+  "icon": "red-card",
+  "desc": "7골드를 획득합니다. 다음 2라운드 동안 적 포켓몬이 처치될 때 2골드를 떨어뜨립니다."
+ },
+ {
+  "id": "wootears",
+  "tier": 2,
+  "name": "울머기의 눈물",
+  "rounds": [
+   "2-1",
+   "3-2"
+  ],
+  "icon": "item/leppa-berry",
+  "desc": "과사열매를 획득합니다. 아군이 PP 재생을 1 얻습니다(1초마다 PP 1). 전투 시작 12초 후에는 PP 재생을 3만큼 얻습니다(1초마다 PP 3)."
+ },
+ {
+  "id": "rosaroy",
+  "tier": 2,
+  "name": "로사와 로이",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "luck-incense",
+  "desc": "라운드마다, 이전 전투에서 아군이 처음으로 처치한 포켓몬의 1성 복사본 1명을 획득합니다. 이 방식을 통해 처음으로 25골드 가치의 포켓몬을 획득하면 무작위 조합 아이템 1개를 획득합니다."
+ },
+ {
+  "id": "dealer",
+  "tier": 2,
+  "name": "수완가",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "relic-gold",
+  "desc": "이자가 없는 대신 플레이어 대상 전투 라운드를 시작할 때마다 3골드를 획득합니다. 즉시 3골드를 획득합니다."
+ },
+ {
+  "id": "epicroll",
+  "tier": 2,
+  "name": "서사적 새로고침",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "stardust",
+  "desc": "8레벨에 도달하면 무료 상점 새로고침을 20회 얻습니다."
+ },
+ {
+  "id": "birthday",
+  "tier": 2,
+  "name": "생일 모임",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "old-gateau",
+  "desc": "무작위 2코스트 2성 포켓몬 1명을 획득합니다. 7레벨에 도달하면 도적의 장갑 1개를 획득합니다. 9레벨에 도달하면 무작위 5코스트 2성 포켓몬 1명을 획득합니다."
+ },
+ {
+  "id": "newera1",
+  "tier": 2,
+  "name": "새로운 시대",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "lum-berry",
+  "desc": "즉시 및 이후 매 스테이지 시작 시 경험치를 4 획득하고 무료 새로고침을 2회 얻습니다."
+ },
+ {
+  "id": "newera2",
+  "tier": 2,
+  "name": "새로운 시대+",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "lum-berry",
+  "desc": "즉시 및 이후 매 스테이지 시작 시 경험치를 8 획득하고 무료 새로고침을 2회 얻습니다."
+ },
+ {
+  "id": "trio",
+  "tier": 2,
+  "name": "삼인방",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "pearl-string",
+  "desc": "3코스트 포켓몬 2명을 획득합니다. 전투 시작: 무작위 3코스트 아군 3명이 체력을 220, 공격 속도를 20% 얻습니다."
+ },
+ {
+  "id": "kindling",
+  "tier": 2,
+  "name": "땔감 제공",
+  "rounds": [
+   "2-1",
+   "3-2"
+  ],
+  "icon": "item/flame-orb",
+  "desc": "불구슬플레이트 1개를 획득합니다. 화상이 적용된 적을 공격할 때 모든 피해 흡혈을 12% 얻습니다."
+ },
+ {
+  "id": "lotus1",
+  "tier": 2,
+  "name": "보석 연꽃I",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "star-piece",
+  "desc": "아군이 급소율을 1랭크 얻으며 스킬에 급소가 적용될 수 있습니다."
+ },
+ {
+  "id": "munchkin",
+  "tier": 2,
+  "name": "먼치킨",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "tiny-mushroom",
+  "desc": "처음 구매하는 1코스트 및 2코스트 포켓몬이 즉시 2성으로 업그레이드됩니다. 7골드를 획득합니다."
+ },
+ {
+  "id": "doublebattle",
+  "tier": 2,
+  "name": "더블배틀",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "power-bracer",
+  "desc": "전장에 똑같은 포켓몬이 정확히 2명 있다면 각각 공격, 특수공격, 방어, 특수방어를 30% 얻습니다. 포켓몬을 3성으로 업그레이드하면 동일한 2성 포켓몬을 1명 획득합니다."
  },
  {
   "id": "clearmind",
-  "tier": 1,
+  "tier": 2,
   "name": "맑은 정신",
-  "src": "Clear Mind",
+  "rounds": [
+   "2-1"
+  ],
   "icon": "fresh-water",
-  "desc": "전투가 시작될 때 대기석이 비어 있으면 경험치 3"
+  "desc": "플레이어 대상 전투 종료 시 아군 대기석에 포켓몬이 없다면 3의 경험치를 획득합니다."
  },
  {
-  "id": "hyperroll",
-  "tier": 1,
-  "name": "하이퍼 롤",
-  "src": "Hyper Roll",
-  "icon": "timer-ball",
-  "desc": "즉시 무료 새로고침 6회"
- },
- {
-  "id": "salvage",
-  "tier": 1,
-  "name": "재활용 통",
-  "src": "Salvage Bin",
-  "icon": "armorite-ore",
-  "desc": "기물을 팔면 그 기물이 든 완성 아이템이 조합 아이템 2개로 분해되어 돌아옴"
- },
- {
-  "id": "hotstreak",
-  "tier": 1,
-  "name": "연승가도",
-  "src": "Hot Streak",
-  "icon": "starf-berry",
-  "desc": "연승·연패 골드 +1"
- },
- {
-  "id": "twohealthy",
-  "tier": 1,
-  "name": "두 배로 건강",
-  "src": "Two Healthy",
-  "icon": "oran-berry",
-  "desc": "2성 아군 체력 +120"
- },
- {
-  "id": "teamup",
-  "tier": 1,
-  "name": "팀 결성",
-  "src": "Teaming Up",
-  "icon": "galarica-cuff",
-  "desc": "조합 아이템 1개 + 속임수주사위 1개"
- },
- {
-  "id": "center",
-  "tier": 1,
-  "name": "중심 찾기",
-  "src": "Find Your Center",
-  "icon": "zoom-lens",
-  "desc": "필드 가운데 칸(앞에서 둘째 줄 가운데)의 아군 피해 +20%, 체력 +150"
- },
- {
-  "id": "branching",
-  "tier": 1,
-  "name": "가지치기",
-  "src": "Branching Out",
-  "icon": "tiny-mushroom",
-  "desc": "조합 아이템 1개 + 자석 1개 + 3골드"
- },
- {
-  "id": "spree",
-  "tier": 1,
-  "name": "쇼핑광",
-  "src": "Shopping Spree",
-  "icon": "quick-ball",
-  "desc": "현재 레벨만큼 무료 새로고침"
- },
- {
-  "id": "corners",
-  "tier": 1,
-  "name": "편법",
-  "src": "Cutting Corners",
-  "icon": "room-service",
-  "desc": "레벨업에 필요한 경험치 −2 (모든 레벨)"
- },
- {
-  "id": "epitaph",
-  "tier": 1,
-  "name": "감동적인 비문",
-  "src": "Inspiring Epitaph",
-  "icon": "revive",
-  "desc": "아군이 쓰러지면 체력 비율이 가장 낮은 아군에게 최대 체력 25% 보호막 (4초)"
- },
- {
-  "id": "metabolic",
-  "tier": 1,
-  "name": "신진대사 촉진기",
-  "src": "Metabolic Accelerator",
-  "icon": "moomoo-milk",
-  "desc": "라운드마다 플레이어 체력 1 회복"
- },
- {
-  "id": "transfusion",
-  "tier": 1,
-  "name": "수혈",
-  "src": "Transfusion",
-  "icon": "berry-juice",
-  "desc": "아군이 스킬을 쓰면 체력 비율이 가장 낮은 다른 아군 PP +5"
- },
- {
-  "id": "pilfer",
-  "tier": 1,
-  "name": "좀도둑",
-  "src": "Pilfer",
-  "icon": "strange-souvenir",
-  "desc": "PvP에서 이기면 20% 확률로 조합 아이템 1개"
- },
- {
-  "id": "levelup",
+  "id": "craftmate",
   "tier": 2,
-  "name": "레벨 업!",
-  "src": "Level Up!",
-  "icon": "lucky-egg",
-  "desc": "경험치를 살 때마다 경험치 +2 추가"
+  "name": "동료 제작",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "x-speed",
+  "desc": "다음에 구매하는 1코스트 포켓몬이 3성으로 변합니다. 2골드를 획득합니다."
  },
  {
-  "id": "pitems",
+  "id": "gimmihelp",
   "tier": 2,
-  "name": "판도라의 아이템",
-  "src": "Pandora's Items",
-  "icon": "enigma-berry",
-  "desc": "조합 아이템 2개. 라운드 시작마다 아이템 칸의 아이템이 같은 종류의 무작위 아이템으로 바뀜"
+  "name": "모으령의 도움",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "item/gimmi-small",
+  "desc": "바로 7골드를 획득합니다. 이후 매 라운드 1골드를 획득합니다."
  },
  {
-  "id": "tinytitans",
+  "id": "gildedsteel",
   "tier": 2,
-  "name": "작은 거인",
-  "src": "Tiny Titans",
+  "name": "도금 강철",
+  "rounds": [
+   "4-2"
+  ],
+  "icon": "iron-ball",
+  "desc": "5코스트 비탱커 포켓몬 2명을 획득합니다. 5코스트 포켓몬을 1명 이상 배치하면 아군 1~4코스트 포켓몬이 내구력을 8% 얻습니다."
+ },
+ {
+  "id": "loan1",
+  "tier": 2,
+  "name": "대출 선지급",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "amulet-coin",
+  "desc": "20골드를 획득합니다. 다음 증강이 한 등급 낮아집니다."
+ },
+ {
+  "id": "loan2",
+  "tier": 2,
+  "name": "대출 선지급+",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "amulet-coin",
+  "desc": "33골드를 획득합니다. 다음 증강이 한 등급 낮아집니다."
+ },
+ {
+  "id": "buddy2",
+  "tier": 2,
+  "name": "단짝II",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "x-defense",
+  "desc": "둘이서 고립된 아군(서로만 붙어 있는 두 아군)이 전투 시작 시 공격 속도를 15%, 방어를 22 얻습니다."
+ },
+ {
+  "id": "onecomp",
+  "tier": 2,
+  "name": "단일 조합 사수",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "macho-brace",
+  "desc": "플레이어 대상 전투에 참여한 포켓몬은 대기석에 놓거나 판매할 수 없습니다. 아군이 플레이어 대상 전투 후 체력을 1%, 공격 및 특수공격을 1.5% 영구히 얻습니다."
+ },
+ {
+  "id": "sololevel",
+  "tier": 2,
+  "name": "나 혼자 레벨업",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "dire-hit",
+  "desc": "다음 전투 5회 동안 아군 팀 규모가 1이 되지만, 배치하는 포켓몬의 능력치가 크게 증가합니다(체력·공격·특수공격 3배). 해당 포켓몬이 적을 처치할 때마다 경험치를 1 얻습니다. 이후 조합 아이템 2개를 획득합니다."
+ },
+ {
+  "id": "persist",
+  "tier": 2,
+  "name": "끈질긴 학습",
+  "rounds": [
+   "2-1"
+  ],
   "icon": "hp-up",
-  "desc": "플레이어 체력과 최대 체력 +20"
+  "desc": "플레이어 대상 전투가 끝나고 승리 시 2의 경험치, 패배 시 3의 경험치를 획득합니다."
  },
  {
-  "id": "secondwind",
-  "tier": 2,
-  "name": "재기",
-  "src": "Second Wind",
-  "icon": "sitrus-berry",
-  "desc": "전투 시작 10초 뒤 아군이 잃은 체력의 40% 회복"
- },
- {
-  "id": "gifts",
-  "tier": 2,
-  "name": "하늘의 선물",
-  "src": "Gifts from Above",
-  "icon": "galarica-wreath",
-  "desc": "큰 모으령 상자 1개"
- },
- {
-  "id": "trove",
-  "tier": 2,
-  "name": "보물창고",
-  "src": "Treasure Trove",
-  "icon": "pearl-string",
-  "desc": "1티어 보물 2개"
- },
- {
-  "id": "buried",
-  "tier": 2,
-  "name": "묻힌 보물",
-  "src": "Buried Treasures",
-  "icon": "big-mushroom",
-  "desc": "다음 4라운드 동안 라운드마다 조합 아이템 1개"
- },
- {
-  "id": "money",
-  "tier": 2,
-  "name": "돈!",
-  "src": "Money!",
-  "icon": "relic-gold",
-  "desc": "PvE 라운드마다 4골드"
- },
- {
-  "id": "lategame",
-  "tier": 2,
-  "name": "후반 전문가",
-  "src": "Lategame Specialist",
-  "icon": "dynamax-candy",
-  "desc": "레벨 9가 되면 30골드"
- },
- {
-  "id": "tonsstats",
-  "tier": 2,
-  "name": "엄청난 스탯",
-  "src": "Tons of Stats",
-  "icon": "calcium",
-  "desc": "아군 체력 +60, 공격·특수공격·방어·특수방어·공격 속도 +6%"
- },
- {
-  "id": "longpals",
-  "tier": 2,
-  "name": "원거리 친구",
-  "src": "Long Distance Pals",
-  "icon": "jaboca-berry",
-  "desc": "가장 멀리 떨어진 아군 2명 체력·공격·특수공격 +15%"
- },
- {
-  "id": "beggars",
-  "tier": 2,
-  "name": "거지도 가릴 수 있다",
-  "src": "Beggars Can Be Choosers",
-  "icon": "bottle-cap",
-  "desc": "PvP에서 3번 질 때마다 작은 모으령 상자 1개"
- },
- {
-  "id": "recombob",
-  "tier": 2,
-  "name": "재조합기",
-  "src": "Recombobulator",
-  "icon": "ability-capsule",
-  "desc": "필드의 기물이 모두 1코스트 높은 무작위 기물로 바뀜 (별 유지)"
- },
- {
-  "id": "patience",
-  "tier": 2,
-  "name": "인내는 미덕",
-  "src": "Patience is a Virtue",
-  "icon": "old-gateau",
-  "desc": "새로고침을 하지 않은 라운드가 끝날 때마다 경험치 3 + 1골드"
- },
- {
-  "id": "worthwait",
-  "tier": 2,
-  "name": "기다릴 가치",
-  "src": "Worth the Wait",
-  "icon": "stardust",
-  "desc": "3성을 만들 때마다 6골드"
- },
- {
-  "id": "cape",
-  "tier": 2,
-  "name": "전략가의 망토",
-  "src": "Tactician's Cape",
-  "icon": "iron",
-  "desc": "필드에 놓을 수 있는 기물 +1"
- },
- {
-  "id": "waiting",
+  "id": "patience1",
   "tier": 2,
   "name": "기다림의 미학",
-  "src": "사진",
-  "icon": "lemonade",
-  "desc": "무작위 1코 기물 1마리를 얻고, 게임이 끝날 때까지 라운드 시작마다 그 기물의 복사본을 얻음"
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "strange-souvenir",
+  "desc": "무작위 1코스트 포켓몬 1명을 획득합니다. 게임이 끝날 때까지 해당 포켓몬의 복사본을 각 라운드 시작 시 획득합니다."
  },
  {
-  "id": "magicdice",
+  "id": "goldfate1",
   "tier": 2,
-  "name": "마법 주사위",
-  "src": "사진",
-  "icon": "loaded-dice",
-  "desc": "라운드마다 속임수주사위 1개"
+  "name": "금빛 운명",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "wishing-piece",
+  "desc": "무작위 골드 증강을 얻고 3골드를 획득합니다."
  },
  {
-  "id": "urf",
+  "id": "goldfate2",
   "tier": 2,
-  "name": "U.R.F.",
-  "src": "사진",
-  "icon": "x-sp-atk",
-  "desc": "아군 최대 PP −25%"
+  "name": "금빛 운명+",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "wishing-piece",
+  "desc": "무작위 골드 증강을 얻고 6골드를 획득합니다."
  },
  {
-  "id": "itembag",
+  "id": "exchange",
   "tier": 2,
-  "name": "아이템 꾸러미",
-  "src": "Item Grab Bag",
-  "icon": "power-weight",
-  "desc": "완성 아이템 1개 + 조합 아이템 1개"
+  "name": "교환의 장",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "pass-orb",
+  "desc": "라운드마다 무료 상점 새로고침을 획득합니다. 2골드를 획득합니다."
  },
  {
-  "id": "richerplus",
+  "id": "heartup",
   "tier": 2,
-  "name": "부익부+",
-  "src": "Rich Get Richer+",
-  "icon": "gold-bottle-cap",
-  "desc": "즉시 12골드, 이자 최대치 +1"
+  "name": "강화된 마음",
+  "rounds": [
+   "2-1",
+   "3-2"
+  ],
+  "icon": "item/soul-dew",
+  "desc": "마음의물방울 1개를 획득합니다. 특수공격 증가량이 90% 이상일 경우 마음의물방울이 PP 재생을 2 추가로 부여합니다(1초마다 PP 2)."
  },
  {
-  "id": "ascension",
+  "id": "crownweight",
   "tier": 2,
-  "name": "승천",
-  "src": "Ascension",
-  "icon": "max-revive",
-  "desc": "전투 시작 15초 뒤 아군 피해 +50%"
+  "name": "왕관의 무게",
+  "rounds": [
+   "2-1",
+   "3-2"
+  ],
+  "icon": "item/kings-rock",
+  "desc": "왕의징표석 1개를 획득합니다. 전투 시작: 왕의징표석을 장착한 아군이 가로 열에 혼자 있을 경우 최대 체력을 20% 얻습니다."
  },
  {
-  "id": "thinkfast",
+  "id": "calcloss",
   "tier": 2,
-  "name": "빠른 판단",
-  "src": "Think Fast",
-  "icon": "x-speed",
-  "desc": "다음 3라운드 동안 새로고침 무료"
+  "name": "계산된 패배",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "oran-berry",
+  "desc": "전투에서 패배한 후 2골드와 무료 상점 새로고침 1회를 획득합니다."
  },
  {
-  "id": "twotanky",
+  "id": "bandmaker",
   "tier": 2,
-  "name": "두 배로 튼튼",
-  "src": "Two Tanky",
-  "icon": "x-defense",
-  "desc": "2성 아군 체력 +250"
+  "name": "머리띠 제작자",
+  "rounds": [
+   "4-2"
+  ],
+  "icon": "item/muscle-band",
+  "desc": "힘의머리띠로 제작되는 무작위 완성 아이템 2개를 획득합니다."
  },
  {
-  "id": "goldenticket",
+  "id": "bumpy",
+  "tier": 2,
+  "name": "울퉁불퉁",
+  "rounds": [
+   "2-1",
+   "3-2"
+  ],
+  "icon": "item/rocky-helmet",
+  "desc": "울퉁불퉁맷 1개를 획득합니다. 아군의 울퉁불퉁맷이 피해를 20~170%(스테이지에 따라) 더 입힙니다."
+ },
+ {
+  "id": "gold21",
+  "tier": 2,
+  "name": "21골드 획득",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "nugget",
+  "desc": "21골드를 획득합니다."
+ },
+ {
+  "id": "fourplus",
+  "tier": 2,
+  "name": "4후지원",
+  "rounds": [
+   "4-2"
+  ],
+  "icon": "quick-ball",
+  "desc": "다음에 골드로 구매하는 4코스트 포켓몬이 즉시 2성으로 업그레이드됩니다. 5골드를 획득합니다."
+ },
+ {
+  "id": "twovalue",
+  "tier": 2,
+  "name": "2만한 가치",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "pp-up",
+  "desc": "플레이어 대상 전투가 끝날 때마다 그 전투에 배치한 서로 다른 2코스트 포켓몬 2명당 무료 새로고침 1회를 얻습니다. 2코스트 포켓몬 1명을 획득합니다."
+ },
+ {
+  "id": "timerball",
   "tier": 3,
-  "name": "황금 티켓",
-  "src": "Golden Ticket",
-  "icon": "luck-incense",
-  "desc": "새로고침할 때 50% 확률로 무료"
+  "name": "황금 타이머볼",
+  "rounds": [
+   "4-2"
+  ],
+  "icon": "timer-ball",
+  "desc": "11라운드 후 부화하는 황금 타이머볼을 획득합니다. 타이머볼이 부화하면 막대한 전리품(큰 모으령 상자 3개, 60골드)을 얻습니다. 플레이어 대상 전투에서 승리하면 부화 타이머를 1라운드만큼 가속합니다."
  },
  {
-  "id": "pforge",
+  "id": "ringcall",
   "tier": 3,
-  "name": "휴대용 대장간",
-  "src": "Portable Forge",
-  "icon": "dynite-ore",
-  "desc": "3티어 보물 4개 중 1개 선택"
- },
- {
-  "id": "lforge",
-  "tier": 3,
-  "name": "살아있는 대장간",
-  "src": "Living Forge",
-  "icon": "great-ball",
-  "desc": "5라운드마다 큰 모으령 상자 1개"
- },
- {
-  "id": "goldenegg",
-  "tier": 3,
-  "name": "황금 알",
-  "src": "The Golden Egg",
-  "icon": "lum-berry",
-  "desc": "9라운드 뒤 큰 모으령 상자 3개 + 60골드"
+  "name": "링의 소환!",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "master-ball",
+  "desc": "5코스트 포켓몬, 1코스트 2성 포켓몬, 5골드가 포함된 꾸러미를 획득합니다. 다음 2번의 스테이지 시작 시 꾸러미를 다시 획득합니다."
  },
  {
   "id": "hedge",
   "tier": 3,
-  "name": "헤지 펀드",
-  "src": "Hedge Fund",
+  "name": "헤지펀드",
+  "rounds": [
+   "2-1"
+  ],
   "icon": "big-nugget",
-  "desc": "즉시 20골드, 이자 최대치 +5"
- },
- {
-  "id": "cruel",
-  "tier": 3,
-  "name": "잔인한 계약",
-  "src": "Cruel Pact",
-  "icon": "rage-candy-bar",
-  "desc": "경험치를 골드 대신 플레이어 체력 2로 구매"
- },
- {
-  "id": "archives",
-  "tier": 3,
-  "name": "고대 기록보관소",
-  "src": "Ancient Archives",
-  "icon": "balm-mushroom",
-  "desc": "무작위 시너지 +1 + 큰 모으령 상자 1개"
- },
- {
-  "id": "tacrown",
-  "tier": 3,
-  "name": "전략가의 왕관",
-  "src": "Tactician's Crown",
-  "icon": "zinc",
-  "desc": "필드에 놓을 수 있는 기물 +1 + 조합 아이템 2개"
- },
- {
-  "id": "gloves",
-  "tier": 3,
-  "name": "행운의 장갑",
-  "src": "Lucky Gloves",
-  "icon": "power-bracer",
-  "desc": "아이템 상자가 4개 대신 6개 중에서 고르게 됨 + 큰 모으령 상자 1개"
- },
- {
-  "id": "relics",
-  "tier": 3,
-  "name": "찬란한 유물",
-  "src": "Radiant Relics",
-  "icon": "weakness-policy",
-  "desc": "3티어 보물 1개 + 2티어 보물 2개"
- },
- {
-  "id": "wellness",
-  "tier": 3,
-  "name": "웰니스 트러스트",
-  "src": "Wellness Trust",
-  "icon": "sacred-ash",
-  "desc": "라운드마다 필드 아군의 최대 체력 +12 영구"
- },
- {
-  "id": "expected",
-  "tier": 3,
-  "name": "예상된 예외",
-  "src": "Expected Unexpectedness",
-  "icon": "dire-hit",
-  "desc": "전투마다 아군 공격·특수공격이 무작위로 +15~45%"
- },
- {
-  "id": "tiniest",
-  "tier": 3,
-  "name": "가장 작은 거인",
-  "src": "Tiniest Titan",
-  "icon": "carbos",
-  "desc": "플레이어 체력과 최대 체력 +30, 라운드마다 1골드"
- },
- {
-  "id": "phreaky",
-  "tier": 3,
-  "name": "기괴한 금요일",
-  "src": "Phreaky Friday",
-  "icon": "rowap-berry",
-  "desc": "4라운드 뒤 무작위 4코 2성 기물 1마리 + 25골드"
- },
- {
-  "id": "birthday",
-  "tier": 3,
-  "name": "생일 선물",
-  "src": "Birthday Present",
-  "icon": "leppa-berry",
-  "desc": "레벨업할 때마다 그 레벨에 맞는 코스트의 무작위 2성 기물"
- },
- {
-  "id": "kitchen",
-  "tier": 3,
-  "name": "전략가의 주방",
-  "src": "Tactician's Kitchen",
-  "icon": "max-potion",
-  "desc": "무작위 시너지 2개가 각각 +1"
- },
- {
-  "id": "lonehero",
-  "tier": 3,
-  "name": "외로운 영웅",
-  "src": "Lone Hero",
-  "icon": "throat-spray",
-  "desc": "필드에 기물이 1마리뿐이면 그 기물의 체력·공격·특수공격 3배"
- },
- {
-  "id": "collector",
-  "tier": 3,
-  "name": "아이템 수집가",
-  "src": "Item Collector",
-  "icon": "pass-orb",
-  "desc": "필드 아군이 든 아이템 종류 하나마다 아군 체력 +15, 피해 +1%"
- },
- {
-  "id": "reckoning",
-  "tier": 3,
-  "name": "마지막 심판",
-  "src": "Final Reckoning",
-  "icon": "red-card",
-  "desc": "PvP에서 지면 다음 전투 아군 피해 +25% (중첩, 이기면 초기화)"
- },
- {
-  "id": "bronze",
-  "tier": 3,
-  "name": "평생 브론즈 III",
-  "src": "Bronze for Life III",
-  "icon": "utility-umbrella",
-  "desc": "1단계로 켜진 시너지 하나마다 아군 체력 +40, 피해 +3%"
+  "desc": "25골드를 획득합니다. 최대 이자가 10골드로 증가합니다."
  },
  {
   "id": "prismticket",
   "tier": 3,
   "name": "프리즘 티켓",
-  "src": "Prismatic Ticket",
-  "icon": "premier-ball",
-  "desc": "새로고침할 때 40% 확률로 무료 + 즉시 무료 새로고침 5회"
+  "rounds": [
+   "2-1",
+   "3-2"
+  ],
+  "icon": "pass-orb",
+  "desc": "상점을 새로고침할 때마다 50% 확률로 무료 새로고침을 획득합니다."
  },
  {
-  "id": "windfall3",
+  "id": "prismfate1",
   "tier": 3,
-  "name": "대박 횡재",
-  "src": "Windfall++",
-  "icon": "nugget",
-  "desc": "즉시 30골드"
+  "name": "프리즘 운명",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "wishing-piece",
+  "desc": "무작위 프리즘 증강을 얻고 3골드를 획득합니다."
  },
  {
-  "id": "level11",
+  "id": "prismfate2",
   "tier": 3,
-  "name": "레벨 11",
-  "src": "자체",
-  "icon": "lucky-egg",
-  "desc": "최대 레벨 +1"
+  "name": "프리즘 운명",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "wishing-piece",
+  "desc": "무작위 프리즘 증강을 얻고 7골드를 획득합니다."
  },
  {
-  "id": "pbox",
+  "id": "pandora3",
   "tier": 3,
-  "name": "판도라의 상자",
-  "src": "자체",
+  "name": "판도라의 아이템III",
+  "rounds": [
+   "2-1",
+   "3-2"
+  ],
   "icon": "enigma-berry",
-  "desc": "큰 모으령 상자 2개. 라운드 시작마다 아이템 칸의 완성 아이템이 무작위로 바뀜"
+  "desc": "라운드 시작: 아이템 칸의 아이템이 같은 종류의 무작위 아이템으로 변합니다. 무작위 찬란한 아이템 1개를 획득합니다. (찬란한 아이템: 완성 아이템의 두 배 효과를 지니고 있습니다!)"
+ },
+ {
+  "id": "silph1",
+  "tier": 3,
+  "name": "실프주식회사의 지원+",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "amulet-coin",
+  "desc": "26골드를 획득합니다. 전투가 끝날 때마다 50골드를 넘게 모은 상태라면 넘은 10골드마다 무료 새로고침을 1회 획득합니다. (80골드까지)"
+ },
+ {
+  "id": "silph2",
+  "tier": 3,
+  "name": "실프주식회사의 지원++",
+  "rounds": [
+   "4-2"
+  ],
+  "icon": "amulet-coin",
+  "desc": "40골드를 획득합니다. 전투가 끝날 때마다 50골드를 넘게 모은 상태라면 넘은 10골드마다 무료 새로고침을 1회 획득합니다. (80골드까지)"
+ },
+ {
+  "id": "deadlyband",
+  "tier": 3,
+  "name": "치명적인 머리띠",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "item/choice-band",
+  "desc": "구애머리띠 1개를 획득합니다. 장착한 포켓몬이 처치 관여를 달성할 때마다 구애머리띠가 영구히 공격을 1% 얻습니다."
+ },
+ {
+  "id": "optimize",
+  "tier": 3,
+  "name": "최적화",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "item/golden-magnet",
+  "desc": "황금 자석과 무작위 조합 아이템 4개를 획득합니다. 황금 자석은 무한히 사용할 수 있는 자석입니다. 가지고 있던 자석은 두드리짱의 망치로 바뀝니다."
+ },
+ {
+  "id": "shaymin3",
+  "tier": 3,
+  "name": "쉐이미의 축복III",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "sacred-ash",
+  "desc": "아군이 모든 피해 흡혈을 25% 얻습니다. 초과 회복량은 최대 1000의 피해를 흡수하는 보호막으로 전환됩니다."
+ },
+ {
+  "id": "radiantrelic",
+  "tier": 3,
+  "name": "찬란한 유물",
+  "rounds": [
+   "2-1",
+   "3-2",
+   "4-2"
+  ],
+  "icon": "relic-gold",
+  "desc": "찬란한 아이템 5개 중 하나를 선택합니다. 자석을 획득합니다. (찬란한 아이템: 완성 아이템의 두 배 효과를 지니고 있습니다!)"
+ },
+ {
+  "id": "formation",
+  "tier": 3,
+  "name": "진형 유지",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "guard-spec",
+  "desc": "후방 가로 2열에 있는 아군이 전방에서 전투를 시작하는 아군 한 명당 특수공격을 10%, 공격을 9% 얻습니다."
+ },
+ {
+  "id": "spoils3",
+  "tier": 3,
+  "name": "전리품III",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "ultra-ball",
+  "desc": "적 처치 시 40% 확률로 전리품을 획득합니다."
+ },
+ {
+  "id": "longinvest",
+  "tier": 3,
+  "name": "장기 투자",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "bottle-cap",
+  "desc": "더 이상 이자를 획득하지 않으며, 지금 바로 8골드를 획득합니다. 라운드 시작 시 4의 경험치를 획득합니다."
+ },
+ {
+  "id": "shrink",
+  "tier": 3,
+  "name": "작아지기!",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "tiny-mushroom",
+  "desc": "아군의 크기가 작아져 공격 속도와 이동 속도를 30% 얻습니다."
+ },
+ {
+  "id": "oakhelp",
+  "tier": 3,
+  "name": "오박사의 도움",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "exp-share",
+  "desc": "4코스트 포켓몬, 해당 포켓몬과 시너지가 같은 1코스트 2성 포켓몬, 8골드를 획득합니다. 다음 2번의 스테이지 시작 시 해당 4코스트 포켓몬을 다시 획득합니다."
+ },
+ {
+  "id": "indecisive2",
+  "tier": 3,
+  "name": "우유부단II",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "ability-capsule",
+  "desc": "3라운드 후 동일한 등급의 새 증강을 선택합니다. 즉시 6골드를 획득합니다."
+ },
+ {
+  "id": "soulawaken",
+  "tier": 3,
+  "name": "영혼 각성",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "comet-shard",
+  "desc": "전투 시작: 아군이 10초 동안 매초 공격 및 특수공격을 2% 얻습니다. 최대 중첩 시 주는 피해의 12%만큼 추가 고정 피해를 입힙니다."
+ },
+ {
+  "id": "bronze2",
+  "tier": 3,
+  "name": "영원한 브론즈II",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "absorb-bulb",
+  "desc": "아군이 브론즈 등급 시너지당 피해 증폭을 2.5%, 방어 및 특수방어를 4 얻습니다."
+ },
+ {
+  "id": "comeback",
+  "tier": 3,
+  "name": "역전의 서막",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "focus-band",
+  "desc": "잃은 플레이어 체력당 아군이 체력을 5, 공격 속도를 0.4% 얻습니다."
+ },
+ {
+  "id": "achieve",
+  "tier": 3,
+  "name": "성취",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "lucky-egg",
+  "desc": "9레벨에 도달하면 즉시 10레벨이 되고 무료 상점 새로고침 2회를 얻습니다. 즉시 경험치를 6 얻습니다."
+ },
+ {
+  "id": "cram",
+  "tier": 3,
+  "name": "단기학습",
+  "rounds": [
+   "4-2"
+  ],
+  "icon": "pp-max",
+  "desc": "경험치를 50 얻습니다."
+ },
+ {
+  "id": "rockethelp",
+  "tier": 3,
+  "name": "로켓단의 도움",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "red-card",
+  "desc": "레벨 업할 때마다 2성 포켓몬과 1골드를 획득합니다. 획득하는 포켓몬의 코스트는 레벨보다 4 낮습니다. (1~5코스트)"
+ },
+ {
+  "id": "fossil",
+  "tier": 3,
+  "name": "화석의 비밀",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "armorite-ore",
+  "desc": "10골드를 획득하고, 암스타(2성 암나이트)를 획득합니다. 화석 포켓몬(투구·프테라)을 해금할 때마다 해당 포켓몬에게 적합한 아이템을 획득합니다."
+ },
+ {
+  "id": "lotus2",
+  "tier": 3,
+  "name": "보석 연꽃II",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "star-piece",
+  "desc": "아군이 급소율을 1랭크, 급소 피해량을 10% 얻으며 스킬에 급소가 적용될 수 있습니다."
+ },
+ {
+  "id": "studyagain",
+  "tier": 3,
+  "name": "학습 또 학습!",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "carbos",
+  "desc": "경험치를 구매하면 2의 추가 경험치를 얻습니다. 즉시 8의 경험치를 얻습니다."
+ },
+ {
+  "id": "moneystorm",
+  "tier": 3,
+  "name": "돈 폭풍",
+  "rounds": [
+   "4-2"
+  ],
+  "icon": "nugget",
+  "desc": "즉시 및 게임이 끝날 때까지 라운드마다 7골드를 획득합니다."
+ },
+ {
+  "id": "deadlyspecs",
+  "tier": 3,
+  "name": "치명적인 안경",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "item/choice-specs",
+  "desc": "구애안경 1개를 획득합니다. 장착한 포켓몬이 처치 관여를 달성할 때마다 구애안경이 영구히 특수공격을 1% 얻습니다."
+ },
+ {
+  "id": "yoshhelp",
+  "tier": 3,
+  "name": "요씽리스의 도움",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "item/leftovers",
+  "desc": "먹다남은음식 4개를 획득합니다. 먹다남은음식이 추가 체력을 +85 제공합니다."
+ },
+ {
+  "id": "gardhelp",
+  "tier": 3,
+  "name": "가디안의 도움",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "item/wise-glasses",
+  "desc": "박식안경 4개를 획득합니다. 박식안경이 공격 속도를 +5% 제공합니다."
+ },
+ {
+  "id": "harihelp",
+  "tier": 3,
+  "name": "하리뭉의 도움",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "item/muscle-band",
+  "desc": "힘의머리띠 4개를 획득합니다. 힘의머리띠가 공격 속도를 +5% 제공합니다."
+ },
+ {
+  "id": "realsnack",
+  "tier": 3,
+  "name": "진짜 먹밥",
+  "rounds": [
+   "3-2"
+  ],
+  "icon": "rage-candy-bar",
+  "desc": "플레이어 대상 전투가 끝날 때마다 플레이어 체력을 2 얻고 2골드를 획득합니다. 또한 전략가의 이동 속도가 증가합니다. 즉시 15골드를 획득합니다."
+ },
+ {
+  "id": "patience2",
+  "tier": 3,
+  "name": "기다림의 미학II",
+  "rounds": [
+   "2-1"
+  ],
+  "icon": "strange-souvenir",
+  "desc": "무작위 2코스트 포켓몬 2명을 획득합니다. 게임이 끝날 때까지 해당 포켓몬의 복사본을 각 라운드 시작 시 획득합니다."
+ },
+ {
+  "id": "sweetcandy",
+  "tier": 3,
+  "name": "달콤한 사탕",
+  "rounds": [
+   "4-2"
+  ],
+  "icon": "item/exp-candy-l",
+  "desc": "경험사탕L 1개와 10골드를 획득하고 무료 상점 새로고침을 18회 얻습니다."
+ },
+ {
+  "id": "tradehub",
+  "tier": 3,
+  "name": "거래 중심지",
+  "rounds": [
+   "4-2"
+  ],
+  "icon": "room-service",
+  "desc": "즉시 무료 상점 새로고침 16회를 얻고 게임이 끝날 때까지 라운드마다 2회를 얻습니다."
+ },
+ {
+  "id": "bigstrong",
+  "tier": 3,
+  "name": "거대하고 강력한",
+  "rounds": [
+   "3-2",
+   "4-2"
+  ],
+  "icon": "big-mushroom",
+  "desc": "아군의 크기가 커져 체력을 200, 최대 체력을 10% 얻습니다."
  }
 ];
 
 const AUG_MAP = Object.fromEntries(AUGMENTS.map(x => [x.id, x]));
 
-const AUG_TRAIT = { heart: 1, soul: 1, crown: 2, archives: 1, kitchen: 1 };
-
 const AUG_PATTERNS = [[1, 1, 1], [1, 1, 2], [1, 2, 2], [2, 2, 2], [1, 2, 3], [2, 2, 3], [2, 3, 3], [1, 1, 3], [2, 1, 2], [2, 3, 2], [3, 2, 2], [1, 3, 2]];
-
-const AUG_ROUNDS = ['2-1', '3-2', '4-2'];
 
 function augDef(id) {
   return AUG_MAP[id] || null;
+}
+
+function augIconUrl(d) {
+  if (!d) return '';
+  return d.icon.indexOf('item/') === 0 ? 'img/' + d.icon + '.png' : 'img/aug/' + d.icon + '.png';
 }

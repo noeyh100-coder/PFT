@@ -8,15 +8,8 @@ class Player {
     this.boxOpen = null;
     this.augs = [];
     this.augOffer = null;
-    this.augTraits = {};
-    this.augState = { pump: 0, losses: 0, reckon: 0, rolled: false, buried: 0 };
+    this.augState = {};
     this.freeRolls = 0;
-    this.roundRolls = 0;
-    this.interestBonus = 0;
-    this.extraSlots = 0;
-    this.augLevel = 0;
-    this.xpCut = 0;
-    this.boxSize = 4;
     this.levelUps = [];
     this.encounter = null;
     this.frzUsed = false;
@@ -126,15 +119,15 @@ class Player {
   }
 
   maxLevel() {
-    return CONFIG.maxLevel + (this.augLevel || 0);
+    return CONFIG.maxLevel;
   }
 
   boardLimit() {
-    return this.level + (this.extraSlots || 0);
+    return this.augState.soloLeft > 0 ? 1 : this.level;
   }
 
   xpNeeded() {
-    return Math.max(1, (CONFIG.xpToNext[this.level] || 80) - (this.xpCut || 0));
+    return Math.max(1, CONFIG.xpToNext[this.level] || 80);
   }
 
   addXp(n) {

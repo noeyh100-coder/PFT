@@ -135,30 +135,144 @@ const Floor = {
     return c;
   },
 
+  sushi(fx, fy) {
+    const dx = fx - CAROUSEL_CENTER.x;
+    const dy = fy - CAROUSEL_CENTER.y;
+    const d = Math.hypot(dx, dy);
+    const ang = Math.atan2(dy, dx);
+    const ring = CONFIG.carousel.ringRadius;
+    const sand = CAROUSEL.sand;
+    if (d < sand + 12) {
+      if (d >= sand + 4) return this.shade([132, 120, 104], 0.8 + this.hash(Math.floor(ang * 40), 3) * 0.2);
+      if (d >= sand) return [214, 202, 176];
+      if (d >= ring + 12) {
+        const t = this.hash(Math.floor((ang + Math.PI) * 30), Math.floor(d / 6));
+        return this.mix([184, 172, 146], [204, 192, 166], t * 0.6);
+      }
+      if (d >= ring - 12) {
+        const edge = Math.min(Math.abs(d - (ring - 12)), Math.abs(d - (ring + 12)));
+        if (edge < 2) return [126, 236, 255];
+        if (edge < 4) return [58, 150, 186];
+        const tie = Math.abs(((ang + Math.PI) * 36 / Math.PI) % 2 - 1) < 0.18;
+        if (tie) return [30, 70, 96];
+        const sh = Math.abs(d - ring) < 2 ? 1.25 : 1;
+        return this.shade([40, 96, 128], sh);
+      }
+      if (d >= ring - 16) return [92, 70, 34];
+      const n = this.smooth(fx, fy, 22);
+      let c = this.mix([214, 178, 92], [232, 202, 118], n);
+      const rr = d % 18;
+      if (rr < 1.6) c = this.shade(c, 0.84);
+      if (d < 20) {
+        c = this.mix([246, 226, 156], [255, 240, 186], n);
+        if (d > 17) c = [176, 132, 60];
+      }
+      const spoke = Math.abs(((ang + Math.PI) * 4 / Math.PI) % 1 - 0.5) < 0.04 && d > 20;
+      if (spoke) c = this.shade(c, 0.88);
+      return c;
+    }
+    for (let i = 0; i < 8; i++) {
+      const sp = carouselSpawnFlat(i, 8);
+      const px = sp.x;
+      const py = sp.y - CAROUSEL.feet;
+      const u = fx - px;
+      const v = fy - py;
+      const R = CAROUSEL.padR * 0.93;
+      const oct = Math.max(Math.abs(u), Math.abs(v), (Math.abs(u) + Math.abs(v)) * 0.7071);
+      if (oct < R) {
+        if (oct > R - 3) return [74, 66, 56];
+        if (oct > R - 9) {
+          const lit = (u + v < 0) ? 1.12 : 0.86;
+          return this.shade([168, 156, 128], lit);
+        }
+        const r = Math.hypot(u, v);
+        const t = this.hash(Math.floor((fx + 300) / 9), Math.floor((fy + 300) / 9));
+        let c = this.mix([196, 186, 154], [212, 204, 174], t * 0.7);
+        const gx = ((fx + 300) % 18 + 18) % 18;
+        const gy = ((fy + 300) % 18 + 18) % 18;
+        if (gx < 1 || gy < 1) c = this.shade(c, 0.86);
+        if (r > 28 && r < 33) c = [150, 138, 108];
+        if (r > 33 && r < 35) c = [226, 218, 190];
+        if (r < 28) {
+          const a = Math.atan2(v, u);
+          const petal = Math.abs(Math.cos(a * 3)) * 18 + 6;
+          if (r < petal && r > petal - 2.5) c = [150, 138, 108];
+          if (r < 5) c = [236, 148, 186];
+        }
+        if (this.smooth(fx + 900, fy + 400, 26) > 0.74) c = this.mix(c, [118, 156, 84], 0.45);
+        return c;
+      }
+    }
+    for (let i = 0; i < 8; i++) {
+      const a = Math.PI / 2 + (i * Math.PI * 2) / 8;
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      const along = dx * ca + dy * sa;
+      const perp = -dx * sa + dy * ca;
+      const end = CAROUSEL.radius - CAROUSEL.padR * 0.85;
+      if (along > sand + 6 && along < end && Math.abs(perp) < 20) {
+        if (Math.abs(perp) > 16) return this.shade([132, 96, 60], Math.abs(perp) > 18 ? 0.7 : 1);
+        const step = (along - sand) % 9;
+        if (step < 1.5) return [96, 70, 44];
+        const t = this.hash(Math.floor(perp / 6) + 40, Math.floor(along / 9));
+        return this.mix([178, 134, 86], [196, 152, 100], t);
+      }
+    }
+    const isl = 312 + (this.smooth(Math.cos(ang) * 60 + 500, Math.sin(ang) * 60 + 500, 22) - 0.5) * 34;
+    if (d < isl) {
+      for (let i = 0; i < 8; i++) {
+        const a = Math.PI / 2 + ((i + 0.5) * Math.PI * 2) / 8;
+        const tx = CAROUSEL_CENTER.x + Math.cos(a) * 278;
+        const ty = CAROUSEL_CENTER.y + Math.sin(a) * 278;
+        const ux = fx - tx;
+        const uy = fy - ty;
+        const tr = Math.hypot(ux, uy);
+        const ta = Math.atan2(uy, ux);
+        const rad = 40 + (this.smooth(Math.cos(ta) * 30 + i * 97, Math.sin(ta) * 30 + 50, 8) - 0.5) * 16;
+        if (tr < rad) {
+          if (tr > rad - 3) return [150, 64, 108];
+          const n = this.smooth(fx + 1000, fy, 9);
+          const lit = (-ux - uy) / (rad * 1.4);
+          let c = this.mix([214, 112, 160], [250, 176, 208], Math.max(0, Math.min(1, n * 0.6 + lit * 0.6 + 0.2)));
+          if (this.hash(Math.floor(fx / 3), Math.floor(fy / 3)) > 0.93) c = [255, 222, 236];
+          return c;
+        }
+        if (tr < rad + 10 && ux > -6 && uy > -6) return this.shade(this.grass(fx, fy, [92, 146, 68]), 0.72);
+      }
+      let c = this.grass(fx, fy, [96, 150, 70]);
+      c = this.mix(c, [120, 168, 82], this.smooth(fx, fy, 50) * 0.4);
+      const h = this.hash(Math.floor(fx / 3), Math.floor(fy / 3));
+      if (h > 0.986) c = [250, 178, 210];
+      else if (h > 0.978) c = [255, 226, 238];
+      if (d > isl - 3) c = this.shade(c, 0.7);
+      return c;
+    }
+    if (dy > -40 && d < isl + 36) {
+      const k = d - isl;
+      const band = Math.floor((k + this.smooth(fx, 0, 14) * 6) / 7);
+      const base = [[120, 86, 58], [104, 74, 50], [132, 96, 64], [92, 66, 46], [84, 60, 42], [70, 52, 38]][Math.min(5, band)];
+      const fade = Math.min(1, (dy + 40) / 60);
+      const sky = this.sky(fx, fy);
+      return this.mix(sky, this.shade(base, 0.9 + this.hash(Math.floor(fx / 4), Math.floor(fy / 4)) * 0.2), fade);
+    }
+    return this.sky(fx, fy);
+  },
+
+  sky(fx, fy) {
+    const t = Math.max(0, Math.min(1, (fy + 200) / 900));
+    let c = this.mix([124, 178, 230], [176, 214, 244], t);
+    const cl = this.smooth(fx * 0.8 + 2000, fy * 1.6, 70) * 0.65 + this.smooth(fx + 3000, fy * 2, 24) * 0.35;
+    if (cl > 0.6) c = this.mix(c, [250, 240, 248], Math.min(1, (cl - 0.6) * 4));
+    if (cl > 0.72) c = this.mix(c, [255, 222, 236], 0.25);
+    return c;
+  },
+
   inRect(x, y, x0, y0, x1, y1) {
     return x >= x0 && x <= x1 && y >= y0 && y <= y1;
   },
 
   material(fx, fy, carousel) {
-    if (carousel) {
-      const dx = fx - CAROUSEL_CENTER.x;
-      const dy = fy - CAROUSEL_CENTER.y;
-      const d = Math.hypot(dx, dy * 1.0);
-      if (d < CAROUSEL.sand) {
-        const sand = this.smooth(fx, fy, 30);
-        return this.mix([196, 174, 120], [214, 194, 140], sand);
-      }
-      if (d < CAROUSEL.sand + 14) return this.stone(fx, fy, 14);
-      for (let i = 0; i < 8; i++) {
-        const sp = carouselSpawnFlat(i, 8);
-        const dp = Math.hypot(fx - sp.x, fy - (sp.y - CAROUSEL.feet));
-        if (dp < CAROUSEL.padR) {
-          if (dp > CAROUSEL.padR - 6) return [88, 82, 70];
-          return this.mix([122, 136, 168], [102, 114, 148], this.hash(Math.floor(fx / 7), Math.floor(fy / 7)) * 0.6);
-        }
-      }
-      return this.grass(fx, fy, [58, 104, 52]);
-    }
+    if (carousel) return this.sushi(fx, fy);
     const F = FLAT.field;
     for (const top of [false, true]) {
       const pad = top ? FLAT.padTop : FLAT.padBottom;

@@ -78,7 +78,7 @@ const Sprites = {
     const st = { wrap, img, en: form.en, d, scale: s, star: 1, dir: 0, base: 'idle', key: null, once: false, rate: 1, paused: false, frame: -1, gone: 0, fit: { size, b, s, bottom: opts.bottom } };
     wrap._spr = st;
     this.setAnim(st, 'idle', { offset: 0, clock: true });
-    this.render(st, performance.now());
+    this.render(st, opts.still ? 0 : performance.now());
     if (opts.animate) this.track(st);
     return wrap;
   },

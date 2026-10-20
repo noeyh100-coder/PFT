@@ -411,7 +411,10 @@ class App {
   bindGameEvents() {
     this.game.on('round', info => this.onRound(info));
     this.game.on('notify', n => {
-      if (n.p === this.human && !this.replaying) this.toast(n.msg, n.kind);
+      if (n.p === this.human && !this.replaying && n.kind !== 'unlock') this.toast(n.msg, n.kind);
+    });
+    this.game.on('unlocked', d => {
+      if (d && d.p === this.human && !this.replaying) this.showUnlockCard(d.id, d.sub);
     });
     this.game.on('branch', d => {
       if (d && d.p === this.human) this.maybeShowBranch();
@@ -566,7 +569,7 @@ class App {
   buyXp() {
     if (!this.canShop()) return;
     const h = this.human;
-    if (h.level >= h.maxLevel() || (h.gold < CONFIG.xpCost && !this.game.hasAug(h, 'cruel'))) {
+    if (h.level >= h.maxLevel() || h.gold < CONFIG.xpCost) {
       this.toast(h.level >= h.maxLevel() ? '최대 레벨입니다' : '골드가 부족합니다', 'error');
       return;
     }
@@ -575,8 +578,9 @@ class App {
 
   reroll() {
     if (!this.canShop()) return;
-    if (this.human.gold < this.game.rerollCost(this.human)) {
-      this.toast('골드가 부족합니다', 'error');
+    const chk = this.game.rerollCheck(this.human);
+    if (!chk.ok) {
+      this.toast(chk.reason, 'error');
       return;
     }
     this.act({ t: 'reroll' });
@@ -873,6 +877,7 @@ class App {
     a.renderBoardCount(viewMe && sc.mode === 'planning' && this.game.phase === 'planning' ? this.human.boardCount() + ' / ' + this.human.boardLimit() : '', this.human.boardCount() < this.human.boardLimit());
     a.renderOrbs(viewMe && !sc.carouselField ? this.human.orbs || [] : []);
     a.refreshSprites();
+    this.applyBallHide();
     const scout = this.$('scout-label');
     if (sc.carouselField) {
       scout.textContent = (viewMe ? '내 필드' : this.viewed().name + ' 필드') + ' · 스페이스바: 회전초밥으로';
@@ -940,6 +945,7 @@ class App {
     this.renderBox();
     this.renderAugPick();
     this.renderAugBalls();
+    this.renderDrills();
     this.renderDebug();
     if (h.pendingBranch.length) this.maybeShowBranch();
     const rb = this.$('btn-ready');
@@ -998,6 +1004,7 @@ class App {
       },
       down: mine ? (e, idx, el) => this.onItemPointerDown(e, idx, el) : null
     });
+    this.gameEl.classList.toggle('items-two', this.$('items').classList.contains('two'));
     this.reanchorItemTip();
   }
 
@@ -1009,8 +1016,11 @@ class App {
     if (!show) {
       if (this.mineKey !== null) {
         box.classList.remove('show');
-        box.innerHTML = '';
         this.mineKey = null;
+        clearTimeout(this.mineClear);
+        this.mineClear = setTimeout(() => {
+          if (this.mineKey === null) box.innerHTML = '';
+        }, 450);
       }
       return;
     }
@@ -1089,6 +1099,8 @@ class App {
       const row = View.el('div', 'aug-ball-icons');
       for (const a of p.augs) row.appendChild(View.augIcon(a.id, 24));
       el.appendChild(row);
+      el.classList.toggle('holo', p.augs.length > 0);
+      el.appendChild(View.el('i', 'aug-holo-beam'));
       el.appendChild(View.el('i', 'aug-ball-img'));
       el.dataset.tip = p.augs.length ? '' : '선택한 증강 없음';
       el.onclick = e => {
@@ -1112,7 +1124,7 @@ class App {
       const row = View.el('div', 'augl-row');
       row.appendChild(View.augIcon(a.id, 34));
       row.appendChild(View.el('span', 'augl-name', augLabel(a)));
-      row.addEventListener('mouseenter', () => this.showAugDesc(a, row));
+      row.addEventListener('mouseenter', () => this.showAugDesc(a, row, p));
       row.addEventListener('mouseleave', () => this.$('aug-desc').classList.remove('show'));
       box.appendChild(row);
     }
@@ -1130,7 +1142,7 @@ class App {
     this.augListFor = p;
   }
 
-  showAugDesc(a, row) {
+  showAugDesc(a, row, p) {
     const box = this.$('aug-desc');
     box.innerHTML = '';
     const d = augDef(a.id);
@@ -1142,6 +1154,8 @@ class App {
     head.appendChild(tt);
     box.appendChild(head);
     box.appendChild(View.el('div', 'augd-text', augText(a)));
+    const status = p ? this.game.augStatus(p, a) : '';
+    if (status) box.appendChild(View.el('div', 'augd-status', status));
     box.classList.add('show');
     const list = this.$('aug-list');
     const lx = parseFloat(list.style.left) || 0;
@@ -1157,6 +1171,103 @@ class App {
     this.augListFor = null;
     this.$('aug-list').classList.remove('show');
     this.$('aug-desc').classList.remove('show');
+  }
+
+  showUnlockCard(id, sub) {
+    this.unlockQueue = this.unlockQueue || [];
+    this.unlockQueue.push({ id, sub });
+    if (!this.unlockBusy) this.nextUnlockCard();
+  }
+
+  nextUnlockCard() {
+    const box = this.$('unlock-card');
+    const next = this.unlockQueue.shift();
+    const id = next && next.id;
+    if (!id || !UNITS[id]) {
+      this.unlockBusy = false;
+      box.className = '';
+      box.innerHTML = '';
+      return;
+    }
+    this.unlockBusy = true;
+    const def = UNITS[id];
+    const form = formOf(def, 1, this.human);
+    box.innerHTML = '';
+    box.className = '';
+    const card = View.el('div', 'uc-card');
+    paintCost(card, def.cost);
+    const art = View.el('div', 'uc-art');
+    art.appendChild(View.el('i', 'uc-rays'));
+    const pic = View.el('div', 'uc-pic');
+    const spr = Sprites.portrait(form, 128, { fill: 0.82, max: 4, animate: true });
+    if (spr) pic.appendChild(spr);
+    art.appendChild(pic);
+    art.appendChild(View.el('i', 'uc-shine'));
+    card.appendChild(art);
+    const plate = View.el('div', 'uc-plate');
+    plate.appendChild(View.el('b', 'uc-name', form.name));
+    plate.appendChild(View.el('span', 'uc-msg', '해금했습니다!'));
+    if (next.sub) plate.appendChild(View.el('small', 'uc-sub', next.sub));
+    const badge = View.el('div', 'uc-badge');
+    badge.innerHTML = '<i class="uc-lock">' + iconSvg('lock', 18) + '</i><i class="uc-open">' + iconSvg('unlock', 18) + '</i>';
+    plate.appendChild(badge);
+    card.appendChild(plate);
+    for (let k = 0; k < 10; k++) {
+      const sp = View.el('i', 'uc-spark');
+      const a = (k / 10) * Math.PI * 2;
+      sp.style.setProperty('--dx', Math.round(Math.cos(a) * (110 + (k % 3) * 18)) + 'px');
+      sp.style.setProperty('--dy', Math.round(Math.sin(a) * (120 + (k % 2) * 20)) + 'px');
+      sp.style.animationDelay = (0.45 + (k % 4) * 0.05).toFixed(2) + 's';
+      card.appendChild(sp);
+    }
+    box.appendChild(card);
+    void box.offsetWidth;
+    box.className = 'show';
+    try {
+      Sound.cry(form.en);
+    } catch (e) {
+      void e;
+    }
+    clearTimeout(this.unlockTimer);
+    this.unlockTimer = setTimeout(() => {
+      box.className = 'show out';
+      this.unlockTimer = setTimeout(() => this.nextUnlockCard(), 380);
+    }, 2700);
+  }
+
+  renderDrills() {
+    const [bot, top] = this.augBallPlayers();
+    const els = this.$('drills').children;
+    [bot, top].forEach((p, i) => {
+      const el = els[i];
+      const on = !!p && p.alive && !this.replaying && ((p.mine || 0) > 0 || this.game.groundTier(p) >= 1);
+      el.classList.toggle('show', on);
+      if (!on) return;
+      const m = Math.floor(p.mine || 0);
+      const full = m >= 700;
+      const k = full ? 1 : (m % 100) / 100;
+      el.querySelector('.drill-liq').style.setProperty('--lv', k.toFixed(3));
+      el.classList.toggle('ready', m >= 100);
+      el.querySelector('.drill-n').textContent = m;
+      const next = Math.min(700, (Math.floor(m / 100) + 1) * 100);
+      el.dataset.tip = '다크엘릭서 정제소\n채굴 스택 ' + m + (m >= 100 ? '\n채굴 보상 ' + Math.min(700, Math.floor(m / 100) * 100) + ' 받을 수 있음' : '') + (m < 700 ? '\n다음 보상까지 ' + (next - m) : '');
+    });
+  }
+
+  placeDrills() {
+    const els = this.$('drills').children;
+    const a = Proj.toScreen(DRILL_FLAT.x, DRILL_FLAT.y);
+    const b = Proj.toScreen(ARENA_W - DRILL_FLAT.x, 530 - DRILL_FLAT.y);
+    const sa = Proj.depthScale(DRILL_FLAT.y);
+    const sb = Proj.depthScale(530 - DRILL_FLAT.y);
+    const k = Math.round(a.x) + ',' + Math.round(a.y) + ',' + Math.round(b.x) + ',' + Math.round(b.y);
+    if (k === this.drillPos) return;
+    this.drillPos = k;
+    [[els[0], a, sa], [els[1], b, sb]].forEach(([el, pt, sc]) => {
+      el.style.left = pt.x + 'px';
+      el.style.top = pt.y + 'px';
+      el.style.setProperty('--ds', sc.toFixed(3));
+    });
   }
 
   placeAugBalls() {
@@ -1441,13 +1552,14 @@ class App {
     const need = h.xpNeeded();
     this.$('xp-text').textContent = h.level >= h.maxLevel() ? 'MAX' : h.xp + '/' + need;
     this.$('xp-bar').style.width = (h.level >= h.maxLevel() ? 100 : (h.xp / need) * 100) + '%';
-    this.$('btn-xp').disabled = !can || (h.gold < CONFIG.xpCost && !this.game.hasAug(h, 'cruel')) || h.level >= h.maxLevel();
+    this.$('btn-xp').disabled = !can || h.gold < CONFIG.xpCost || h.level >= h.maxLevel();
     const rc = this.game.rerollCost(h);
-    this.$('btn-reroll').disabled = !can || h.gold < rc;
-    const rk = rc + '|' + (h.roundRolls + h.freeRolls);
+    const off = this.game.shopOff(h);
+    this.$('btn-reroll').disabled = !can || h.gold < rc || off;
+    const rk = rc + '|' + h.freeRolls;
     if (this.rerollKey !== rk) {
       this.rerollKey = rk;
-      const free = h.roundRolls + h.freeRolls;
+      const free = h.freeRolls;
       this.$('btn-reroll').innerHTML = iconSvg('refresh', 20) + '<span class="lbl">새로고침<small>' + (rc ? iconSvg('coin', 10) + rc : '무료' + (free ? ' ' + free : '')) + '</small></span>';
     }
     const odds = CONFIG.shopOdds[Math.min(h.level, CONFIG.maxLevel)];
@@ -1474,6 +1586,7 @@ class App {
     lock.classList.toggle('on', h.shopLocked);
     const cards = this.$('shop-cards');
     cards.innerHTML = '';
+    cards.classList.toggle('off', off);
     for (let i = 0; i < CONFIG.shopSize; i++) {
       const card = View.shopCard(this.game, h, i, can);
       if (h.shop[i]) card.addEventListener('pointerdown', e => this.onShopPointerDown(e, i, card));
@@ -1740,17 +1853,15 @@ class App {
       }
     }
     const orbs = !sc && this.viewId === this.human.id ? this.human.orbs || [] : [];
-    let run = false;
     for (const o of orbs) {
       const op = orbFlatPos(o);
       if (Math.hypot(op.x - p.x, op.y - p.y) < 68) {
         x = op.x;
         y = op.y;
-        run = true;
         break;
       }
     }
-    this.act({ t: 'strat', x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, run });
+    this.act({ t: 'strat', x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 });
   }
 
   loop(t) {
@@ -1779,10 +1890,19 @@ class App {
       const backlog = this.netQueue.length;
       if (backlog > 60 && !this.replaying) this.replaying = true;
       let n = 0;
-      const limit = this.replaying ? 3000 : 4;
-      while (this.netQueue.length && n < limit) {
-        this.stepDriver(this.netQueue.shift());
-        n++;
+      if (this.replaying) {
+        while (this.netQueue.length && n < 3000) {
+          this.stepDriver(this.netQueue.shift());
+          n++;
+        }
+      } else {
+        this.netAcc = (this.netAcc || 0) + dt;
+        while (this.netQueue.length && n < 4 && (this.netAcc >= DRIVER_TICK || this.netQueue.length > 3)) {
+          this.stepDriver(this.netQueue.shift());
+          this.netAcc = Math.max(0, this.netAcc - DRIVER_TICK);
+          n++;
+        }
+        if (!this.netQueue.length) this.netAcc = Math.min(this.netAcc, DRIVER_TICK);
       }
       if (this.replaying && this.netQueue.length < 3) {
         this.replaying = false;
@@ -1841,6 +1961,7 @@ class App {
     if (this.boxKey) this.updateBoxTimer();
     if (this.augKey || this.$('aug-toggle').classList.contains('show')) this.updateAugTimer();
     this.placeAugBalls();
+    this.placeDrills();
     this.syncMe(dt);
     if (this.combatRunning) {
       this.arena.updateBars();
@@ -1881,9 +2002,10 @@ class App {
       const d = Math.hypot(s.x - me.x, s.y - me.y);
       if (d > 150) me.place(s.x, s.y);
       else {
-        me.speed = Math.max(60, s.speed) * 1.3;
+        me.speed = Math.max(60, s.v || s.speed) * 1.3;
         me.moveTo(s.x, s.y);
       }
+      me.busy = Math.hypot(s.tx - s.x, s.ty - s.y) > 1;
     }
     this.applyTaxiVis(me, this.human.id);
     me.update(dt);
@@ -1941,9 +2063,11 @@ class App {
       const dist = Math.hypot(pos.x - sp.x, pos.y - sp.y);
       if (dist > 150) sp.place(pos.x, pos.y);
       else {
-        sp.speed = Math.max(60, d.strats[id].speed) * 1.3;
+        sp.speed = Math.max(60, d.strats[id].v || d.strats[id].speed) * 1.3;
         sp.moveTo(pos.x, pos.y);
       }
+      const ds = d.strats[id];
+      sp.busy = Math.hypot(ds.tx - ds.x, ds.ty - ds.y) > 1;
       this.applyTaxiVis(sp, id);
       sp.update(dt);
     }
@@ -2084,7 +2208,7 @@ class App {
       const d = Math.hypot(s.x - sp.x, s.y - sp.y);
       if (d > 150) sp.place(s.x, s.y);
       else {
-        sp.speed = Math.max(60, s.speed) * 1.3;
+        sp.speed = Math.max(60, s.v || s.speed) * 1.3;
         sp.moveTo(s.x, s.y);
       }
       this.applyTaxiVis(sp, Number(id));
@@ -2098,7 +2222,7 @@ class App {
     if (!sc) return;
     for (const id in sc.sprites) sc.sprites[id].el.remove();
     a.carLayer.innerHTML = '';
-    this.$('enc-card').classList.remove('show');
+    this.$('enc-card').classList.remove('show', 'enc-fade');
     a.drawOverlay(null);
     a.me.carry(null);
     a.me.place(HOME_BOTTOM.x, HOME_BOTTOM.y);
@@ -2248,6 +2372,8 @@ class App {
     ]);
     const authors = Object.keys(byAuthor).filter(a => a !== 'CHUNSOFT').sort((a, b) => a.localeCompare(b));
     sec('도트 제작·수정', authors.map(a => a + ': ' + byAuthor[a].join(', ')));
+    sec('전략가 도트', ['포켓몬 필드 캐릭터 도트 시트 (The Spriters Resource) · 57명']);
+    sec('그 밖의 그림', ['두드리짱의 망치 · 스마트로토무: 사용자 제공 그림을 도트로 축소', '아머까오택시 · 정면 몬스터볼·슈퍼볼 · 다크엘릭서 정제소: Claude가 그린 도트']);
     sec('폰트', ['Galmuri (quiple) · SIL Open Font License 1.1']);
     sec('원작', ['Pokémon © Nintendo, Creatures, GAME FREAK. 이 게임은 비공식 팬 게임입니다.']);
     box.appendChild(body);
@@ -2334,7 +2460,7 @@ class App {
       '다운로드 ' + Math.floor(c.download) + ' / ' + u.downloadStage1 + ', ' + u.downloadStage2 + ' (현재 ' + UNITS['폴리곤'].stageForms[h.downloadStage].name + ')',
       '낙뢰 적중 ' + Math.floor(c.bolt) + ' / ' + u.electricBolts + ' (썬더)',
       '화상 피해 ' + Math.floor(c.burn) + ' / ' + u.burnDamage + ' (파이어)',
-      '얼음 별 합계 ' + u.iceStarTotal + ' 이상으로 전투 시작 (프리져)',
+      '서로 다른 얼음 포켓몬 별 합계 ' + u.iceStarTotal + ' 이상으로 전투 시작 (프리져)',
       '화석 연승 ' + h.fossilWins + ' / ' + u.kabutoWins + ' (투구) · 연패 ' + h.fossilLosses + ' / ' + u.aerodactylLosses + ' (프테라)',
       '용의 비늘 ' + h.dragonScales + ' · 에스퍼 효과 ' + this.game.espVariant,
       '조우 지역: ' + (this.game.region || '없음'),

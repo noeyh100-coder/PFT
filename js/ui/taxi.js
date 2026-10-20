@@ -236,7 +236,24 @@ class TaxiFx {
     }
   }
 
+  camera(focus, u, zoom) {
+    const root = this.app.arena.root;
+    if (!focus || u <= 0.001) {
+      root.style.transform = '';
+      root.style.transformOrigin = '';
+      return;
+    }
+    const sc = 1 + u * (zoom - 1);
+    let tx = focus.x + u * (640 - focus.x);
+    let ty = focus.y + u * (360 - focus.y);
+    tx = Math.min(sc * focus.x, Math.max(1280 - sc * (1280 - focus.x), tx));
+    ty = Math.min(sc * focus.y, Math.max(720 - sc * (720 - focus.y), ty));
+    root.style.transformOrigin = focus.x + 'px ' + focus.y + 'px';
+    root.style.transform = 'translate(' + (tx - focus.x).toFixed(1) + 'px, ' + (ty - focus.y).toFixed(1) + 'px) scale(' + sc.toFixed(3) + ')';
+  }
+
   clear() {
+    this.camera(null, 0);
     for (const r of this.rides) r.finish();
     this.rides = [];
     this.timers = [];
@@ -244,7 +261,7 @@ class TaxiFx {
     this.tweens = [];
     this.fadeAnim = null;
     this.setFade(0);
-    this.layer.querySelectorAll('.boom-orb, .boom-hit, .boom-dmg').forEach(el => el.remove());
+    this.layer.querySelectorAll('.boom-orb, .boom-hit, .boom-dmg, .ball-fly, .ball-pop').forEach(el => el.remove());
   }
 }
 
@@ -252,6 +269,8 @@ const TRAVEL_APP = {
   taxiFx() {
     if (!this._taxi) {
       this._taxi = new TaxiFx(this);
+      this.ballHide = new Set();
+      this.ballShown = new Set();
       this.taxiHide = new Set();
       this.tx = {};
       this.hpHold = {};
@@ -269,6 +288,143 @@ const TRAVEL_APP = {
     this.tx = {};
     this.hpHold = {};
     this.travelHold = false;
+    this.ballReset();
+    const card = this.$('enc-card');
+    if (card) card.classList.remove('enc-fade');
+  },
+
+  ballReset() {
+    const had = this.ballHide && this.ballHide.size;
+    this.ballHide = new Set();
+    this.ballShown = new Set();
+    if (had && this.arena) this.arena.unitLayer.querySelectorAll('.ball-hidden, .ball-recall, .ball-out').forEach(el => el.classList.remove('ball-hidden', 'ball-recall', 'ball-out'));
+  },
+
+  ballKey(el) {
+    if (el._cu) return 'u' + el._cu.uid;
+    if (el._inst) return 'i' + el._inst.iid;
+    return null;
+  },
+
+  fieldEls(pid) {
+    const p = this.game.players[pid];
+    const sc = this.curScene;
+    let side = null;
+    if (sc && sc.mode === 'combat' && sc.match) side = sc.match.a === p ? 'A' : sc.match.b === p ? 'B' : null;
+    const out = [];
+    for (const el of this.arena.unitLayer.children) {
+      if (!el.classList || !el.classList.contains('unit')) continue;
+      if (el.classList.contains('bench-top') || el.classList.contains('bench-bottom')) continue;
+      if (el._cu) {
+        if (side && el._cu.side === side && el._cu.alive && !el._cu.creep) out.push(el);
+      } else if (el._inst && el._owner === p && el._inst.loc && el._inst.loc.zone === 'board') out.push(el);
+    }
+    return out;
+  },
+
+  applyBallHide() {
+    if (!this.ballHide || !this.ballHide.size) return;
+    for (const pid of this.ballHide) {
+      for (const el of this.fieldEls(pid)) el.classList.toggle('ball-hidden', !this.ballShown.has(this.ballKey(el)));
+    }
+  },
+
+  stratScreen(pid) {
+    const a = this.arena;
+    const sp = pid === this.human.id ? a.me : a.others[pid];
+    const f = sp ? { x: sp.x, y: sp.y } : pid === this.human.id ? HOME_BOTTOM : HOME_TOP;
+    const s = Proj.toScreen(f.x, f.y);
+    return { x: s.x, y: s.y - 34 };
+  },
+
+  elScreen(el) {
+    return { x: parseFloat(el.style.left) || 0, y: (parseFloat(el.style.top) || 0) - 20 };
+  },
+
+  ballFly(from, to, dur, done) {
+    const fx = this.taxiFx();
+    const el = document.createElement('div');
+    el.className = 'ball-fly';
+    el.style.zIndex = '2003';
+    fx.layer.appendChild(el);
+    const arc = 26 + Math.hypot(to.x - from.x, to.y - from.y) * 0.18;
+    fx.tween(dur, k => {
+      const x = from.x + (to.x - from.x) * k;
+      const y = from.y + (to.y - from.y) * k - Math.sin(Math.PI * k) * arc;
+      el.style.left = Math.round(x - 9) + 'px';
+      el.style.top = Math.round(y - 9) + 'px';
+      el.style.transform = 'rotate(' + Math.round(k * 540) + 'deg)';
+    }, () => {
+      el.remove();
+      if (done) done();
+    });
+  },
+
+  ballPop(at, red) {
+    const fx = this.taxiFx();
+    const el = document.createElement('div');
+    el.className = 'ball-pop' + (red ? ' red' : '');
+    el.style.left = Math.round(at.x) + 'px';
+    el.style.top = Math.round(at.y) + 'px';
+    el.style.zIndex = '2002';
+    fx.layer.appendChild(el);
+    fx.after(0.4, () => el.remove());
+  },
+
+  ballRecall(pid) {
+    const fx = this.taxiFx();
+    const els = this.fieldEls(pid);
+    for (const el of els) this.ballShown.add(this.ballKey(el));
+    this.ballHide.add(pid);
+    const to = this.stratScreen(pid);
+    els.forEach((el, i) => {
+      fx.after(i * 0.04, () => {
+        const k = this.ballKey(el);
+        const at = this.elScreen(el);
+        el.classList.add('ball-recall');
+        this.ballPop(at, true);
+        fx.after(0.3, () => {
+          this.ballShown.delete(k);
+          el.classList.remove('ball-recall');
+          this.applyBallHide();
+          this.ballFly(at, to, 0.32, null);
+        });
+      });
+    });
+  },
+
+  ballThrow(pid, done) {
+    const fx = this.taxiFx();
+    const els = this.fieldEls(pid);
+    const from = this.stratScreen(pid);
+    const finish = () => {
+      if (!this.ballHide.has(pid)) return;
+      this.ballHide.delete(pid);
+      for (const el of this.fieldEls(pid)) {
+        this.ballShown.delete(this.ballKey(el));
+        el.classList.remove('ball-hidden');
+      }
+      if (done) done();
+    };
+    if (!els.length) {
+      finish();
+      return;
+    }
+    els.forEach((el, i) => {
+      fx.after(i * 0.06, () => {
+        const k = this.ballKey(el);
+        const at = this.elScreen(el);
+        this.ballFly(from, at, 0.34, () => {
+          this.ballShown.add(k);
+          const cur = this.fieldEls(pid).find(e => this.ballKey(e) === k) || el;
+          cur.classList.remove('ball-hidden');
+          cur.classList.add('ball-out');
+          this.ballPop(at, false);
+          fx.after(0.32, () => cur.classList.remove('ball-out'));
+        });
+      });
+    });
+    fx.after(els.length * 0.06 + 0.42, finish);
   },
 
   isTaxiHidden(pid) {
@@ -310,7 +466,7 @@ const TRAVEL_APP = {
     return this.taxiFx().ride(r.start, r.legs);
   },
 
-  taxiDrop(pos, pid, onDone) {
+  taxiDrop(pos, pid, onDone, onLand) {
     this.taxiHide.add(pid);
     const r = this.taxiLegs(() => pos, this.taxiSide(pos), 1, () => {
       if (pid === this.human.id) {
@@ -318,6 +474,7 @@ const TRAVEL_APP = {
         this.arena.me.place(s.x, s.y);
       }
       this.taxiHide.delete(pid);
+      if (onLand) this.taxiFx().after(0.12, onLand);
     }, onDone);
     return this.taxiFx().ride(r.start, r.legs);
   },
@@ -346,7 +503,7 @@ const TRAVEL_APP = {
     this.renderArena();
     const s = this.driver.strats[this.human.id];
     this.arena.me.place(s.x, s.y);
-    this.taxiDrop(HOME_BOTTOM, this.human.id, null);
+    this.taxiDrop(HOME_BOTTOM, this.human.id, null, () => this.ballThrow(this.human.id));
   },
 
   taxiSeatRide(pid, sp, arrive, onEvent) {
@@ -397,7 +554,8 @@ const TRAVEL_APP = {
       }
       this.travelHold = true;
       this.tx.freezeMe = true;
-      if (pre && !pre.done) pre.release();
+      this.ballRecall(h.id);
+      if (pre && !pre.done) fx.after(0.55, () => pre.release());
       else {
         const me = this.arena.me;
         this.taxiPickup({ x: me.x, y: me.y }, h.id, () => this.taxiArriveAway());
@@ -406,9 +564,15 @@ const TRAVEL_APP = {
       if (pre) pre.finish();
       const pid = m.b.id;
       this.taxiHide.add(pid);
-      fx.after(TAXI_T.land + TAXI_T.wait + TAXI_T.rise + TAXI_T.leave, () => {
-        if (this.game.phase === 'combat' || this.driver.state === 'precombat') this.taxiDrop(HOME_TOP, pid, null);
-        else this.taxiHide.delete(pid);
+      this.ballHide.add(pid);
+      this.applyBallHide();
+      fx.after(0.55 + TAXI_T.land + TAXI_T.wait + TAXI_T.rise + TAXI_T.leave, () => {
+        if (this.game.phase === 'combat' || this.driver.state === 'precombat') this.taxiDrop(HOME_TOP, pid, null, () => this.ballThrow(pid));
+        else {
+          this.taxiHide.delete(pid);
+          this.ballHide.delete(pid);
+          this.applyBallHide();
+        }
       });
     }
   },
@@ -424,7 +588,7 @@ const TRAVEL_APP = {
       this.tx.returning = true;
       fx.after(0.15, () => {
         if (!this.tx.returning) return;
-        this.taxiPickup(() => this.stratFlatPos(h, HOME_BOTTOM), h.id, () => {
+        const ride = this.taxiPickup(() => this.stratFlatPos(h, HOME_BOTTOM), h.id, () => {
           this.tx.returnReady = true;
           this.travelHold = true;
           if (this.tx.afterReturn) {
@@ -432,11 +596,17 @@ const TRAVEL_APP = {
             this.tx.afterReturn = null;
             fn();
           } else if (this.tx.roundWaiting) this.taxiFinishReturn();
-        });
+        }, false, true);
+        fx.after(0.55, () => this.ballRecall(h.id));
+        fx.after(1.1, () => ride.release());
       });
     } else if (m.a === h && m.b) {
       const pid = m.b.id;
-      fx.after(0.15, () => this.taxiPickup(() => this.stratFlatPos(m.b, HOME_TOP), pid, null));
+      fx.after(0.15, () => {
+        const ride = this.taxiPickup(() => this.stratFlatPos(m.b, HOME_TOP), pid, null, false, true);
+        fx.after(0.55, () => this.ballRecall(pid));
+        fx.after(1.1, () => ride.release());
+      });
     }
   },
 
@@ -447,8 +617,12 @@ const TRAVEL_APP = {
     this.travelHold = false;
     this.arenaKey = null;
     this.renderArena();
-    if (this.game.phase === 'planning') this.taxiDrop(HOME_BOTTOM, this.human.id, null);
-    else this.taxiHide.delete(this.human.id);
+    if (this.game.phase === 'planning') this.taxiDrop(HOME_BOTTOM, this.human.id, null, () => this.ballThrow(this.human.id));
+    else {
+      this.taxiHide.delete(this.human.id);
+      this.ballHide.delete(this.human.id);
+      this.applyBallHide();
+    }
   },
 
   taxiRoundStart() {
@@ -459,6 +633,7 @@ const TRAVEL_APP = {
     }
     const h = this.human;
     for (const id of Array.from(this.taxiHide)) if (id !== h.id) this.taxiHide.delete(id);
+    for (const id of Array.from(this.ballHide)) if (id !== h.id) this.ballHide.delete(id);
     if (this.game.phase !== 'planning') return;
     if (this.tx.returning) {
       if (this.tx.returnReady) this.taxiFinishReturn();
@@ -471,9 +646,44 @@ const TRAVEL_APP = {
     } else this.taxiHide.delete(h.id);
   },
 
+  taxiEncounterStart() {
+    const fx = this.taxiFx();
+    const car = this.game.carousel;
+    fx.setFade(1);
+    this.buildCarousel();
+    const sc = this.carouselScene;
+    const card = this.$('enc-card');
+    card.classList.remove('show', 'enc-fade');
+    if (!sc) {
+      fx.fadeTo(0, 0.3);
+      return true;
+    }
+    const h = this.human;
+    for (const p of car.order) if (p.alive) this.taxiHide.add(p.id);
+    const mine = sc.spawn[h.id];
+    const g = Proj.toScreen(mine.x, mine.y);
+    const focus = { x: g.x, y: g.y - 40 };
+    fx.camera(focus, 1, 2);
+    fx.fadeTo(0, 0.3);
+    for (const p of car.order) {
+      if (!p.alive) continue;
+      const sp = sc.spawn[p.id];
+      this.taxiSeatRide(p.id, sp, true, () => {
+        this.taxiHide.delete(p.id);
+        if (p !== h) return;
+        if (this.carouselScene === sc) {
+          card.classList.add('show', 'enc-fade');
+        }
+        fx.tween(2, k => fx.camera(focus, 1 - k * k * (3 - 2 * k), 2), () => fx.camera(null, 0));
+      });
+    }
+    return true;
+  },
+
   taxiCarouselStart() {
     const car = this.game.carousel;
-    if (!car || car.encounter || !this.taxiOk()) return false;
+    if (!car || !this.taxiOk()) return false;
+    if (car.encounter) return this.taxiEncounterStart();
     if (this.tx.carouselPending) return true;
     const fx = this.taxiFx();
     this.tx.carouselPending = true;
@@ -514,7 +724,7 @@ const TRAVEL_APP = {
   taxiCarouselDone() {
     const car = this.game.carousel;
     const sc = this.carouselScene;
-    if (!car || car.encounter || !sc || !this.taxiOk()) return;
+    if (!car || !sc || !this.taxiOk()) return;
     const fx = this.taxiFx();
     this.tx.carouselReturn = true;
     for (const p of car.order) {

@@ -382,33 +382,105 @@ class Planner {
     return s;
   }
 
-  portrait(def, size) {
-    const form = this.baseForm(def);
+  portrait(def, size, form, animate) {
+    form = form || this.baseForm(def);
     const box = this.el('div', 'pl-pic');
     paintCost(box, def.cost);
     box.style.width = size + 'px';
     box.style.height = size + 'px';
-    const spr = Sprites.portrait(form, size, { fill: 0.86, max: 3 });
-    if (spr) box.appendChild(spr);
-    else {
+    const spr = Sprites.portrait(form, size, { fill: 0.86, max: 3, still: !animate, animate: !!animate });
+    if (spr) {
+      box.appendChild(spr);
+      box._spr = spr._spr;
+    } else {
       box.style.background = View.orbBackground(form.types);
       box.appendChild(this.el('span', 'pl-pic-txt', form.name.slice(0, 2)));
     }
     return box;
   }
 
-  traitStrip(def) {
+  hoverAnim(el, box) {
+    el.addEventListener('mouseenter', () => box._spr && Sprites.hoverPlay(box._spr, true));
+    el.addEventListener('mouseleave', () => box._spr && Sprites.hoverPlay(box._spr, false));
+  }
+
+  formChain(def) {
+    const out = [];
+    for (const f of def.stageForms || def.forms) if (!out.some(x => x.form.name === f.name)) out.push({ form: f, traits: def.traits });
+    for (const b of def.branches || []) out.push({ form: b.form, traits: b.traits || def.traits });
+    return out;
+  }
+
+  finalEntry(def) {
+    const forms = def.stageForms || def.forms;
+    return { form: forms[forms.length - 1], traits: def.traits };
+  }
+
+  traitStrip(def, entry) {
     const strip = this.el('div', 'pl-traits');
-    for (const t of this.unitTraits(def)) {
-      const s = this.el('span', 'pl-ti');
-      s.innerHTML = View.traitIconSvg(t, 0.5);
-      strip.appendChild(s);
-    }
+    const list = entry ? entry.form.types.concat((entry.traits || []).filter(t => TRAIT_DATA.map[t] && TRAIT_DATA.map[t].kind === 'class')) : this.unitTraits(def);
+    for (const t of list) strip.appendChild(View.hex(t, null, true));
     return strip;
+  }
+
+  listPic(def, entry, animate) {
+    const d = this.state.draft;
+    const human = this.app.human;
+    const pic = this.portrait(def, 70, entry.form, animate);
+    pic.appendChild(this.traitStrip(def, entry));
+    if (def.unlockOnly) {
+      const open = human && human.unlockedShop.has(def.id);
+      const lk = this.el('div', 'pl-lock' + (open ? ' open' : ''));
+      lk.innerHTML = iconSvg(open ? 'unlock' : 'lock', 14);
+      pic.appendChild(lk);
+    }
+    if (d && d.slots.includes(def.id)) {
+      const ck = this.el('div', 'pl-check');
+      ck.innerHTML = iconSvg('check', 14);
+      pic.appendChild(ck);
+    }
+    return pic;
+  }
+
+  setCardEntry(card, def, entry, animate) {
+    const pic = this.listPic(def, entry, animate);
+    const old = card.querySelector('.pl-pic');
+    if (old) card.replaceChild(pic, old);
+    else card.insertBefore(pic, card.firstChild);
+    const nm = card.querySelector('.pl-card-name');
+    if (nm) nm.textContent = entry.form.name;
+  }
+
+  cycleStart(card, def) {
+    if (this.cycle && this.cycle.card === card) return;
+    this.cycleStop();
+    const chain = this.formChain(def);
+    const cy = { card, def, i: 0, timer: null };
+    this.cycle = cy;
+    this.setCardEntry(card, def, chain[0], true);
+    if (chain.length > 1) {
+      cy.timer = setInterval(() => {
+        if (!card.isConnected) {
+          this.cycleStop();
+          return;
+        }
+        cy.i = (cy.i + 1) % chain.length;
+        this.setCardEntry(card, def, chain[cy.i], true);
+      }, 1000);
+    }
+  }
+
+  cycleStop() {
+    const cy = this.cycle;
+    if (!cy) return;
+    this.cycle = null;
+    if (cy.timer) clearInterval(cy.timer);
+    if (cy.card.isConnected) this.setCardEntry(cy.card, cy.def, this.finalEntry(cy.def), false);
   }
 
   render() {
     if (!this.isOpen) return;
+    this.cycleStop();
     this.app.hideUnitTip();
     this.app.hideTooltip();
     const p = this.panel;
@@ -501,6 +573,7 @@ class Planner {
       if (id) {
         const pic = this.portrait(UNITS[id], 46);
         pic.dataset.unit = id;
+        this.hoverAnim(pic, pic);
         units.appendChild(pic);
       } else {
         const e = this.el('div', 'pl-pic empty');
@@ -591,23 +664,17 @@ class Planner {
       for (const def of defs) {
         shown++;
         const card = this.el('div', 'pl-card' + (d.slots.includes(def.id) ? ' picked' : ''));
-        const pic = this.portrait(def, 70);
-        pic.appendChild(this.traitStrip(def));
-        if (def.unlockOnly) {
-          const open = human && human.unlockedShop.has(def.id);
-          const lk = this.el('div', 'pl-lock' + (open ? ' open' : ''));
-          lk.innerHTML = iconSvg(open ? 'unlock' : 'lock', 14);
-          pic.appendChild(lk);
-        }
-        if (d.slots.includes(def.id)) {
-          const ck = this.el('div', 'pl-check');
-          ck.innerHTML = iconSvg('check', 14);
-          pic.appendChild(ck);
-        }
-        card.appendChild(pic);
-        card.appendChild(this.el('div', 'pl-card-name', this.baseForm(def).name));
+        const fin = this.finalEntry(def);
+        card.appendChild(this.listPic(def, fin, false));
+        card.appendChild(this.el('div', 'pl-card-name', fin.form.name));
         card.dataset.unit = def.id;
         card.addEventListener('pointerdown', e => this.startDrag(e, { from: 'list', id: def.id }, card));
+        card.addEventListener('mouseenter', () => this.cycleStart(card, def));
+        card.addEventListener('mouseleave', () => {
+          setTimeout(() => {
+            if (this.cycle && this.cycle.card === card && !card.matches(':hover')) this.cycleStop();
+          }, 0);
+        });
         grid.appendChild(card);
       }
       scroll.appendChild(grid);
@@ -687,6 +754,7 @@ class Planner {
         const pic = this.portrait(def, 84);
         pic.appendChild(this.traitStrip(def));
         slot.appendChild(pic);
+        this.hoverAnim(slot, pic);
         slot.appendChild(this.el('div', 'pl-slot-name', this.baseForm(def).name));
         slot.dataset.unit = id;
         slot.addEventListener('pointerdown', e => this.startDrag(e, { from: 'slot', index: i, id }, slot));
@@ -737,7 +805,8 @@ class Planner {
     }));
     box.appendChild(head);
     const grid = this.el('div', 'pl-filter-grid');
-    const ids = TRAIT_DATA.list.filter(t => t.kind === 'type').map(t => t.id).concat(TRAIT_DATA.list.filter(t => t.kind === 'class').map(t => t.id));
+    const byName = kind => TRAIT_DATA.list.filter(t => t.kind === kind).map(t => t.id).sort((a, b) => a.localeCompare(b, 'ko'));
+    const ids = byName('type').concat(byName('class'));
     for (const id of ids) {
       const on = this.state.filter.includes(id);
       const it = this.el('div', 'pl-filter-item' + (on ? ' on' : ''));

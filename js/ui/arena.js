@@ -2,6 +2,7 @@ const ARENA_W = 792;
 const ARENA_H = 500;
 const HOME_BOTTOM = { x: 117, y: 482 };
 const HOME_TOP = { x: 675, y: 48 };
+const DRILL_FLAT = { x: 690, y: 470 };
 const VISIT_SPOT = { x: 160, y: 405 };
 const CAROUSEL_CENTER = { x: 396, y: 272 };
 const WALK_SPEED = 90;
@@ -92,6 +93,11 @@ class StratSprite {
     if (d < 1) {
       this.x = this.tx;
       this.y = this.ty;
+      if (this.busy && this.moving) {
+        this.anim += dt;
+        this.render();
+        return;
+      }
       if (this.moving) {
         this.moving = false;
         this.render();
@@ -102,7 +108,10 @@ class StratSprite {
     this.x += (dx / d) * step;
     this.y += (dy / d) * step;
     this.moving = true;
-    if (Math.abs(dx) > Math.abs(dy)) this.dir = dx > 0 ? 'right' : 'left';
+    const ax = Math.abs(dx);
+    const ay = Math.abs(dy);
+    const horiz = this.dir === 'left' || this.dir === 'right';
+    if (horiz ? ax >= ay * 0.8 : ax > ay * 1.25) this.dir = dx > 0 ? 'right' : 'left';
     else this.dir = dy > 0 ? 'down' : 'up';
     this.anim += dt;
     this.render();
@@ -114,7 +123,12 @@ class StratSprite {
       return;
     }
     const F = STRAT_FRAME;
-    placeSprite(this.el, this.x, this.y, F.w * F.px / 2, F.foot * F.px, STRAT_SCALE);
+    const k = this.player && this.player.augs && this.player.augs.some(a => a.id === 'titan') ? 1.35 : 1;
+    if (this.sizeK !== k) {
+      this.sizeK = k;
+      if (this.plate) this.plate.style.scale = k === 1 ? '' : (1 / k).toFixed(3);
+    }
+    placeSprite(this.el, this.x, this.y, F.w * F.px / 2, F.foot * F.px, STRAT_SCALE * k);
     const seq = [0, 1, 2, 1];
     const col = this.moving ? seq[Math.floor(this.anim * 7) % 4] : 1;
     this.el.style.backgroundPosition = (-col * F.w * F.px) + 'px ' + (-DIR_ROW[this.dir] * F.h * F.px) + 'px';
@@ -589,6 +603,11 @@ class Arena {
     el._cu = u;
     el.addEventListener('pointerdown', e => this.app.onTokenPointerDown(e, { combat: u }, el));
     this.unitLayer.appendChild(el);
+    const aug = this.sim && this.sim.side[u.side] ? this.sim.side[u.side].aug : null;
+    if (aug && el._spr && !u.serpent) {
+      const k = (aug.has.has('bigstrong') ? 1.2 : 1) * (aug.has.has('shrink') ? 0.78 : 1);
+      if (k !== 1) Sprites.setScale(el._spr, k);
+    }
     this.cunits[u.uid] = { el, hpFill, shFill, manaFill, barSet, itemEls: [], itemKey: null, flags: '', pos: Proj.toScreen(f.x, f.y), walkUntil: 0, walkDir: null };
     this.syncItemRow(this.cunits[u.uid], u);
     if (u.serpent) {
@@ -851,6 +870,20 @@ class Arena {
         this.flash(this.root, 'shake', 420);
       } else if (ev.type === 'freeze') {
         this.floatText(ev.target, '빙결', 'ice');
+      } else if (ev.type === 'augfx') {
+        const label = { soul: '영혼 각성', ascend: '초월', wish: '희망사항', chaos: '혼돈 마법', loot: '전리품' }[ev.kind];
+        if (ev.kind === 'chaos') {
+          const el = document.createElement('div');
+          el.className = 'fx-chaos';
+          el.style.clipPath = this.fieldPolygon();
+          this.fx.appendChild(el);
+          setTimeout(() => el.remove(), 700);
+          this.flash(this.root, 'shake', 300);
+        }
+        for (const uid of ev.uids || []) {
+          if (ev.kind === 'chaos') this.unitFx(uid, 'fx-dust', 500);
+          if (label && (ev.kind !== 'chaos' || uid === (ev.uids || [])[0])) this.floatText(uid, label, ev.kind === 'loot' ? 'gold' : 'buff');
+        }
       } else if (ev.type === 'buff') {
         const label = { endure: '버티기', warrior: '학살자의 각오', bug: '회복', harden: '단단해지기', break: '보호막 파괴', thunder: '흡수', frenzy: '야단법석', cleanse: '정화', sash: '기합의띠', cloak: '은밀망토', policy: '약점보험', boost: '부스트 완료', tshield: '녹슨방패', lifeorb: '생명의구슬', room: '매직룸', steal: '도구 강탈', mirror: '미러코트', wish: '치유소원', bulk: '벌크업', bulkon: '벌크업 완료', future: '미래예지' }[ev.kind];
         if (label) this.floatText(ev.target, label, 'buff');

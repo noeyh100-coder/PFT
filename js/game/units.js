@@ -26,6 +26,8 @@ const STAR_ATK = [1, 1.5, 2.25];
 const COST_HP = { 1: [650, 580, 500], 2: [750, 700, 650], 3: [900, 820, 750], 4: [1000, 900, 850], 5: [1200, 1100, 1000] };
 const COST_ATK = [50, 55, 65, 75, 90];
 const ROLE_DEF = { 탱커: 40, 전사: 30, 마법사: 20 };
+const BASE_STAT = 20;
+const STAR_SKILL = [1, 2, 3.5];
 const ROLE_AS = { 탱커: 0.6, 전사: 0.7, 마법사: 0.8 };
 const ROLE_INDEX = { 탱커: 0, 전사: 1, 마법사: 2 };
 const CRIT_CHANCE = 0.0417;
@@ -123,18 +125,38 @@ function computeStats(form, cost, star, bonus, opts) {
   const special = role.startsWith('특수');
   const k = bonus || 1;
   const boost = o.boost || {};
-  const atk = COST_ATK[c - 1] * STAR_ATK[star - 1] * k;
-  const main = Math.round(atk * (boost.pa || 1));
-  const off = Math.round(atk * 0.5 * (boost.pa || 1));
-  const pa = special ? off : main;
-  const sa = special ? main : off;
   const range = o.range || form.range || (special ? CONFIG.combat.rangedRange : 1);
-  const dfn = ROLE_DEF[kind] || 30;
   const pp = ppFor(form, c, role);
+  let pa, sa, dfn, pwP, pwS, pwD, pwStar;
+  if (o.legacy) {
+    const atk = COST_ATK[c - 1] * STAR_ATK[star - 1] * k;
+    const main = Math.round(atk * (boost.pa || 1));
+    const off = Math.round(atk * 0.5 * (boost.pa || 1));
+    pa = special ? off : main;
+    sa = special ? main : off;
+    dfn = ROLE_DEF[kind] || 30;
+    pwD = 1;
+    pwP = 1;
+    pwS = 1;
+    pwStar = 1;
+  } else {
+    const atk = COST_ATK[c - 1] * k * (boost.pa || 1);
+    pa = BASE_STAT;
+    sa = BASE_STAT;
+    dfn = BASE_STAT;
+    pwD = (ROLE_DEF[kind] || 30) / BASE_STAT;
+    pwP = (special ? atk * 0.5 : atk) / BASE_STAT;
+    pwS = (special ? atk : atk * 0.5) / BASE_STAT;
+    pwStar = STAR_SKILL[Math.max(1, Math.min(3, star)) - 1];
+  }
   return {
     hp: Math.round(COST_HP[c][ri] * STAR_HP[star - 1] * k * (o.hpMult || 1) * (boost.hp || 1)),
     pa,
     sa,
+    pwP,
+    pwS,
+    pwD,
+    pwStar,
     basic: special ? sa : pa,
     special,
     role,
@@ -147,6 +169,117 @@ function computeStats(form, cost, star, bonus, opts) {
     maxMana: pp.max,
     startMana: pp.start
   };
+}
+
+const ADAPT = {
+  '발챙이': {
+    cmp: 'atkspa',
+    tie: 'atk',
+    modes: {
+      atk: { skill: '깨뜨리다', role: '물리 전사', range: 1, special: false, skillType: '격투' },
+      spa: { skill: '거품광선', role: '특수 마법사', range: 4, special: true, skillType: '물' }
+    },
+    evo: { atk: '강챙이', spa: '왕구리' }
+  },
+  '뚜벅쵸': {
+    cmp: 'dmgtank',
+    tie: 'dmg',
+    modes: {
+      dmg: { skill: '애시드봄', role: '특수 마법사', range: 4, special: true, skillType: '독' },
+      tank: { skill: '꽃잎댄스', role: '특수 탱커', range: 1, special: true, skillType: '풀' }
+    },
+    evo: { dmg: '라플레시아', tank: '아르코' }
+  },
+  '배루키': {
+    cmp: 'dmgtank',
+    tie: 'eq',
+    modes: {
+      dmg: { skill: '로킥', role: '물리 마법사', range: 4, special: false, skillType: '격투' },
+      tank: { skill: '판별', role: '물리 탱커', range: 1, special: false, skillType: '격투' },
+      eq: { skill: '마하펀치', role: '물리 전사', range: 1, special: false, skillType: '격투' }
+    },
+    evo: { dmg: '시라소몬', tank: '홍수몬', eq: '카포에라' }
+  },
+  '스라크': {
+    cmp: 'dmgtank',
+    tie: 'dmg',
+    modes: {
+      tank: { skill: '벌레먹기', role: '물리 탱커', range: 1, special: false, skillType: '벌레' },
+      dmg: { skill: '시저크로스', role: '물리 전사', range: 1, special: false, skillType: '벌레' }
+    },
+    evo: { tank: '핫삼', dmg: '사마자르' }
+  }
+};
+
+const ADAPT_STAT = { atk: 'atk', spa: 'spa', dmg: null, tank: null, eq: null };
+const ADAPT_CACHE = {};
+
+function adaptMode(defId, v) {
+  const A = ADAPT[defId];
+  if (!A) return null;
+  if (A.cmp === 'atkspa') {
+    if (v.pa > v.sa) return 'atk';
+    if (v.sa > v.pa) return 'spa';
+    return A.tie;
+  }
+  const dmg = Math.max(v.pa, v.sa);
+  const tank = Math.max(v.armor, v.mr);
+  if (dmg > tank) return 'dmg';
+  if (tank > dmg) return 'tank';
+  return A.tie;
+}
+
+function isAdaptBase(def, form) {
+  return !!ADAPT[def.id] && def.forms.some(f => f === form);
+}
+
+function adaptForm(def, form, mode) {
+  const A = ADAPT[def.id];
+  if (!A || !mode || !A.modes[mode] || !isAdaptBase(def, form)) return form;
+  const key = form.name + '|' + def.forms.indexOf(form) + '|' + mode;
+  if (!ADAPT_CACHE[key]) ADAPT_CACHE[key] = Object.assign({}, form, A.modes[mode], { adaptMode: mode });
+  return ADAPT_CACHE[key];
+}
+
+function itemRanks(items) {
+  const rk = { atk: 0, spa: 0, def: 0, spd: 0 };
+  for (const id of items || []) {
+    const d = typeof itemDef === 'function' ? itemDef(id) : null;
+    const st = (d && d.stats) || {};
+    for (const k in rk) rk[k] += st[k] || 0;
+  }
+  return rk;
+}
+
+function plannedView(inst) {
+  const rk = itemRanks(inst.items);
+  const m = n => {
+    const r = Math.max(-6, Math.min(6, n));
+    const k = CONFIG.combat.rankStep;
+    return r >= 0 ? 1 + k * r : 1 / (1 + k * -r);
+  };
+  const f = inst.feast || {};
+  return {
+    pa: BASE_STAT * m(rk.atk) * (1 + (f.atk || 0)),
+    sa: BASE_STAT * m(rk.spa) * (1 + (f.spa || 0)),
+    armor: BASE_STAT * m(rk.def) * (1 + (f.def || 0)),
+    mr: BASE_STAT * m(rk.spd) * (1 + (f.spd || 0))
+  };
+}
+
+function plannedAdaptMode(inst) {
+  return adaptMode(inst.unitId, plannedView(inst));
+}
+
+function shownForm(def, star, owner, inst) {
+  const form = formOf(def, star, owner, inst);
+  if (!inst || !ADAPT[def.id] || !isAdaptBase(def, form)) return form;
+  return adaptForm(def, form, plannedAdaptMode(inst));
+}
+
+function skillTextOf(form) {
+  if (typeof SKILL_TEXT === 'undefined' || !form) return null;
+  return SKILL_TEXT[form.name + '·' + form.skill] || SKILL_TEXT[form.name] || null;
 }
 
 function roleOf(form, stats) {
@@ -199,7 +332,7 @@ function canEvolveFurther(inst, owner) {
 }
 
 function hasItem(inst, id) {
-  return !!(inst && inst.items && inst.items.includes(id));
+  return !!(inst && inst.items && inst.items.some(x => itemBase(x) === id));
 }
 
 function instanceStats(inst, owner) {

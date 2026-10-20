@@ -24,11 +24,14 @@ const Unlocks = {
       if (types >= CONFIG.unlock.mewTypes) this.unlockGuaranteed(game, p, '뮤');
     }
     if (!p.unlockedShop.has('프리져')) {
-      let total = 0;
+      const best = {};
       for (const inst of board) {
-        const form = formOf(UNITS[inst.unitId], inst.star, p, inst);
-        if (form.types.includes('얼음')) total += inst.star;
+        const def = UNITS[inst.unitId];
+        const form = formOf(def, inst.star, p, inst);
+        if (form.types.includes('얼음')) best[def.family] = Math.max(best[def.family] || 0, inst.star);
       }
+      let total = 0;
+      for (const k in best) total += best[k];
       if (total >= CONFIG.unlock.iceStarTotal) this.unlockGuaranteed(game, p, '프리져');
     }
     const used = new Set();
@@ -148,18 +151,23 @@ const Unlocks = {
     p.unlockedShop.add(id);
     for (const ex of EVOLVE_EXCLUDES[id] || []) p.excluded.add(ex);
     game.notify(p, id + ' 해금! 이제 상점에 ' + id + '이(가) 등장합니다.', 'unlock');
+    if (p.isHuman) game.emit('unlocked', { p, id, sub: '이제 상점에 등장합니다' });
   },
 
   unlockGuaranteed(game, p, id) {
     if (p.unlockedShop.has(id)) return;
     p.unlockedShop.add(id);
     p.guaranteed.push(id);
+    if ((id === '투구' || id === '프테라') && game.hasAug(p, 'fossil')) game.augFossil(p, id);
     game.notify(p, id + ' 해금! 다음 새로고침에 확정으로 등장합니다.', 'unlock');
+    if (p.isHuman) game.emit('unlocked', { p, id, sub: '다음 새로고침에 확정으로 등장합니다' });
   },
 
   progressText(inst, p, game) {
     const cfg = CONFIG.unlock;
     const id = inst.unitId;
+    if (game && game.benchLocked(inst)) return '마지막 포켓몬: ' + inst.lockUntil + '부터 필드에 놓을 수 있습니다';
+    if (game && game.augLocked(p, inst)) return '단일 조합 사수: 대기석에 놓거나 팔 수 없습니다 (전투 ' + (inst.augOne || 0) + '번)';
     if (id === '미뇽') return inst.star >= 2 ? '신뇽 진화: 승리 ' + inst.wins + '/' + cfg.dratiniWins : '2성이 되면 승리 횟수를 셉니다 (신뇽)';
     if (id === '신뇽') return inst.star >= 2 ? '망나뇽 진화: 승리 ' + inst.wins + '/' + cfg.dragonairWins : '2성이 되면 승리 횟수를 셉니다 (망나뇽)';
     if (id === '잉어킹') return inst.star === 3 ? '갸라도스 진화: 전투 참여 ' + (inst.battles || 0) + '/' + cfg.magikarpBattles : '3성이 되면 전투 참여 횟수를 셉니다 (갸라도스)';

@@ -1,6 +1,7 @@
 const ESPER_COMPONENT_KIND = { 'muscle-band': 'phys', 'wise-glasses': 'spec', 'protective-pads': 'def', 'x-sp-def': 'def', 'leftovers': 'def' };
 
-function esperItemKind(id) {
+function esperItemKind(raw) {
+  const id = itemBase(raw);
   if (ESPER_COMPONENT_KIND[id]) return ESPER_COMPONENT_KIND[id];
   if (typeof BOT_DEF_ITEMS !== 'undefined' && BOT_DEF_ITEMS.has(id)) return 'def';
   if (typeof BOT_PHYS_ITEMS !== 'undefined' && BOT_PHYS_ITEMS.has(id)) return 'phys';

@@ -72,9 +72,10 @@ const Bot = {
 
   arrange(g, p) {
     const all = p.allUnits();
+    const locked = new Set(all.filter(u => u.loc && u.loc.zone === 'board' && g.augLocked(p, u)));
     for (const u of all) p.remove(u);
-    const scored = all.map(u => ({ u, v: this.value(p, u) + g.rng.next() * 0.1 })).sort((a, b) => b.v - a.v);
-    const n = Math.min(p.boardLimit(), scored.length);
+    const scored = all.map(u => ({ u, v: (locked.has(u) ? 1000 : 0) + (g.benchLocked(u) ? -1000 : 0) + this.value(p, u) + g.rng.next() * 0.1 })).sort((a, b) => b.v - a.v);
+    const n = Math.min(Math.max(p.boardLimit(), locked.size), scored.filter(x => !g.benchLocked(x.u)).length);
     const chosen = scored.slice(0, n).map(x => x.u);
     const rest = scored.slice(n).map(x => x.u);
     const used = new Set();
@@ -90,7 +91,8 @@ const Bot = {
     rest.forEach((inst, i) => p.placeBench(inst, i));
   },
 
-  itemFor(id) {
+  itemFor(raw) {
+    const id = itemBase(raw);
     if (BOT_DEF_ITEMS.has(id)) return 'def';
     if (BOT_PHYS_ITEMS.has(id)) return 'phys';
     if (BOT_SPEC_ITEMS.has(id)) return 'spec';
@@ -123,10 +125,12 @@ const Bot = {
     if (!d) return false;
     if (d.box) return false;
     if (d.candy) return inst.star < 3 && UNITS[inst.unitId].cost <= d.maxCost;
-    if (d.reforge) return false;
+    if (d.reforge || d.traitShop || d.magnet || d.lucky) return false;
+    if (d.gloves) return !(inst.items || []).length;
+    if (hasItem(inst, 'thiefs-gloves')) return false;
     if (d.dup) return inst.star < 3 && UNITS[inst.unitId].cost <= d.maxCost && g.pool.remaining(inst.unitId) > 0 && (p.freeBenchSlot() >= 0 || g.countMergeable(p, inst.unitId, 1) >= 2);
     const comp = (inst.items || []).find(x => itemDef(x) && itemDef(x).kind === 'component');
-    const res = d.kind === 'component' && comp ? combineItems(comp, id) : id;
+    const res = itemBase(d.kind === 'component' && comp ? combineItems(comp, id) || id : id);
     if (res === 'everstone' && canEvolveFurther(inst, p)) return false;
     if (res === 'eviolite' && !canEvolveFurther(inst, p)) return false;
     return true;
@@ -137,14 +141,14 @@ const Bot = {
     if (g.phase !== 'planning') return;
     for (const u of p.benchUnits()) {
       if (!u.items || !u.items.length) continue;
-      const mi = p.items.indexOf('magnet');
+      const mi = p.items.findIndex(x => isMagnet(x));
       if (mi < 0) break;
       g.equipItem(p, mi, u);
     }
     if (!p.boardUnits().length) return;
     const skip = new Set();
     for (let guard = 0; guard < 40; guard++) {
-      const i = p.items.findIndex((id, k) => id !== 'magnet' && !skip.has(k + ':' + id));
+      const i = p.items.findIndex((id, k) => !isMagnet(id) && !skip.has(k + ':' + id));
       if (i < 0) break;
       const id = p.items[i];
       let done = false;

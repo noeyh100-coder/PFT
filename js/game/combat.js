@@ -170,6 +170,10 @@ class CombatSim {
       star: spec.star || 1,
       cost: spec.cost || 1,
       base: { hp: st.hp, pa: st.pa, sa: st.sa, armor: st.armor, mr: st.mr, as: st.as },
+      pwP: st.pwP || 1,
+      pwS: st.pwS || 1,
+      pwStar: st.pwStar || 1,
+      pwD: st.pwD || 1,
       maxHp: st.hp,
       hp: st.hp,
       special: st.special,
@@ -349,14 +353,13 @@ class CombatSim {
       roomStolen: null,
       evolvable: !!spec.evolvable,
       eff: null,
-      augTrain: spec.augTrain || 0,
-      augHp: spec.augHp || 0,
-      critAdd: 0,
-      augDefLow: 0,
-      censerUntil: 0,
-      celShield: 0,
-      augElecCd: 0,
-      augPP2: 0
+      augOne: spec.augOne || 0,
+      augItem: null,
+      augShield: 0,
+      augHits: 0,
+      mvMul: 1,
+      critDmg: 0,
+      hasteUntil: 0
     };
     const tr = u.traits;
     if (tr.includes('실험체')) {
@@ -375,7 +378,7 @@ class CombatSim {
       u.ghostNext = 10;
     }
     const sk = u.form && u.form.skill;
-    const P0 = (u.form && typeof SKILL_P !== 'undefined' && SKILL_P[u.form.name]) || {};
+    const P0 = skillParamsOf(u.form);
     if ((sk === '깨뜨리다' || sk === '폭발펀치') && P0.heal) u.basicHeal = P0.heal;
     if (sk === '포자') {
       u.spore = P0.chance || 0.5;
@@ -549,6 +552,7 @@ class CombatSim {
     }
     this.itemsInitSide(side);
     this.augInit(side, units);
+    this.adaptSide(side, units);
     for (const u of units) {
       u.maxHp = Math.max(1, Math.round(u.base.hp * (1 + u.pct.hp) + u.flatHp));
       u.hp = u.maxHp;
@@ -560,6 +564,57 @@ class CombatSim {
     if (T && this.tier(side, '물')) {
       for (const u of units) if (u.types.includes('물')) this.addShield(u, u.maxHp * traitVal('물', 'shield', this.tier(side, '물')));
     }
+  }
+
+  adaptSide(side, units) {
+    for (const u of units) {
+      const def = u.unitId ? UNITS[u.unitId] : null;
+      if (!def || !ADAPT[def.id] || u.ditto || u.creep || !u.form || !isAdaptBase(def, u.form)) continue;
+      const v = { pa: this.atkView(u), sa: this.spaView(u), armor: this.defense(u, false, false, true), mr: this.defense(u, true, false, true) };
+      u.adaptMode = adaptMode(def.id, v);
+      const nf = adaptForm(def, u.form, u.adaptMode);
+      if (nf !== u.form) this.reformUnit(u, def, nf);
+    }
+    const tier = this.tier(side, '적응가');
+    if (!tier) return;
+    const n = traitVal('적응가', 'rank', tier);
+    for (const u of units) {
+      if (!u.traits.includes('적응가')) continue;
+      const k = this.topStat(u);
+      u.rk[k] += n;
+      u.adaptRank = { k, n };
+    }
+  }
+
+  topStat(u) {
+    const vals = { atk: this.atkView(u), spa: this.spaView(u), def: this.defense(u, false, false, true), spd: this.defense(u, true, false, true) };
+    const role = (u.stats && u.stats.role) || '';
+    const tank = role.indexOf('탱커') >= 0;
+    const pref = tank ? (u.special ? 'spd' : 'def') : u.special ? 'spa' : 'atk';
+    const best = Math.max(vals.atk, vals.spa, vals.def, vals.spd);
+    if (vals[pref] >= best - 1e-9) return pref;
+    return ['atk', 'spa', 'def', 'spd'].find(k => vals[k] >= best - 1e-9);
+  }
+
+  reformUnit(u, def, nf) {
+    const bonus = def.unlockOnly ? UNLOCK_STAT_BONUS : 1;
+    const o = computeStats(u.form, def.cost, u.star, bonus, { boost: def.boost });
+    const n = computeStats(nf, def.cost, u.star, bonus, { boost: def.boost });
+    u.base.hp = Math.round((u.base.hp * n.hp) / o.hp);
+    u.base.as = (u.base.as * n.as) / o.as;
+    u.pwP = n.pwP;
+    u.pwS = n.pwS;
+    u.pwD = n.pwD;
+    u.special = n.special;
+    u.range = Math.max(1, u.range + n.range - o.range);
+    u.ranged = u.range > 1;
+    u.maxMana = Math.max(1, u.maxMana + n.maxMana - o.maxMana);
+    u.mana = Math.max(0, Math.min(u.maxMana, u.mana + (n.startMana || 0) - (o.startMana || 0)));
+    u.form = nf;
+    u.skillType = nf.skillType || u.skillType;
+    u.stats = Object.assign({}, u.stats, { role: n.role, special: n.special, range: u.range, as: n.as, maxMana: u.maxMana, startMana: n.startMana, basic: n.basic });
+    const P0 = skillParamsOf(nf);
+    u.basicHeal = (nf.skill === '깨뜨리다' || nf.skill === '폭발펀치') && P0.heal ? P0.heal : 0;
   }
 
   findFreeCell(side) {
@@ -688,29 +743,38 @@ class CombatSim {
     return k === 'atk' ? 4.5 : k === 'def' ? 3 : k === 'as' ? 4 : k === 'move' ? 2 : k === 'cc' ? 0.34 : k === 'heal' ? 0.34 : 1;
   }
 
-  atkStat(u) {
+  atkView(u) {
     return u.base.pa * (1 + u.pct.pa) * rankMult(this.rank(u, 'atk')) * this.otMult('atk');
   }
 
-  spaStat(u) {
+  spaView(u) {
     const extra = u.experiment ? Math.max(0, u.pct.pa) + Math.max(0, u.pct.as) : 0;
     return u.base.sa * (1 + u.pct.sa + extra) * rankMult(this.rank(u, 'spa')) * this.otMult('atk');
+  }
+
+  atkStat(u) {
+    return this.atkView(u) * (u.pwP || 1);
+  }
+
+  spaStat(u) {
+    return this.spaView(u) * (u.pwS || 1);
   }
 
   offense(u) {
     return u.special ? this.spaStat(u) : this.atkStat(u);
   }
 
-  defense(u, special, ignoreUp) {
+  defense(u, special, ignoreUp, view) {
     let r = this.rank(u, special ? 'spd' : 'def');
     if (ignoreUp && r > 0) r = 0;
-    const b = (special ? u.base.mr * (1 + u.pct.mr) + u.flatMr : u.base.armor * (1 + u.pct.armor) + u.flatArmor) + (u.augDefLow && u.hp < u.maxHp * 0.5 ? u.augDefLow : 0);
+    const pw = view ? 1 : u.pwD || 1;
+    const b = special ? u.base.mr * pw * (1 + u.pct.mr) + u.flatMr : u.base.armor * pw * (1 + u.pct.armor) + u.flatArmor;
     return b * rankMult(r) * this.otMult('def');
   }
 
   attackSpeed(u) {
     if (u.experiment) return 0.77 * this.otMult('as');
-    let a = u.base.as * (1 + u.pct.as) * rankMult(this.rank(u, 'spe'));
+    let a = u.base.as * (1 + u.pct.as + (u.hasteUntil > this.time ? 0.25 : 0)) * rankMult(this.rank(u, 'spe'));
     if (u.chalPer) a *= 1 + u.chal * u.chalPer;
     if (u.chill > 0 && u.chillUntil > this.time) a *= Math.max(0.1, 1 - u.chill * u.chillPer);
     if (u.paraUntil > this.time) a *= 0.8;
@@ -722,16 +786,16 @@ class CombatSim {
 
   critChance(u) {
     const t = CONFIG.combat.critTable;
-    return Math.min(1, t[Math.max(0, Math.min(t.length - 1, this.rank(u, 'crit')))] + (u.critAdd || 0));
+    return t[Math.max(0, Math.min(t.length - 1, this.rank(u, 'crit')))];
   }
 
   snapshot(u) {
     u.eff = {
-      pa: Math.round(this.atkStat(u)),
-      sa: Math.round(this.spaStat(u)),
-      armor: Math.round(this.defense(u, false)),
-      mr: Math.round(this.defense(u, true)),
-      basic: Math.round(this.offense(u)),
+      pa: Math.round(this.atkView(u)),
+      sa: Math.round(this.spaView(u)),
+      armor: Math.round(this.defense(u, false, false, true)),
+      mr: Math.round(this.defense(u, true, false, true)),
+      basic: Math.round(u.special ? this.spaView(u) : this.atkView(u)),
       as: Math.round(this.attackSpeed(u) * 100) / 100,
       crit: this.critChance(u),
       amp: u.amp + u.bugAmp + (u.warriorOn ? u.warriorAmp : 0) + this.swordAmpOf(u),
@@ -836,7 +900,7 @@ class CombatSim {
     const fc = u.c;
     let d = duration || CONFIG.combat.moveTime;
     if (this.side[this.enemyOf(u.side)].frost) d /= 0.65;
-    if (!duration) d /= this.otMult('move') * (1 + 0.15 * u.mvRank);
+    if (!duration) d /= this.otMult('move') * (1 + 0.15 * u.mvRank) * (u.mvMul || 1);
     if (this.grid[u.r][u.c] === u.uid) this.grid[u.r][u.c] = 0;
     u.r = r;
     u.c = c;
@@ -962,8 +1026,8 @@ class CombatSim {
     this.lastHit = true;
     u.lastMissed = false;
     const crit = this.rng.next() < (u.alwaysCrit && !skill ? 1 : this.critChance(u));
-    let raw = this.offense(u) * (skill ? cfg.skillMult * (1 + u.skillAmp) : 1) * (mult || 1);
-    if (crit) raw *= cfg.critMult;
+    let raw = this.offense(u) * (skill ? cfg.skillMult * (1 + u.skillAmp) * (u.pwStar || 1) : 1) * (mult || 1);
+    if (crit) raw *= cfg.critMult + (u.critDmg || 0);
     if (diff > 0) raw *= 1 + cfg.hitBonus;
     if (skill && u.waterSkillAmp) raw *= 1 + u.waterSkillAmp;
     const o = { special: u.special, crit, kind: skill ? 'skill' : 'basic' };
@@ -976,7 +1040,7 @@ class CombatSim {
       if (t.alive) this.addChill(t, 1, u.side);
     } else dmg = this.dealDamage(u, t, raw, o);
     if (!skill && !shadow && u.alive) this.itemOnBasic(u, t, raw, dmg, crit);
-    if (!skill && dmg > 0) this.augOnBasic(u, t);
+    if (!skill && dmg > 0) this.augOnBasic(u, t, dmg);
     if (!skill && u.basicHeal && dmg > 0 && u.alive) this.heal(u, u.maxHp * u.basicHeal, u);
     if (!skill && u.thunder && !shadow) this.zapStrike(u, t, raw);
     if (!skill && u.fireBasic && !u.fan) {
@@ -1070,7 +1134,7 @@ class CombatSim {
       this.emit({ type: 'wave', uid: u.uid });
     }
     if (u.flyingSkill) u.tmp.push({ k: 'spe', n: 1, until: this.time + 3 });
-    this.augAfterCast(u);
+    this.augAfterCast(u, used);
   }
 
   dealDamage(src, t, raw, o) {
@@ -1078,7 +1142,7 @@ class CombatSim {
     if (t.bulkUntil > this.time) return 0;
     if (o.orbTick) return this.orbTickDamage(t, raw);
     if (o.crit && t.critGuard) {
-      raw /= CONFIG.combat.critMult;
+      raw /= CONFIG.combat.critMult + ((src && src.critDmg) || 0);
       o = Object.assign({}, o, { crit: false });
     }
     let dmg = raw;
@@ -1139,13 +1203,8 @@ class CombatSim {
         hpDmg = Math.max(0, t.hp - 1);
         this.emit({ type: 'buff', target: t.uid, kind: 'endure' });
       } else if (t.sashReady) {
-        t.sashReady = false;
-        t.sashFired = true;
-        t.endureUntil = this.time + 2;
+        this.sashFire(t);
         hpDmg = Math.max(0, t.hp - 1);
-        t.pct.pa += 0.2;
-        t.pct.sa += 0.2;
-        this.emit({ type: 'buff', target: t.uid, kind: 'sash' });
       }
     }
     const real = Math.min(hpDmg, t.hp);
@@ -1168,7 +1227,7 @@ class CombatSim {
     if (o.special) t.takenS += total;
     else t.takenP += total;
     this.emit({ type: 'damage', target: t.uid, amount: Math.max(1, Math.round(total)), crit: !!o.crit, special: !!o.special, kind: o.kind });
-    const vamp = src ? src.vamp + this.orbVamp(src) : 0;
+    const vamp = src ? src.vamp + this.orbVamp(src) + this.augVamp(src, t) : 0;
     if (src && src.alive && vamp > 0 && total > 0 && src.side !== t.side) this.heal(src, total * vamp, src);
     if (src && src.side !== t.side && src.it && (o.kind === 'basic' || o.kind === 'skill')) this.redOrbCount(src);
     if (isHit) this.gainPP(t, CONFIG.combat.ppPerHit);
@@ -1178,7 +1237,6 @@ class CombatSim {
       if (src.poisoner && (o.kind === 'skill' || src.poisoner >= 3)) this.addPoison(t, src, traitVal('독', 'duration', src.poisoner), false);
     }
     if (o.kind === 'basic' && src && t.reflect && src.alive) this.dealDamage(t, src, total * t.reflect, { trueDmg: true, kind: 'reflect' });
-    if (o.crit && total > 0 && t.alive && src && src.side !== t.side && this.side[t.side].aug && this.side[t.side].aug.electro) this.augElectro(t);
     if (t.hp <= 0) {
       t.killedBy = src && src.side !== t.side ? src : null;
       this.kill(t, o.kind);
@@ -1232,6 +1290,7 @@ class CombatSim {
       this.emit({ type: 'buff', target: t.uid, kind: 'warrior' });
     }
     if (isHit && src && src.esper) this.esperAfterHit(src, t, o, total);
+    if (isHit && src && src.side !== t.side && t.alive) this.augAfterDamage(src, t, total);
     return total;
   }
 
@@ -1665,7 +1724,7 @@ class CombatSim {
         const q = hexMetric(e.r, e.c);
         if (Math.hypot(q.x - m.x, q.y - m.y) > 3) continue;
         const crit = this.rng.next() < this.critChance(u);
-        this.dealDamage(u, e, this.offense(u) * 2.15 * (1 + u.skillAmp) * (crit ? cfg.critMult : 1), { special: u.special, crit, kind: 'skill' });
+        this.dealDamage(u, e, this.offense(u) * 2.15 * (1 + u.skillAmp) * (u.pwStar || 1) * (crit ? cfg.critMult + (u.critDmg || 0) : 1), { special: u.special, crit, kind: 'skill' });
       }
     }
     this.updateSerpentSegs(u);
@@ -1679,7 +1738,7 @@ class CombatSim {
       const q = hexMetric(e.r, e.c);
       if (!u.serpent.segs.some(g => g.h > 0.1 && Math.hypot(g.x - q.x, g.y - q.y) <= SERPENT.reach)) continue;
       const crit = this.rng.next() < this.critChance(u);
-      this.dealDamage(u, e, this.offense(u) * SERPENT.ratio * (crit ? cfg.critMult : 1), { special: u.special, crit, kind: 'basic' });
+      this.dealDamage(u, e, this.offense(u) * SERPENT.ratio * (crit ? cfg.critMult + (u.critDmg || 0) : 1), { special: u.special, crit, kind: 'basic' });
       any = true;
     }
     if (any) this.gainPP(u, 1);
@@ -1705,7 +1764,7 @@ class CombatSim {
         for (const e of foes) {
           if (!e.alive) continue;
           const chilled = e.chill > 0 && e.chillUntil > this.time;
-          const raw = this.spaStat(u) * b.m * (1 + u.skillAmp);
+          const raw = this.spaStat(u) * b.m * (1 + u.skillAmp) * (u.pwStar || 1);
           this.dealDamage(u, e, raw * (chilled ? 0.9 : 1), { special: true, kind: 'skill' });
           if (chilled && e.alive) this.dealDamage(u, e, raw * 0.1, { trueDmg: true, kind: 'true' });
           if (e.alive) this.addChill(e, 1, side, true);

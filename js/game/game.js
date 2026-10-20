@@ -205,7 +205,10 @@ class Game {
       p.lastDamage = 0;
     }
     this.roundSeq += 1;
-    for (const p of alive) this.augRoundStart(p);
+    for (const p of alive) {
+      this.augRoundStart(p);
+      this.rollGloves(p);
+    }
     if (info.type === 'encounter') {
       this.setupGather();
       this.phase = 'carousel';
@@ -221,8 +224,8 @@ class Game {
     for (const p of alive) {
       if (this.bugTier(p) >= 1) {
         p.bugRounds = (p.bugRounds || 0) + 1;
-        p.bugShop = p.bugRounds % 3 === 0;
-        if (p.bugShop) this.notify(p, '벌레 시너지: 이번 라운드 상점에는 벌레 포켓몬만 나옵니다', 'info');
+        p.bugShop = p.bugRounds % 4 === 0 && !p.shopLocked;
+        if (p.bugShop) this.notify(p, '벌레 시너지: 이번 라운드 첫 상점에는 벌레 포켓몬만 나옵니다', 'info');
       } else {
         p.bugRounds = 0;
         p.bugShop = false;
@@ -241,6 +244,7 @@ class Game {
       }
       if (!p.shopLocked) this.refreshShop(p);
       else p.shopLocked = false;
+      p.bugShop = false;
       p.mineSkip = false;
       this.refreshMineOffer(p);
     }
@@ -252,10 +256,19 @@ class Game {
   }
 
   grantIncome(p, base) {
-    const interest = Math.min(CONFIG.interestMax + (p.interestBonus || 0), Math.floor(p.gold / CONFIG.interestPer));
-    let streak = CONFIG.streakBonus(Math.abs(p.streak));
-    if (streak > 0 && this.hasAug(p, 'hotstreak')) streak += 1;
+    const S = p.augState;
+    const cap = Math.max(CONFIG.interestMax, S.interestCap || 0);
+    const interest = S.noInterest ? 0 : Math.min(cap, Math.floor(p.gold / CONFIG.interestPer));
+    const streak = CONFIG.streakBonus(Math.abs(p.streak));
     p.gold += base + interest + streak;
+    if (interest && this.hasAug(p, 'savings') && !S.savingsDone) {
+      S.interestSum = (S.interestSum || 0) + interest;
+      if (S.interestSum >= 50) {
+        S.savingsDone = true;
+        p.gold += 30;
+        this.notify(p, '예금 계좌: 30골드', 'loot');
+      }
+    }
     return { base, interest, streak };
   }
 
@@ -287,13 +300,14 @@ class Game {
     return out;
   }
 
-  rollShopUnit(p, locked, wanted) {
+  rollShopUnit(p, locked, wanted, filter) {
     const odds = CONFIG.shopOdds[Math.min(p.level, CONFIG.maxLevel)];
     const byCost = { 1: [], 2: [], 3: [], 4: [], 5: [] };
-    const bugOnly = p.bugShop && UNIT_DATA.some(def => this.isBugDef(def) && this.isEligible(p, def) && !locked.has(def.id) && this.pool.remaining(def.id) > 0);
+    const bugOnly = !filter && p.bugShop && UNIT_DATA.some(def => this.isBugDef(def) && this.isEligible(p, def) && !locked.has(def.id) && this.pool.remaining(def.id) > 0);
     for (const def of UNIT_DATA) {
       if (!this.isEligible(p, def) || locked.has(def.id) || this.pool.remaining(def.id) <= 0) continue;
       if (bugOnly && !this.isBugDef(def)) continue;
+      if (filter && !filter(def)) continue;
       byCost[Math.min(5, def.cost)].push(def);
     }
     let costs = [1, 2, 3, 4, 5].filter(c => byCost[c].length > 0 && odds[c - 1] > 0);
@@ -321,6 +335,7 @@ class Game {
       if (p.shop[i]) this.pool.give(p.shop[i], 1);
       p.shop[i] = null;
     }
+    if (this.shopOff(p)) return;
     const locked = this.lockedVariants(p);
     const wanted = this.wantedUnits(p);
     for (let i = 0; i < CONFIG.shopSize; i++) {
@@ -338,9 +353,16 @@ class Game {
     else p.pity = (p.pity || 0) + 1;
   }
 
+  rerollCheck(p) {
+    if (this.shopOff(p)) return { ok: false, reason: '후발 주자: 상점이 비활성화되어 있습니다' };
+    if (this.rerollCost(p) > p.gold) return { ok: false, reason: '골드가 부족합니다' };
+    return { ok: true, reason: '' };
+  }
+
   reroll(p) {
     const paid = this.payReroll(p);
     if (!paid) return false;
+    this.augRerolled(p);
     const bt = this.bugTier(p);
     if (bt >= 3) p.addXp(bt >= 6 ? 2 : 1);
     this.augLevels(p);
@@ -354,10 +376,9 @@ class Game {
 
   buyXp(p) {
     if (p.level >= p.maxLevel()) return false;
-    if (this.hasAug(p, 'cruel') && p.hp > 2) p.hp -= 2;
-    else if (p.gold < CONFIG.xpCost) return false;
-    else p.gold -= CONFIG.xpCost;
-    p.addXp(CONFIG.xpAmount + (this.hasAug(p, 'levelup') ? 2 : 0));
+    if (p.gold < CONFIG.xpCost) return false;
+    p.gold -= CONFIG.xpCost;
+    p.addXp(CONFIG.xpAmount + (this.hasAug(p, 'studyagain') ? 2 : 0));
     this.augLevels(p);
     return true;
   }
@@ -381,8 +402,20 @@ class Game {
     const check = this.canBuy(p, slot);
     if (!check.ok) return null;
     const id = p.shop[slot];
-    p.gold -= UNITS[id].cost;
+    const def = UNITS[id];
+    p.gold -= def.cost;
     p.shop[slot] = null;
+    this.augBought(p);
+    const up = p.augs.length ? this.augBuyStar(p, def) : null;
+    if (up && (p.freeBenchSlot() >= 0 || this.countMergeable(p, id, up.star) >= 2)) {
+      p.augState[up.key] = false;
+      const inst = this.addUnit(p, id, up.star);
+      if (inst) {
+        this.onStarUp(p, inst, true);
+        this.notify(p, formOf(def, up.star, p, inst).name + ' ' + '★'.repeat(up.star) + '(으)로 바로 업그레이드!', 'merge');
+      }
+      return inst;
+    }
     return this.addUnit(p, id, 1);
   }
 
@@ -429,14 +462,17 @@ class Game {
           else p.remove(o);
         }
         const preForm = formOf(UNITS[keep.unitId], keep.star, p, keep).name;
+        const fielded = [keep].concat(others).some(u => p.participants && p.participants.has(u.iid));
         const pool = (keep.items || []).concat(...others.map(o => o.items || []));
         keep.items = [];
         for (const x of pool) {
           const d = itemDef(x);
           const ci = d && d.kind === 'component' ? keep.items.findIndex(y => itemDef(y) && itemDef(y).kind === 'component') : -1;
           const res = ci >= 0 ? combineItems(keep.items[ci], x) : null;
-          if (res && !(itemDef(res).unique && keep.items.includes(res))) keep.items[ci] = res;
-          else if (keep.items.length < 3 && !(d && d.unique && keep.items.includes(x))) keep.items.push(x);
+          if (res && !uniqueClash(keep.items, res, ci)) {
+            keep.items[ci] = res;
+            this.augCrafted(p);
+          } else if ((d && d.gloves ? !keep.items.length : itemSlotsUsed(keep.items) < 3) && !uniqueClash(keep.items, x)) keep.items.push(x);
           else p.items.push(x);
         }
         for (const o of others) o.items = [];
@@ -449,8 +485,9 @@ class Game {
         keep.pvpWins = Math.max(keep.pvpWins, ...others.map(o => o.pvpWins));
         keep.takedowns = Math.max(keep.takedowns, ...others.map(o => o.takedowns));
         keep.battles = Math.max(keep.battles || 0, ...others.map(o => o.battles || 0));
-        keep.augTrain = Math.max(keep.augTrain || 0, ...others.map(o => o.augTrain || 0));
-        keep.augHp = Math.max(keep.augHp || 0, ...others.map(o => o.augHp || 0));
+        keep.augOne = Math.max(keep.augOne || 0, ...others.map(o => o.augOne || 0));
+        if (others.some(o => o.lockUntil) && !keep.lockUntil) keep.lockUntil = others.find(o => o.lockUntil).lockUntil;
+        if (p.augState.locked && others.some(o => p.augState.locked.includes(o.iid)) && !p.augState.locked.includes(keep.iid)) p.augState.locked.push(keep.iid);
         keep.payday = (keep.payday || 0) + others.reduce((s, o) => s + (o.payday || 0), 0);
         for (const o of others) {
           if (!o.feast) continue;
@@ -459,6 +496,7 @@ class Game {
           if (p.dittoLink === o.iid) p.dittoLink = keep.iid;
         }
         this.onStarUp(p, keep);
+        this.augStarUp(p, keep, fielded);
         merged = true;
         break;
       }
@@ -469,7 +507,11 @@ class Game {
 
   onStarUp(p, inst, silent) {
     const def = UNITS[inst.unitId];
-    if (def.branches && inst.star >= def.branchStar && !p.branch[def.id] && !inst.fz) {
+    if (def.branches && inst.star >= def.branchStar && !p.branch[def.id] && !inst.fz && ADAPT[def.id]) {
+      const mode = plannedAdaptMode(inst);
+      p.branch[def.id] = ADAPT[def.id].evo[mode] || def.branches[0].key;
+      p.pendingBranch = p.pendingBranch.filter(x => x !== def.id);
+    } else if (def.branches && inst.star >= def.branchStar && !p.branch[def.id] && !inst.fz) {
       if (p.isHuman) {
         if (!p.pendingBranch.includes(def.id)) {
           p.pendingBranch.push(def.id);
@@ -480,7 +522,6 @@ class Game {
       }
     }
     if (!silent) this.notify(p, formOf(def, inst.star, p, inst).name + ' ' + '★'.repeat(inst.star) + ' 달성!', 'merge');
-    if (inst.star >= 3 && this.hasAug(p, 'worthwait')) p.gold += 6;
   }
 
   chooseBranch(p, unitId, key) {
@@ -492,12 +533,18 @@ class Game {
     return true;
   }
 
+  sellCheck(p, inst) {
+    if (!inst || !inst.loc) return { ok: false, reason: '' };
+    if (this.phase === 'combat' && inst.loc.zone === 'board') return { ok: false, reason: '전투 중에는 필드의 기물을 팔 수 없습니다' };
+    if (this.augLocked(p, inst)) return { ok: false, reason: '단일 조합 사수: 플레이어 대상 전투에 나간 포켓몬은 팔 수 없습니다' };
+    return { ok: true, reason: '' };
+  }
+
   sell(p, inst) {
-    if (!inst || !inst.loc) return false;
-    if (this.phase === 'combat' && inst.loc.zone === 'board') return false;
+    if (!this.sellCheck(p, inst).ok) return false;
     const def = UNITS[inst.unitId];
     p.remove(inst);
-    if (this.hasAug(p, 'salvage') && inst.items) inst.items = [].concat(...inst.items.map(x => (itemDef(x) && itemDef(x).kind === 'completed' && itemDef(x).from ? itemDef(x).from : [x])));
+    this.augSalvage(p, inst);
     this.returnItems(p, inst);
     p.gold += sellValue(def, inst.star);
     this.pool.give(inst.unitId, copiesForStar(inst.star));
@@ -521,6 +568,10 @@ class Game {
     const other = p.unitAt(to);
     if (other === inst) return { ok: true, reason: '' };
     if (other && other.overflow) return { ok: false, reason: '자리가 없어 기다리는 기물입니다' };
+    if (to.zone === 'bench' && from.zone === 'board' && this.augLocked(p, inst)) return { ok: false, reason: '단일 조합 사수: 플레이어 대상 전투에 나간 포켓몬은 대기석에 놓을 수 없습니다' };
+    if (to.zone === 'board' && from.zone === 'bench' && other && this.augLocked(p, other)) return { ok: false, reason: '단일 조합 사수: 플레이어 대상 전투에 나간 포켓몬은 대기석에 놓을 수 없습니다' };
+    if (to.zone === 'board' && from.zone === 'bench' && this.benchLocked(inst)) return { ok: false, reason: '마지막 포켓몬: 이 포켓몬은 ' + inst.lockUntil + '부터 배치할 수 있습니다' };
+    if (to.zone === 'bench' && from.zone === 'board' && other && this.benchLocked(other)) return { ok: false, reason: '마지막 포켓몬: 이 포켓몬은 ' + other.lockUntil + '부터 배치할 수 있습니다' };
     if (from.zone === 'bench' && to.zone === 'board' && !other && p.boardCount() >= p.boardLimit()) {
       return { ok: false, reason: '필드에 놓을 수 있는 기물은 ' + p.boardLimit() + '개입니다' };
     }
@@ -587,7 +638,7 @@ class Game {
 
   autoFill(p) {
     for (let guard = 0; guard < 40 && p.boardCount() < p.boardLimit(); guard++) {
-      const bench = p.benchUnits();
+      const bench = p.benchUnits().filter(u => !this.benchLocked(u));
       if (!bench.length) break;
       bench.sort((a, b) => UNITS[b.unitId].cost * copiesForStar(b.star) - UNITS[a.unitId].cost * copiesForStar(a.star));
       const inst = bench[0];
@@ -599,10 +650,27 @@ class Game {
     }
   }
 
+  combatItemsOf(inst) {
+    const own = (inst.items || []).filter(id => itemDef(id) && !isConsumable(id));
+    return hasItem(inst, 'thiefs-gloves') ? own.concat(inst.gloveItems || []) : own;
+  }
+
+  rollGloves(p) {
+    for (const inst of p.allUnits()) {
+      if (!hasItem(inst, 'thiefs-gloves')) {
+        if (inst.gloveItems) inst.gloveItems = null;
+        continue;
+      }
+      inst.gloveItems = this.pickDistinct(ITEMS.completed.filter(id => !itemDef(id).unique), 2);
+    }
+  }
+
   boardSpecs(p, mirror, ghost) {
     const specs = [];
     const strong = strongestDragonIid(p);
+    const solo = this.soloActive(p) ? this.soloKeep(p) : null;
     for (const inst of p.boardUnits()) {
+      if (solo && inst !== solo) continue;
       const def = UNITS[inst.unitId];
       const form = formOf(def, inst.star, p, inst);
       let r = inst.loc.r;
@@ -622,11 +690,10 @@ class Game {
           star: cp.star,
           cost: cp.def.cost,
           stats: cp.stats,
-          augTrain: inst.augTrain || 0,
-          augHp: inst.augHp || 0,
+          augOne: inst.augOne || 0,
           strongDragon: false,
           ditto: true,
-          items: (inst.items || []).slice(),
+          items: this.combatItemsOf(inst),
           evolvable: false,
           r,
           c
@@ -645,10 +712,9 @@ class Game {
         star: inst.star,
         cost: def.cost,
         stats: instanceStats(inst, p),
-        augTrain: inst.augTrain || 0,
-        augHp: inst.augHp || 0,
+        augOne: inst.augOne || 0,
         strongDragon: inst.iid === strong,
-        items: (inst.items || []).slice(),
+        items: this.combatItemsOf(inst),
         evolvable: canEvolveFurther(inst, p),
         r,
         c
@@ -661,7 +727,7 @@ class Game {
     return camp.units.map(u => {
       const form = FORM_INDEX[u.name];
       const [r, c] = Hex.mirror(u.r, u.c);
-      const stats = computeStats(form, u.cost, u.star, u.mult * CONFIG.pveScale, { hpMult: u.hpMult, range: u.range });
+      const stats = computeStats(form, u.cost, u.star, u.mult * CONFIG.pveScale, { hpMult: u.hpMult, range: u.range, legacy: true });
       return { iid: null, unitId: null, creep: true, name: form.name, form, types: form.types, star: u.star, cost: u.cost, stats, r, c, drops: u.drops || 1 };
     });
   }
@@ -686,7 +752,6 @@ class Game {
       this.collectOrbs(p);
       this.autoFill(p);
       Unlocks.onCombatStart(this, p);
-      this.augBeforeCombat(p);
     }
     if (info.type === 'pve') {
       const camp = this.currentCamp();
@@ -802,8 +867,7 @@ class Game {
     if (!cu) return;
     const m = this.matchFor(p);
     if (!m || m.sim.over) return;
-    const list = (inst.items || []).filter(id => id !== 'magnet' && itemDef(id) && !isConsumable(id));
-    m.sim.setOwnItems(cu, list, cu.ditto ? false : canEvolveFurther(inst, p));
+    m.sim.setOwnItems(cu, this.combatItemsOf(inst), cu.ditto ? false : canEvolveFurther(inst, p));
   }
 
   useCandy(p, i, inst, d) {
@@ -813,6 +877,7 @@ class Game {
     p.items.splice(i, 1);
     inst.star += 1;
     this.onStarUp(p, inst);
+    this.augStarUp(p, inst, !!(p.participants && p.participants.has(inst.iid)));
     this.mergeAll(p);
     this.emit('update');
     return { ok: true, reason: '' };
@@ -869,14 +934,42 @@ class Game {
 
   reforgeId(id) {
     const d = itemDef(id);
-    if (!d) return id;
+    if (!d || d.special) return id;
     let pool = null;
     if (d.kind === 'component') pool = ITEMS.components;
+    else if (d.radiant) pool = ITEMS.radiants;
     else if (d.kind === 'completed') pool = ITEMS.completed;
     else if (d.kind === 'treasure') pool = ITEMS.treasures[d.tier];
     if (!pool) return id;
     const opts = pool.filter(x => x !== id);
     return opts.length ? opts[this.rng.int(opts.length)] : id;
+  }
+
+  defHasTrait(def, t) {
+    if (def.traits.includes(t)) return true;
+    if ((def.stageForms || def.forms).some(f => f.types.includes(t))) return true;
+    return (def.branches || []).some(b => b.form.types.includes(t) || (b.traits || []).includes(t));
+  }
+
+  useTraitShop(p, i, inst) {
+    const def = UNITS[inst.unitId];
+    const want = allTraitsOf(def, inst.star, p, inst).filter(t => !def.uniques.includes(t));
+    if (!want.length) return { ok: false, reason: '시너지가 없는 기물입니다' };
+    const match = d => want.some(t => this.defHasTrait(d, t));
+    p.items.splice(i, 1);
+    for (let k = 0; k < p.shop.length; k++) {
+      if (p.shop[k]) this.pool.give(p.shop[k], 1);
+      p.shop[k] = null;
+    }
+    const locked = this.lockedVariants(p);
+    for (let k = 0; k < CONFIG.shopSize; k++) {
+      const id = this.rollShopUnit(p, locked, null, match);
+      if (id) this.pool.take(id, 1);
+      p.shop[k] = id;
+    }
+    this.notify(p, '두드리짱의 망치: ' + formOf(def, inst.star, p, inst).name + '와(과) 시너지가 겹치는 포켓몬으로 상점을 채웠습니다', 'loot');
+    this.emit('update');
+    return { ok: true, reason: '' };
   }
 
   useReforge(p, i, inst, cu) {
@@ -886,7 +979,7 @@ class Game {
     inst.items = (inst.items || []).filter(x => !own.includes(x));
     for (const id of own) p.items.push(this.reforgeId(id));
     this.syncCombatItems(p, inst, cu);
-    this.notify(p, '속임수주사위: 아이템 ' + own.length + '개를 바꿨습니다', 'loot');
+    this.notify(p, '아이템 ' + own.length + '개를 바꿨습니다', 'loot');
     this.emit('update');
     return { ok: true, reason: '' };
   }
@@ -903,38 +996,55 @@ class Game {
     inst.items = inst.items || [];
     if (d.candy) return this.useCandy(p, i, inst, d);
     if (d.dup) return this.useDuplicator(p, i, inst, d);
+    if (d.traitShop) return this.useTraitShop(p, i, inst);
     if (d.reforge) return this.useReforge(p, i, inst, cu);
+    if (d.lucky) return this.useLucky(p, i, inst);
     if (d.box) return fail('상자는 클릭해서 여세요');
-    if (id === 'magnet') {
+    if (d.magnet) {
       if (!inst.items.length) return fail('아이템이 없는 기물입니다');
-      p.items.splice(i, 1);
+      if (!d.keep) p.items.splice(i, 1);
       const out = inst.items.splice(0);
+      inst.gloveItems = null;
       for (const x of out) p.items.push(x);
       this.syncCombatItems(p, inst, cu);
-      this.notify(p, '자석: 아이템 ' + out.length + '개를 뺐습니다', 'info');
+      this.notify(p, d.name + ': 아이템 ' + out.length + '개를 뺐습니다', 'info');
       this.emit('update');
       return { ok: true, reason: '' };
     }
+    if (hasItem(inst, 'thiefs-gloves')) return fail('도적의 장갑이 아이템 칸을 모두 차지하고 있습니다');
     if (d.kind === 'component') {
       const ci = inst.items.findIndex(x => itemDef(x) && itemDef(x).kind === 'component');
       if (ci >= 0) {
         const res = combineItems(inst.items[ci], id);
         if (!res) return fail('');
-        if (itemDef(res).unique && inst.items.some((x, j) => j !== ci && x === res)) return fail(itemDef(res).name + '은(는) 한 기물에 하나만 장착할 수 있습니다');
+        if (uniqueClash(inst.items, res, ci)) return fail(itemDef(res).name + '은(는) 한 기물에 하나만 장착할 수 있습니다');
         inst.items[ci] = res;
         p.items.splice(i, 1);
         this.notify(p, itemDef(res).name + ' 완성!', 'merge');
+        this.augCrafted(p);
         this.syncCombatItems(p, inst, cu);
         this.onItemsChanged(p, inst);
         return { ok: true, reason: '' };
       }
     }
-    if (inst.items.length >= 3) return fail('아이템은 3개까지 장착할 수 있습니다');
-    if (d.unique && inst.items.includes(id)) return fail(d.name + '은(는) 한 기물에 하나만 장착할 수 있습니다');
+    if (d.gloves && inst.items.length) return fail('도적의 장갑은 아이템이 없는 포켓몬에게만 줄 수 있습니다');
+    if (itemSlotsUsed(inst.items) >= 3) return fail('아이템은 3개까지 장착할 수 있습니다');
+    if (uniqueClash(inst.items, id)) return fail(d.name + '은(는) 한 기물에 하나만 장착할 수 있습니다');
     inst.items.push(id);
     p.items.splice(i, 1);
+    if (d.gloves) inst.gloveItems = this.pickDistinct(ITEMS.completed.filter(x => !itemDef(x).unique), 2);
     this.syncCombatItems(p, inst, cu);
     this.onItemsChanged(p, inst);
+    return { ok: true, reason: '' };
+  }
+
+  useLucky(p, i, inst) {
+    if (p.boxOpen) return { ok: false, reason: '먼저 열어 둔 상자에서 아이템을 고르세요' };
+    const choices = this.augRecommend(p, inst, 4);
+    if (!choices.length) return { ok: false, reason: '' };
+    p.items.splice(i, 1);
+    p.boxOpen = { id: 'lucky-box', choices, left: CONFIG.boxTime, unit: formOf(UNITS[inst.unitId], inst.star, p, inst).name };
+    this.emit('update');
     return { ok: true, reason: '' };
   }
 
@@ -951,6 +1061,7 @@ class Game {
     p.items[b] = res;
     p.items.splice(a, 1);
     this.notify(p, itemDef(res).name + ' 완성!', 'merge');
+    this.augCrafted(p);
     this.emit('update');
     return { ok: true, reason: '' };
   }
@@ -1293,6 +1404,11 @@ class Game {
         const resA = sim.winner === 'draw' ? 'draw' : sim.winner === 'A' ? 'win' : 'loss';
         const resB = sim.winner === 'draw' ? 'draw' : sim.winner === 'B' ? 'win' : 'loss';
         this.applyPvp(a, resA, sim.survivors('B'));
+        if (!m.ghost) this.applyPvp(b, resB, sim.survivors('A'));
+        if (!m.ghost) {
+          this.augDealt(a, b.lastDamage || 0);
+          this.augDealt(b, a.lastDamage || 0);
+        }
         this.mining(a, m.teamA, resA);
         this.payGold(a, sim, 'A');
         this.augAfterCombat(a, sim, 'A', resA, true);
@@ -1301,7 +1417,6 @@ class Game {
         this.afterSynergy(a, m.teamA, sim, 'A', sim.winner === 'A', true);
         a.lastOpponent = b.id;
         if (!m.ghost) {
-          this.applyPvp(b, resB, sim.survivors('A'));
           this.mining(b, m.teamB, resB);
           this.payGold(b, sim, 'B');
           this.augAfterCombat(b, sim, 'B', resB, true);
@@ -1342,6 +1457,7 @@ class Game {
       }
       this.emit('eliminated', p);
     }
+    this.augEliminations();
     const alive = this.alivePlayers();
     if (this.encounter === '썬더') {
       const pot = dying.reduce((s, p) => s + p.gold, 0);
@@ -1384,7 +1500,10 @@ class Game {
     order.sort((a, b) => a.hp - b.hp);
     const cfg = CONFIG.carousel;
     const release = {};
-    order.forEach((p, i) => { release[p.id] = cfg.firstRelease + Math.floor(i / 2) * cfg.releaseGap; });
+    order.forEach((p, i) => {
+      release[p.id] = cfg.firstRelease + Math.floor(i / 2) * cfg.releaseGap;
+      if (this.hasAug(p, 'titan')) release[p.id] = Math.max(0, cfg.firstRelease - 2);
+    });
     const lastRelease = cfg.firstRelease + Math.floor((order.length - 1) / 2) * cfg.releaseGap;
     this.carousel = { items, order, release, picked: {}, time: 0, duration: lastRelease + cfg.lastWindow, done: false };
   }
@@ -1436,13 +1555,15 @@ class Game {
 
   boxChoices(id, p) {
     const d = itemDef(id);
+    if (d && d.box === 'radiant') return this.pickDistinct(ITEMS.radiants, 5);
     const pool = d && d.box === 'completed' ? ITEMS.completed : d && d.box === 'treasure3' ? ITEMS.treasures[3] : ITEMS.components;
-    return this.pickDistinct(pool, d && d.box === 'treasure3' ? 4 : (p && p.boxSize) || 4);
+    return this.pickDistinct(pool, 4);
   }
 
   giveItem(p, id) {
     const d = itemDef(id);
     if (d && d.box) this.giveBox(p, id);
+    else if (d && d.lucky && !p.isHuman) p.items.push(this.randomCompleted());
     else p.items.push(id);
   }
 
@@ -1505,6 +1626,7 @@ class Game {
     const item = car && car.items[idx];
     if (!item || item.takenBy !== null) return false;
     if (car.picked[p.id] !== undefined) return false;
+    if (!car.encounter && this.hasAug(p, 'favorable')) return false;
     const def = UNITS[item.unitId];
     return !this.lockedVariants(p).has(def.id);
   }
@@ -1556,10 +1678,40 @@ class Game {
       const it = car.items[idx];
       this.deliverUnit(p, it.unitId);
       if (it.item) p.items.push(it.item);
+      if (!car.encounter && p.augState.efficientLeft > 0) {
+        p.augState.efficientLeft -= 1;
+        this.deliverUnit(p, it.unitId);
+        this.notify(p, '효율적인 소비자: 복사본을 하나 더 얻었습니다', 'loot');
+      }
     }
+    if (!car.encounter) this.augCarouselEnd(car);
     if (car.encounter) this.applyEncounterStart();
     car.done = true;
     this.phase = 'result';
+  }
+
+  augCarouselEnd(car) {
+    for (const p of car.order) {
+      if (!p.alive) continue;
+      const S = p.augState;
+      const fav = this.hasAug(p, 'favorable');
+      const crumb = S.crumbsLeft > 0;
+      if (fav) {
+        p.hp = Math.min(p.maxHp, p.hp + 6);
+        p.gold += 8;
+      }
+      if (!fav && !crumb) continue;
+      if (crumb) S.crumbsLeft -= 1;
+      const left = car.items.map((it, i) => i).filter(i => car.items[i].takenBy === null && !this.lockedVariants(p).has(car.items[i].unitId));
+      const pool = left.length ? left : car.items.map((it, i) => i).filter(i => !this.lockedVariants(p).has(car.items[i].unitId));
+      if (!pool.length) continue;
+      const idx = pool[this.rng.int(pool.length)];
+      const it = car.items[idx];
+      if (it.takenBy === null) it.takenBy = p.id;
+      this.deliverUnit(p, it.unitId);
+      if (it.item) p.items.push(it.item);
+      this.notify(p, (fav ? '유리한 조건' : '부스러기') + ': ' + formOf(UNITS[it.unitId], 1, p).name + '와(과) 아이템을 얻었습니다', 'loot');
+    }
   }
 
   frontCell(p) {
@@ -1632,6 +1784,8 @@ class Game {
     else if (key === 'treasure') p.items.push(this.rng.pick(ITEMS.treasures[Math.max(0, Math.min(3, amount))]));
     else if (key === 'candy') p.items.push(['exp-s', 'exp-m', 'exp-l', 'rare-candy'][Math.max(0, Math.min(3, amount))]);
     else if (key === 'dice') p.items.push('loaded-dice');
+    else if (key === 'radiant') p.items.push(this.rng.pick(ITEMS.radiants));
+    else if (key === 'give') p.items.push(['golden-magnet', 'lucky-box', 'thiefs-gloves'][Math.max(0, Math.min(2, amount))]);
     else if (key === 'aug') this.makeAugOffer(p, Math.max(1, Math.min(3, amount || 1)));
     else if (key === 'pokebox') p.items.push('poke-box');
     else if (key === 'greatbox') p.items.push('great-box');
