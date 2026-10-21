@@ -311,8 +311,6 @@ class Arena {
       let s = null;
       if (side.player) {
         s = new StratSprite({ look: side.player.strategist, player: side.player, suffix: side.ghost ? ' (복제)' : '', x: home.x, y: home.y });
-      } else if (side.camp && side.camp.leader) {
-        s = new StratSprite({ leader: side.camp.leader, name: '', x: home.x, y: home.y });
       }
       if (s) {
         this.stratLayer.appendChild(s.el);
@@ -751,6 +749,8 @@ class Arena {
         if (ev.enhanced) this.floatText(ev.uid, '강화', 'buff');
         const cost = this.casterCost(ev.uid);
         if (cost >= 4) this.ultBurst(ev.uid, cost >= 5);
+      } else if (ev.type === 'cast') {
+        this.skillFx(ev);
       } else if (ev.type === 'damage') {
         const e = this.cunits[ev.target];
         if (e && (ev.kind === 'basic' || ev.kind === 'skill')) this.flash(e.el, 'hit', 90);
@@ -1347,3 +1347,213 @@ class Arena {
     return { x: CAROUSEL_CENTER.x + Math.cos(item.angle) * R, y: CAROUSEL_CENTER.y + Math.sin(item.angle) * R };
   }
 }
+
+const TYPE_SFX = { '노말': 'normal', '불꽃': 'fire', '물': 'water', '풀': 'grass', '전기': 'electric', '얼음': 'ice', '격투': 'fighting', '독': 'poison', '땅': 'ground', '비행': 'flying', '에스퍼': 'psychic', '벌레': 'bug', '바위': 'rock', '고스트': 'ghost', '드래곤': 'dragon', '악': 'dark', '강철': 'steel', '페어리': 'fairy' };
+
+const TYPE_PFX = {
+  '노말': { n: 6, c: ['#ffffff', '#e8e8e8'], shape: 'star', motion: 'out', size: 11, dur: 420 },
+  '불꽃': { n: 11, c: ['#ff7a2e', '#ffd04a', '#ff4a1e'], shape: 'sq', motion: 'rise', size: 8, dur: 620 },
+  '물': { n: 9, c: ['#5aa8ff', '#bfe4ff'], shape: 'dot', motion: 'fall', size: 8, dur: 600 },
+  '풀': { n: 8, c: ['#6cd04a', '#b6f07a'], shape: 'leaf', motion: 'swirl', size: 11, dur: 700 },
+  '전기': { n: 7, c: ['#fff27a', '#ffffff'], shape: 'bar', motion: 'jolt', size: 16, dur: 360 },
+  '얼음': { n: 8, c: ['#bff0ff', '#ffffff', '#7fd4f0'], shape: 'dia', motion: 'out', size: 10, dur: 650 },
+  '격투': { n: 7, c: ['#ffb040', '#ffffff'], shape: 'bar', motion: 'radial', size: 14, dur: 300 },
+  '독': { n: 7, c: ['#a05ad0', '#d49cf0'], shape: 'ring', motion: 'rise', size: 11, dur: 700 },
+  '땅': { n: 9, c: ['#b08850', '#d8b880'], shape: 'sq', motion: 'flat', size: 8, dur: 550 },
+  '비행': { n: 6, c: ['#ffffff', '#cfe6ff'], shape: 'bar', motion: 'gust', size: 19, dur: 480 },
+  '에스퍼': { n: 3, c: ['#ff7ab0', '#ffc0e0'], shape: 'ring', motion: 'grow', size: 22, dur: 600 },
+  '벌레': { n: 9, c: ['#b8d040', '#e0f07a'], shape: 'dot', motion: 'buzz', size: 6, dur: 500 },
+  '바위': { n: 7, c: ['#c8b888', '#8a7a58'], shape: 'sq', motion: 'fall', size: 10, dur: 600 },
+  '고스트': { n: 6, c: ['#8a5ab0', '#c8a0e8'], shape: 'dot', motion: 'wisp', size: 11, dur: 800 },
+  '드래곤': { n: 9, c: ['#6a70e0', '#b0a0ff', '#ff8a6a'], shape: 'sq', motion: 'swirl', size: 8, dur: 650 },
+  '악': { n: 7, c: ['#3a3040', '#8a6aa0'], shape: 'dia', motion: 'in', size: 11, dur: 450 },
+  '강철': { n: 8, c: ['#e8f0f8', '#9ab8d0'], shape: 'bar', motion: 'radial', size: 13, dur: 320 },
+  '페어리': { n: 8, c: ['#ffb0e0', '#ffffff'], shape: 'star', motion: 'twinkle', size: 11, dur: 700 }
+};
+
+const SIG_FX = {
+  '불꽃엄니': { tpl: 'bite', c: ['#ff9a3c', '#ffe08a'], snd: 'fang' },
+  '시저크로스': { tpl: 'slash', c: ['#d0f070', '#ffffff'], snd: 'scissor' },
+  '불릿펀치': { tpl: 'multi', c: ['#e0ecf8', '#8fb0d0'], snd: 'bullet' },
+  '암석액스': { tpl: 'slash', c: ['#d8c898', '#7d6d4a'], snd: 'axe', rocks: true },
+  '원시의힘': { tpl: 'rocks', c: ['#e0b86b', '#8a6a3a'], snd: 'ancient' },
+  '잠자기': { tpl: 'zzz', c: ['#a8c8ff'], snd: 'rest', self: true },
+  '오리진즈슈퍼노바': { snd: 'nova' },
+  '물거품아리아': { tpl: 'wave', c: ['#7fd0ff', '#ffffff'], snd: 'aria', self: true },
+  '철벽': { tpl: 'shield', c: ['#c8d8e8', '#ffffff'], snd: 'irondef', self: true },
+  '분노의주먹': { tpl: 'fist', c: ['#8a5ac8', '#e0c8ff'], snd: 'ragefist' },
+  '폭포오르기': { snd: 'waterfall' },
+  '용성군': { snd: 'meteor' },
+  '섀도볼': { tpl: 'orb', c: ['#4a1a6a', '#c08ae0'], snd: 'shadowball' },
+  '미래예지': { tpl: 'psy', c: ['#ff8ab8', '#ffffff'], snd: 'future' },
+  '사이코브레이크': { tpl: 'psy', big: true, c: ['#c070ff', '#ffb0f0'], snd: 'psystrike' },
+  '절대영도': { snd: 'sheercold' },
+  '번개': { tpl: 'pillar', c: ['#fff27a', '#ffffff'], snd: 'thunder' },
+  '불대문자': { tpl: 'burst', c: ['#ff6a2a', '#ffe070'], snd: 'fireblast' },
+  '분노의불꽃': { tpl: 'burst', c: ['#ff7a2a', '#ffd070'], snd: 'ragefire' },
+  '바위떨구기': { tpl: 'rocks', c: ['#c8b080', '#7a6040'], snd: 'rockfall' }
+};
+
+const SKILL_FX_APP = {
+  skillSound(name) {
+    const now = performance.now();
+    this.sndLast = this.sndLast || {};
+    this.sndRecent = (this.sndRecent || []).filter(t => now - t < 300);
+    if (this.sndLast[name] && now - this.sndLast[name] < 110) return;
+    if (this.sndRecent.length >= 4) return;
+    this.sndLast[name] = now;
+    this.sndRecent.push(now);
+    Sound.sfx(name);
+  },
+
+  skillFx(ev) {
+    const u = this.sim && this.sim.byUid[ev.uid];
+    if (!u) return;
+    const skill = (u.form && u.form.skill) || '';
+    const sig = (u.cost || 0) >= 5 ? SIG_FX[skill] : null;
+    const tgtUid = sig && sig.self ? ev.uid : ev.target != null && this.sim.byUid[ev.target] ? ev.target : ev.uid;
+    if (sig) {
+      this.skillSound('sig-' + sig.snd);
+      if (sig.tpl) this.sigFx(sig, ev.uid, tgtUid);
+      return;
+    }
+    const ty = u.skillType || '노말';
+    this.skillSound('t-' + (TYPE_SFX[ty] || 'normal'));
+    const p = this.screenPos(tgtUid);
+    if (p) this.typeBurst(ty, p.x, p.y - 18);
+  },
+
+  pfx(cls, x, y, size, color) {
+    const el = this.fxDiv('pfx ' + cls, x, y);
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.setProperty('--c', color);
+    return el;
+  },
+
+  typeBurst(ty, x, y, scale) {
+    const cfg = TYPE_PFX[ty] || TYPE_PFX['노말'];
+    const speed = this.app.speed || 1;
+    const k = scale || 1;
+    const dur = cfg.dur / speed;
+    const n = Math.round(cfg.n * Math.min(1.6, k));
+    const fl = this.fxDiv('pfx-flash', x, y);
+    fl.style.setProperty('--c', TYPE_COLORS[ty] || '#ffffff');
+    fl.style.animationDuration = (320 / speed) + 'ms';
+    setTimeout(() => fl.remove(), 360 / speed);
+    for (let i = 0; i < n; i++) {
+      const col = cfg.c[i % cfg.c.length];
+      const el = this.pfx('p-' + cfg.shape, x, y, cfg.size * (0.8 + Math.random() * 0.5) * Math.sqrt(k), col);
+      const a = (i / n) * Math.PI * 2 + Math.random() * 0.6;
+      const r = (16 + Math.random() * 18) * k;
+      const rot = Math.round(Math.random() * 360);
+      const T = (dx, dy, s, rr) => 'translate(calc(-50% + ' + dx.toFixed(1) + 'px), calc(-50% + ' + dy.toFixed(1) + 'px)) rotate(' + (rr == null ? rot : rr) + 'deg) scale(' + s + ')';
+      let frames;
+      const cx = Math.cos(a) * r;
+      const cy = Math.sin(a) * r * 0.7;
+      switch (cfg.motion) {
+        case 'rise': frames = [{ transform: T(cx * 0.3, 6, 1), opacity: 1 }, { transform: T(cx * 0.6, -26 - Math.random() * 20, 0.4), opacity: 0 }]; break;
+        case 'fall': frames = [{ transform: T(0, 0, 1), opacity: 1 }, { transform: T(cx, cy - 14, 1), opacity: 1, offset: 0.45 }, { transform: T(cx * 1.3, 16, 0.6), opacity: 0 }]; break;
+        case 'swirl': frames = [{ transform: T(0, 0, 1, rot), opacity: 1 }, { transform: T(Math.cos(a + 1.4) * r, Math.sin(a + 1.4) * r * 0.7, 0.7, rot + 220), opacity: 0 }]; break;
+        case 'jolt': frames = [{ transform: T(0, 0, 1), opacity: 1 }, { transform: T(cx * 0.5 + 6, cy * 0.5 - 5, 1, rot + 70), opacity: 1, offset: 0.4 }, { transform: T(cx, cy, 0.5, rot - 50), opacity: 0 }]; break;
+        case 'radial': frames = [{ transform: T(cx * 0.2, cy * 0.2, 0.4, a * 57.3), opacity: 1 }, { transform: T(cx * 1.2, cy * 1.2, 1.2, a * 57.3), opacity: 0 }]; break;
+        case 'flat': frames = [{ transform: T(0, 10, 1), opacity: 1 }, { transform: T(Math.cos(a) * r * 1.4, 12 + Math.abs(Math.sin(a)) * 4, 0.5), opacity: 0 }]; break;
+        case 'gust': frames = [{ transform: T(-24, (i - n / 2) * 6, 0.6, 0), opacity: 0 }, { transform: T(0, (i - n / 2) * 6, 1, 0), opacity: 1, offset: 0.35 }, { transform: T(26, (i - n / 2) * 6 - 4, 0.5, 0), opacity: 0 }]; break;
+        case 'grow': frames = [{ transform: T(0, 0, 0.3, 0), opacity: 0.9 }, { transform: T(0, 0, 2.6 + i * 0.8, 0), opacity: 0 }]; break;
+        case 'buzz': frames = [{ transform: T(0, 0, 1), opacity: 1 }, { transform: T(cx * 0.5 + 8, cy * 0.5 - 8, 1), opacity: 1, offset: 0.3 }, { transform: T(cx * 0.4 - 6, cy * 0.8 + 6, 1), opacity: 1, offset: 0.6 }, { transform: T(cx, cy, 0.5), opacity: 0 }]; break;
+        case 'wisp': frames = [{ transform: T(cx * 0.3, 4, 0.6), opacity: 0 }, { transform: T(cx * 0.6 + 6, -12, 1), opacity: 0.9, offset: 0.4 }, { transform: T(cx * 0.4 - 6, -34, 0.8), opacity: 0 }]; break;
+        case 'in': frames = [{ transform: T(cx * 1.4, cy * 1.4, 1.2), opacity: 0 }, { transform: T(cx * 0.5, cy * 0.5, 1), opacity: 1, offset: 0.6 }, { transform: T(0, 0, 0.2), opacity: 0 }]; break;
+        case 'twinkle': frames = [{ transform: T(cx * 0.3, cy * 0.3, 0.2), opacity: 0 }, { transform: T(cx * 0.8, cy * 0.8 - 6, 1.2), opacity: 1, offset: 0.4 }, { transform: T(cx, cy - 10, 0.2), opacity: 0 }]; break;
+        default: frames = [{ transform: T(0, 0, 1), opacity: 1 }, { transform: T(cx, cy, 0.4), opacity: 0 }];
+      }
+      el.animate(frames, { duration: dur * (0.8 + Math.random() * 0.4), easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' });
+      setTimeout(() => el.remove(), dur * 1.25);
+    }
+  },
+
+  sigFx(sig, uid, tgtUid) {
+    const speed = this.app.speed || 1;
+    const a = this.screenPos(uid);
+    const b = this.screenPos(tgtUid) || a;
+    if (!a || !b) return;
+    const c0 = sig.c[0];
+    const c1 = sig.c[1] || c0;
+    const ty = (this.sim.byUid[uid] || {}).skillType || '노말';
+    const tmp = (cls, x, y, ms) => {
+      const el = this.fxDiv('sfx ' + cls, x, y);
+      el.style.setProperty('--c0', c0);
+      el.style.setProperty('--c1', c1);
+      el.style.animationDuration = (ms / speed) + 'ms';
+      setTimeout(() => el.remove(), ms / speed + 40);
+      return el;
+    };
+    const y = b.y - 18;
+    switch (sig.tpl) {
+      case 'slash':
+        tmp('sfx-slash l', b.x, y, 420);
+        setTimeout(() => tmp('sfx-slash r', b.x, y, 420), 90 / speed);
+        if (sig.rocks) setTimeout(() => this.typeBurst('바위', b.x, y, 1.3), 120 / speed);
+        break;
+      case 'bite':
+        tmp('sfx-jaw t', b.x, y, 380);
+        tmp('sfx-jaw b', b.x, y, 380);
+        setTimeout(() => this.typeBurst(ty, b.x, y, 1.4), 200 / speed);
+        break;
+      case 'multi':
+        for (let i = 0; i < 3; i++) setTimeout(() => tmp('sfx-hit', b.x + (i - 1) * 9, y + (i % 2) * 6 - 3, 260), (i * 80) / speed);
+        break;
+      case 'rocks':
+        for (let i = 0; i < 6; i++) {
+          setTimeout(() => {
+            const r = tmp('sfx-rock', b.x + (Math.random() - 0.5) * 40, y + (Math.random() - 0.5) * 16, 420);
+            r.style.width = r.style.height = (7 + Math.random() * 6) + 'px';
+          }, (i * 60) / speed);
+        }
+        setTimeout(() => this.typeBurst('바위', b.x, y, 1.4), 380 / speed);
+        break;
+      case 'zzz':
+        for (let i = 0; i < 3; i++) setTimeout(() => { const z = tmp('sfx-z', a.x + 8 + i * 5, a.y - 40 - i * 4, 1100); z.textContent = 'Z'; }, (i * 250) / speed);
+        break;
+      case 'wave':
+        tmp('sfx-wave', a.x, a.y - 10, 900);
+        setTimeout(() => tmp('sfx-wave', a.x, a.y - 10, 900), 220 / speed);
+        this.typeBurst('물', a.x, a.y - 18, 1.6);
+        break;
+      case 'shield':
+        tmp('sfx-shield', a.x, a.y - 20, 900);
+        break;
+      case 'fist':
+        tmp('sfx-fist', b.x, y, 520);
+        setTimeout(() => { this.flash(this.root, 'shake', 380); this.typeBurst('고스트', b.x, y, 1.6); }, 260 / speed);
+        break;
+      case 'orb': {
+        const o = tmp('sfx-orb', a.x, a.y - 22, 420);
+        o.animate([{ left: a.x + 'px', top: (a.y - 22) + 'px' }, { left: b.x + 'px', top: y + 'px' }], { duration: 380 / speed, fill: 'forwards', easing: 'ease-in' });
+        setTimeout(() => { tmp('sfx-pop', b.x, y, 420); this.typeBurst('고스트', b.x, y, 1.5); }, 380 / speed);
+        break;
+      }
+      case 'psy':
+        tmp('sfx-psyring', b.x, y, 520);
+        setTimeout(() => tmp('sfx-psyring', b.x, y, 520), 120 / speed);
+        setTimeout(() => {
+          tmp('sfx-beam' + (sig.big ? ' big' : ''), b.x, b.y, 520);
+          if (sig.big) this.flash(this.root, 'shake', 420);
+          this.typeBurst('에스퍼', b.x, y, sig.big ? 2 : 1.3);
+        }, 360 / speed);
+        break;
+      case 'pillar':
+        tmp('sfx-bolt', b.x, b.y, 460);
+        this.flash(this.root, 'shake', 300);
+        this.typeBurst('전기', b.x, y, 1.8);
+        break;
+      case 'burst':
+        tmp('sfx-burst', b.x, y, 560);
+        this.typeBurst('불꽃', b.x, y, 2);
+        break;
+      default:
+        break;
+    }
+  }
+};
+
+Object.assign(Arena.prototype, SKILL_FX_APP);

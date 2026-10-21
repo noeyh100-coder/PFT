@@ -288,7 +288,7 @@ const AUG_GAME = {
     else if (id === 'pandora3') this.augItem(p, this.rng.pick(ITEMS.radiants));
     else if (id === 'oakhelp') {
       const inst = this.augUnit(p, 4, 1);
-      const four = inst ? UNITS[inst.unitId] : this.rng.pick(this.baseCandidates(p, 4).concat(UNIT_DATA.filter(d => d.shop && d.cost === 4)));
+      const four = inst ? UNITS[inst.unitId] : this.rng.pick(this.baseCandidates(p, 4).concat(UNIT_DATA.filter(d => d.shop && d.cost === 4 && this.regionAllowed(d))));
       if (four) {
         const tr = allTraitsOf(four, 1, p).filter(t => !four.uniques.includes(t));
         this.augUnit(p, 1, 2, d => tr.some(t => this.defHasTrait(d, t)));

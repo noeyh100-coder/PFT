@@ -318,9 +318,9 @@ const UNIT_DATA = [
      "벌레",
      "독"
     ],
-    "range": 1,
+    "range": 4,
     "special": true,
-    "role": "특수 탱커",
+    "role": "특수 마법사",
     "skill": "벌레의저항",
     "skillType": "벌레",
     "stats": {
@@ -339,9 +339,9 @@ const UNIT_DATA = [
      "벌레",
      "독"
     ],
-    "range": 1,
+    "range": 4,
     "special": true,
-    "role": "특수 탱커",
+    "role": "특수 마법사",
     "skill": "벌레의저항",
     "skillType": "벌레",
     "stats": {
@@ -360,9 +360,9 @@ const UNIT_DATA = [
      "벌레",
      "독"
     ],
-    "range": 1,
+    "range": 4,
     "special": true,
-    "role": "특수 탱커",
+    "role": "특수 마법사",
     "skill": "벌레의저항",
     "skillType": "벌레",
     "stats": {
@@ -671,9 +671,9 @@ const UNIT_DATA = [
     "types": [
      "에스퍼"
     ],
-    "range": 1,
+    "range": 4,
     "special": true,
-    "role": "특수 탱커",
+    "role": "특수 마법사",
     "skill": "꿈먹기",
     "skillType": "에스퍼",
     "stats": {
@@ -691,9 +691,9 @@ const UNIT_DATA = [
     "types": [
      "에스퍼"
     ],
-    "range": 1,
+    "range": 4,
     "special": true,
-    "role": "특수 탱커",
+    "role": "특수 마법사",
     "skill": "꿈먹기",
     "skillType": "에스퍼",
     "stats": {
@@ -711,9 +711,9 @@ const UNIT_DATA = [
     "types": [
      "에스퍼"
     ],
-    "range": 1,
+    "range": 4,
     "special": true,
-    "role": "특수 탱커",
+    "role": "특수 마법사",
     "skill": "꿈먹기",
     "skillType": "에스퍼",
     "stats": {
@@ -4058,7 +4058,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "전쟁기계"
+   "주문술사"
   ],
   "uniques": [],
   "forms": [
@@ -4068,9 +4068,9 @@ const UNIT_DATA = [
     "types": [
      "물"
     ],
-    "range": 1,
+    "range": 4,
     "special": true,
-    "role": "특수 탱커",
+    "role": "특수 마법사",
     "skill": "사이코쇼크",
     "skillType": "에스퍼",
     "stats": {
@@ -4089,9 +4089,9 @@ const UNIT_DATA = [
      "물",
      "에스퍼"
     ],
-    "range": 1,
+    "range": 4,
     "special": true,
-    "role": "특수 탱커",
+    "role": "특수 마법사",
     "skill": "사이코쇼크",
     "skillType": "에스퍼",
     "stats": {
@@ -4110,9 +4110,9 @@ const UNIT_DATA = [
      "물",
      "에스퍼"
     ],
-    "range": 1,
+    "range": 4,
     "special": true,
-    "role": "특수 탱커",
+    "role": "특수 마법사",
     "skill": "사이코쇼크",
     "skillType": "에스퍼",
     "stats": {

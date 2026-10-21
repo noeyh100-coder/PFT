@@ -167,9 +167,9 @@ class Lobby {
       else if (this.joinOpen) {
         this.joinOpen = false;
         this.render();
-      }
+      } else if (this.screen === 'party' && !this.coll) this.leaveParty();
     });
-    this.root.addEventListener('pointerdown', e => {
+    this.root.addEventListener('click', e => {
       if (this.joinOpen && !e.target.closest('.lb-join')) {
         this.joinOpen = false;
         this.render();

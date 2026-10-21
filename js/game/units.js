@@ -2,7 +2,13 @@ const UNITS = {};
 const FAMILIES = {};
 const FORM_INDEX = {};
 
+const REGION_FAMILIES = new Set();
+
 (function buildRegistry() {
+  if (typeof REGIONAL_DATA !== 'undefined') {
+    for (const u of REGIONAL_DATA) if (!UNIT_DATA.includes(u)) UNIT_DATA.push(u);
+  }
+  for (const u of UNIT_DATA) if (u.region) REGION_FAMILIES.add(u.family);
   for (const u of UNIT_DATA) {
     UNITS[u.id] = u;
     if (!FAMILIES[u.family]) FAMILIES[u.family] = [];
@@ -317,7 +323,12 @@ function applyFeast(stats, feast) {
   return stats;
 }
 
-const SPECIAL_EVO = new Set(['잉어킹', '미뇽', '신뇽', '고오스', '망키', '캐이시', '핑복', '야돈']);
+const SPECIAL_EVO = new Set(['잉어킹', '미뇽', '신뇽', '고오스', '망키', '캐이시', '핑복', '야돈', '가라르 야돈']);
+
+function regionVisible(def, regional) {
+  if (def.region) return !!regional;
+  return !(regional && REGION_FAMILIES.has(def.family));
+}
 
 function canEvolveFurther(inst, owner) {
   const def = UNITS[inst.unitId];

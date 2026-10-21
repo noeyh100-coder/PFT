@@ -449,6 +449,7 @@ class App {
     });
     d.on('orb', e => {
       if (e.pid !== this.human.id || this.replaying) return;
+      Sound.sfx(e.tier === 'item' ? 'loot-item' : e.grade === 'gold' ? 'loot3' : e.grade === 'blue' ? 'loot2' : 'loot1');
       const el = this.arena.orbEls && this.arena.orbEls[e.id];
       if (el) el.remove();
       this.renderHud();
@@ -467,7 +468,7 @@ class App {
           this.arenaKey = null;
           this.maybeShowBranch();
         }
-        if (e.a.t === 'region') this.toast(this.game.region ? this.game.region + ' 조우: 이제 ' + this.game.region + ' 리전폼이 등장합니다' : '조우 지역 없음: 리전폼이 등장하지 않습니다', 'info');
+        if (e.a.t === 'region') this.toast(this.game.isRegional() ? '리전폼 모드: 리전폼이 있는 포켓몬은 리전폼으로 나옵니다' : '리전폼 모드 꺼짐', 'info');
       }
       this.requestRender();
     });
@@ -854,6 +855,7 @@ class App {
   scene() {
     const g = this.game;
     const V = this.viewed();
+    if (g.phase !== 'carousel' && this.carouselScene && this.viewCarousel) return { mode: 'carousel' };
     if (g.phase === 'carousel') {
       if (this.viewCarousel || !this.carouselScene) return { mode: 'carousel' };
       if (V === this.human) return { mode: 'planning', bottom: { player: V }, top: null, carouselField: true };
@@ -958,6 +960,7 @@ class App {
     a.setRedCells(bp ? bp.boardUnits().filter(u => u.overflow).map(u => ({ r: u.loc.r, c: u.loc.c })) : null);
     a.renderBoardCount(viewMe && sc.mode === 'planning' && this.game.phase === 'planning' ? this.human.boardCount() + ' / ' + this.human.boardLimit() : '', this.human.boardCount() < this.human.boardLimit());
     a.renderOrbs(viewMe && !sc.carouselField ? this.human.orbs || [] : []);
+    this.renderFruit(viewMe && !sc.carouselField && sc.mode === 'planning' && this.game.phase === 'planning' ? this.human.fruit : null);
     a.refreshSprites();
     this.applyBallHide();
     const scout = this.$('scout-label');
@@ -1055,7 +1058,7 @@ class App {
     this.$('timer-num').dataset.tip = PHASE_LABEL[g.phase] || '';
     const enc = encounterDef(g.encounter);
     const ei = this.$('encounter-icon');
-    ei.dataset.tip = enc ? '조우자 · ' + enc.id + '\n' + enc.desc : '조우자: 없음';
+    ei.dataset.tip = enc ? '조우자 · ' + enc.id + '\n' + enc.desc + (enc.sub ? '\n(' + enc.sub + ')' : '') + (enc.more ? '\n\n' + enc.more : '') : '조우자: 없음';
     if (ei.dataset.enc !== (g.encounter || '')) {
       ei.dataset.enc = g.encounter || '';
       const por = enc ? Sprites.portrait({ en: enc.en }, 24, { fill: 0.95 }) : null;
@@ -1441,6 +1444,82 @@ class App {
     if (el) el.classList.add('item-target');
   }
 
+  renderFruit(fruit) {
+    const layer = this.arena.orbLayer;
+    if (this.fruitEl && this.fruitEl.parentNode !== layer) this.fruitEl = null;
+    if (!fruit) {
+      if (this.fruitEl) this.fruitEl.remove();
+      this.fruitEl = null;
+      return;
+    }
+    if (this.fruitEl && this.fruitEl.dataset.item === fruit.item) return;
+    if (this.fruitEl) this.fruitEl.remove();
+    const d = itemDef(fruit.item);
+    const el = View.el('div', 'gim-fruit');
+    el.dataset.item = fruit.item;
+    el.appendChild(View.el('div', 'gim-glow'));
+    const ico = View.itemIcon(fruit.item, 36);
+    ico.classList.add('gim-ico');
+    el.appendChild(ico);
+    el.dataset.tip = d.name + '\n기물에 끌어다 놓으면 바로 장착, 클릭하면 아이템 칸으로 가져옵니다. 전투가 시작되면 자동으로 아이템 칸에 들어갑니다.';
+    const p = View.cellCenter(1, 3);
+    placeSprite(el, p.x, p.y, 24, 40);
+    el.addEventListener('pointerdown', e => this.onFruitPointerDown(e, el, fruit.item));
+    el.addEventListener('mouseenter', () => this.showTooltip(el, el.dataset.tip));
+    el.addEventListener('mouseleave', () => this.hideTooltip());
+    layer.appendChild(el);
+    this.fruitEl = el;
+  }
+
+  onFruitPointerDown(e, el, id) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const sx = e.clientX;
+    const sy = e.clientY;
+    let ghost = null;
+    const move = ev => {
+      if (!ghost) {
+        if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 6) return;
+        this.dragging = true;
+        this.hideTooltip();
+        ghost = View.itemIcon(id, 33);
+        ghost.classList.add('item-ghost');
+        this.gameEl.appendChild(ghost);
+        el.classList.add('dragging');
+      }
+      const g = this.toGame(ev.clientX, ev.clientY);
+      ghost.style.left = (g.x - 16) + 'px';
+      ghost.style.top = (g.y - 16) + 'px';
+      const hit = this.itemTargetAt(ev.clientX, ev.clientY);
+      this.setItemHover(hit ? hit.el : null);
+    };
+    const up = ev => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      this.setItemHover(null);
+      if (!ghost) {
+        this.act({ t: 'fruit' });
+        Sound.sfx('loot-gim');
+        return;
+      }
+      ghost.remove();
+      el.classList.remove('dragging');
+      this.dragging = false;
+      const hit = this.itemTargetAt(ev.clientX, ev.clientY);
+      if (hit) {
+        this.act({ t: 'fruit', iid: hit.inst.iid });
+        Sound.sfx('loot-gim');
+      } else if (this.overItemPanel(ev.clientX, ev.clientY)) {
+        this.act({ t: 'fruit' });
+        Sound.sfx('loot-gim');
+      }
+      this.render();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
   onItemPointerDown(e, idx, srcEl) {
     if (e.button !== 0) return;
     e.preventDefault();
@@ -1581,7 +1660,7 @@ class App {
   renderTraitTip() {
     const tip = this.$('trait-tip');
     if (!this.tipTrait) return;
-    View.renderTraitTip(tip, this.tipTrait, this.tipOwner || this.viewed(), this.game ? this.game.region : null);
+    View.renderTraitTip(tip, this.tipTrait, this.tipOwner || this.viewed(), this.game ? this.game.isRegional() : false);
     tip.classList.add('show');
     tip.style.left = this.tipWhere === 'info' ? (1096 - tip.offsetWidth - 10) + 'px' : this.tipWhere === 'planner' ? (this.tipRight + 8) + 'px' : '';
     const h = tip.offsetHeight;
@@ -1589,7 +1668,7 @@ class App {
   }
 
   skillNote(t) {
-    if (!t.form || t.form.skill !== '고양이돈받기') return '';
+    if (!t.form || (t.form.skill !== '고양이돈받기' && t.form.skill !== '도둑질')) return '';
     let inst = t.inst || null;
     if (!inst && t.combat && t.combat.iid) inst = this.human.findInstance(t.combat.iid) || this.viewed().findInstance(t.combat.iid);
     const total = ((inst && inst.payday) || 0) + ((t.combat && t.combat.payday) || 0);
@@ -2257,6 +2336,7 @@ class App {
       card.appendChild(View.el('div', 'enc-kicker', '조우자'));
       card.appendChild(View.el('b', 'enc-name', enc.id));
       card.appendChild(View.el('div', 'enc-desc', enc.desc));
+      if (enc.sub) card.appendChild(View.el('div', 'enc-sub', enc.sub));
       card.classList.add('show');
     }
     this.carouselScene = sc;
@@ -2562,7 +2642,7 @@ class App {
       '서로 다른 얼음 포켓몬 별 합계 ' + u.iceStarTotal + ' 이상으로 전투 시작 (프리져)',
       '화석 연승 ' + h.fossilWins + ' / ' + u.kabutoWins + ' (투구) · 연패 ' + h.fossilLosses + ' / ' + u.aerodactylLosses + ' (프테라)',
       '용의 비늘 ' + h.dragonScales + ' · 에스퍼 효과 ' + this.game.espVariant,
-      '조우 지역: ' + (this.game.region || '없음'),
+      '리전폼: ' + (this.game.isRegional() ? '켜짐' : '꺼짐'),
       '해금: ' + (h.unlockedShop.size ? Array.from(h.unlockedShop).join(', ') : '없음'),
       '상점 제외: ' + (h.excluded.size ? Array.from(h.excluded).join(', ') : '없음'),
       '카운터는 전투가 끝날 때 확인됩니다'

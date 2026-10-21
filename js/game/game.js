@@ -133,12 +133,16 @@ class Game {
   }
 
   setRegion(region) {
-    this.region = CONFIG.regions.includes(region) ? region : null;
+    this.region = region ? '리전폼' : null;
     this.emit('update');
   }
 
+  isRegional() {
+    return this.encounter === '따라큐' || !!this.region;
+  }
+
   regionAllowed(def) {
-    return !def.region || def.region === this.region;
+    return regionVisible(def, this.isRegional());
   }
 
   on(type, fn) {
@@ -232,9 +236,14 @@ class Game {
         p.bugShop = false;
       }
       const enc = encounterDef(this.encounter);
-      if (enc && enc.item && this.stage === 4 && this.round === 7) {
-        this.augItem(p, enc.item);
-        this.notify(p, enc.id + ': ' + enc.gift + ' 받았습니다', 'loot');
+      if (enc && enc.item && this.stage === 4 && this.round === 6) {
+        if (p.isHuman && this.realtime) {
+          p.fruit = { item: enc.item };
+          this.notify(p, enc.id + ': 상대 진영에 ' + itemDef(enc.item).name + '이(가) 나타났습니다! 기물에 끌어다 놓거나 클릭해서 얻으세요', 'loot');
+        } else {
+          this.giveItem(p, enc.item);
+          this.notify(p, enc.id + ': ' + enc.gift + ' 받았습니다', 'loot');
+        }
       }
       if (this.encounter === '나옹' && this.round === 1 && encounterGold(this.stage)) {
         const n = encounterGold(this.stage);
@@ -324,7 +333,9 @@ class Game {
       cost = costs[0];
     }
     const boost = 1 + CONFIG.pityStep * (p.pity || 0);
-    const def = this.rng.weighted(byCost[cost], d => this.pool.remaining(d.id) * (wanted && wanted.has(d.id) ? boost : 1));
+    const fam = {};
+    for (const d of byCost[cost]) if (d.region) fam[d.family] = (fam[d.family] || 0) + 1;
+    const def = this.rng.weighted(byCost[cost], d => (this.pool.remaining(d.id) * (wanted && wanted.has(d.id) ? boost : 1)) / (d.region ? fam[d.family] : 1));
     return def ? def.id : null;
   }
 
@@ -744,7 +755,21 @@ class Game {
     return CONFIG.pve[this.roundLabel()] || CONFIG.pve.default;
   }
 
+  takeFruit(p, iid) {
+    if (!p.fruit) return { ok: false, reason: '' };
+    const id = p.fruit.item;
+    p.fruit = null;
+    p.items.push(id);
+    let res = { ok: true, reason: '' };
+    const inst = iid != null ? p.findInstance(iid) : null;
+    if (inst && inst.loc) res = this.equipItem(p, p.items.length - 1, inst);
+    this.notify(p, itemDef(id).name + '을(를) 얻었습니다' + (inst && res.ok ? ' (장착)' : ''), 'loot');
+    this.emit('update');
+    return { ok: true, reason: res.ok ? '' : res.reason, item: id, equipped: !!(inst && res.ok) };
+  }
+
   startCombat() {
+    for (const p of this.players) if (p.fruit) this.takeFruit(p, null);
     const info = this.roundInfo();
     this.phase = 'combat';
     this.matches = [];

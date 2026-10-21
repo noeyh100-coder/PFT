@@ -139,15 +139,15 @@ function unitLabel(def) {
   return def.id + (evolves ? ' 계열' : '');
 }
 
-function traitMembers(id, region) {
-  const key = id + '|' + (region || '');
+function traitMembers(id, regional) {
+  const key = id + '|' + (regional ? 'R' : '');
   if (SYNERGY_MEMBER_CACHE[key]) return SYNERGY_MEMBER_CACHE[key];
   const td = TRAIT_DATA.map[id];
   const isType = td && td.kind === 'type';
   const out = [];
   const starText = n => (n === 1 ? '1성' : '1~' + n + '성');
   for (const def of UNIT_DATA) {
-    if (def.region && def.region !== region) continue;
+    if (!regionVisible(def, regional)) continue;
     const forms = def.stageForms || def.forms;
     const own = def.traits.includes(id) || def.uniques.includes(id);
     const has = forms.map(f => (isType ? f.types.includes(id) : own));

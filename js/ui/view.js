@@ -688,6 +688,8 @@ const View = {
       '망나뇽': '신뇽 2성 이상으로 ' + u.dragonairWins + '번 승리하면 진화',
       '야도란': '야돈 뒤 칸에 셀러를 두고 전투 시작 (셀러를 소모하고, 둘 중 낮은 별로 진화)',
       '야도킹': '야돈 앞 칸에 셀러를 두고 전투 시작 (셀러를 소모하고, 둘 중 낮은 별로 진화)',
+      '가라르 야도란': '가라르 야돈 뒤 칸에 셀러를 두고 전투 시작 (셀러를 소모하고, 둘 중 낮은 별로 진화)',
+      '가라르 야도킹': '가라르 야돈 앞 칸에 셀러를 두고 전투 시작 (셀러를 소모하고, 둘 중 낮은 별로 진화)',
       '저승갓숭': '성원숭(망키 2성 이상)이 PvP 전투에서 쓰러지면 진화',
       '갸라도스': '잉어킹 3성으로 전투에 ' + u.magikarpBattles + '번 참여하면 진화',
       '해피너스': '치유 스택 ' + u.healStack + ' 이상에서 럭키가 전투에 참여하면 진화 (럭키 3성이면 스택 2배)',
@@ -707,7 +709,8 @@ const View = {
     const def = UNITS[unitId];
     if (!def) return;
     const base = def.stageForms ? def.stageForms[0] : def.forms[0];
-    const form = formName && FORM_INDEX[formName] ? FORM_INDEX[formName] : base;
+    const own = (def.stageForms || def.forms).concat(def.branches ? def.branches.map(b => b.form) : []);
+    const form = (formName && own.find(f => f.name === formName)) || (formName && FORM_INDEX[formName] ? FORM_INDEX[formName] : base);
     const br = def.branches ? def.branches.find(b => b.form.name === form.name) : null;
     const open = def.unlockOnly && owner && owner.unlockedShop && owner.unlockedShop.has(def.id);
     const top = this.el('div', 'ut-top');
@@ -720,6 +723,8 @@ const View = {
     const info = this.el('div', 'ut-info');
     const nm = this.el('div', 'ut-name');
     nm.appendChild(this.el('b', null, form.name));
+    const vl = this.variantLabel(def);
+    if (vl) nm.appendChild(this.el('span', 'ut-var', vl));
     const cost = this.el('span', 'ut-cost');
     cost.innerHTML = iconSvg('coin', 11);
     cost.appendChild(document.createTextNode(def.cost + '코스트'));
@@ -883,7 +888,7 @@ const View = {
     return wrap;
   },
 
-  renderTraitTip(container, id, owner, region) {
+  renderTraitTip(container, id, owner, regional) {
     container.innerHTML = '';
     const td = TRAIT_DATA.map[id];
     if (!td) return;
@@ -932,7 +937,7 @@ const View = {
       container.appendChild(list);
     }
     const grid = this.el('div', 'tt-units');
-    for (const m of traitMembers(id, region)) grid.appendChild(this.traitPortrait(m, id, owner));
+    for (const m of traitMembers(id, regional)) grid.appendChild(this.traitPortrait(m, id, owner));
     container.appendChild(grid);
   },
 
@@ -988,9 +993,10 @@ const View = {
     const n1 = mine.filter(u => u.star === 1).length;
     const n2 = mine.filter(u => u.star === 2).length;
     const up = n1 >= 2 ? (n2 >= 2 ? 3 : 2) : 0;
-    if (up || this.planned.has(id)) {
+    const planned = this.planned.has(id) || (def.region && Array.from(this.planned).some(pid => UNITS[pid] && UNITS[pid].family === def.family));
+    if (up || planned) {
       const corner = this.el('div', 'card-corner');
-      if (this.planned.has(id)) {
+      if (planned) {
         const ball = this.el('div', 'card-plan');
         ball.innerHTML = iconSvg('ball', 14);
         ball.dataset.tip = '배치 도구에서 켠 팀의 기물';
@@ -1111,6 +1117,8 @@ const View = {
     const name = this.el('div', 'ip-name');
     const nm = this.el('b', null, t.form.name);
     name.appendChild(nm);
+    const vl = t.def && !t.creep ? this.variantLabel(t.def) : '';
+    if (vl) name.appendChild(this.el('span', 'ip-var', vl));
     if (!t.creep) {
       const cost = this.el('div', 'ip-cost');
       cost.innerHTML = iconSvg('coin', 12);
@@ -1200,6 +1208,8 @@ const View = {
       ['망키', '저승갓숭', '2성 이상이 PvP 전투에서 쓰러짐'],
       ['야돈', '야도란', '야돈 뒤 칸에 셀러 (낮은 별로)'],
       ['야돈', '야도킹', '야돈 앞 칸에 셀러 (낮은 별로)'],
+      ['가라르 야돈', '가라르 야도란', '가라르 야돈 뒤 칸에 셀러 (낮은 별로)'],
+      ['가라르 야돈', '가라르 야도킹', '가라르 야돈 앞 칸에 셀러 (낮은 별로)'],
       ['암나이트', '투구', '해금: 2성으로 연속 승리 ' + u.kabutoWins + '번'],
       ['투구', '프테라', '해금: 2성으로 연속 패배 ' + u.aerodactylLosses + '번'],
       ['뮤', '뮤츠', '해금: 유전자 ' + u.geneStack]

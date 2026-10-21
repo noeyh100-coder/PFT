@@ -47,6 +47,7 @@ class Player {
     this.participants = new Set();
     this.history = {};
     this.orbs = [];
+    this.fruit = null;
     this.items = ['magnet', 'magnet', 'magnet', 'magnet'];
     this.stage1Items = 0;
     this.stage1Given = 0;

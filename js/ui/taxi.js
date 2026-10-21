@@ -168,7 +168,7 @@ class TaxiFx {
     this.tweens = [];
     this.fadeEl = document.createElement('div');
     this.fadeEl.id = 'taxi-fade';
-    document.getElementById('arena').appendChild(this.fadeEl);
+    document.getElementById('game').appendChild(this.fadeEl);
     this.fadeVal = 0;
     this.fadeAnim = null;
   }

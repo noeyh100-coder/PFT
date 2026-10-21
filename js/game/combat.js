@@ -1075,6 +1075,7 @@ class CombatSim {
 
   castSkill(u, t) {
     this.casts += 1;
+    this.emit({ type: 'cast', uid: u.uid, target: t ? t.uid : null });
     if (u.sealedBy) this.sealCast(u);
     const boost = this.gimmickCast(u);
     if (u.experiment) {

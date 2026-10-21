@@ -4910,6 +4910,7 @@ button:disabled {
   position: absolute;
   left: 24px;
   top: 24px;
+  z-index: 20;
 }
 
 .lb-back {
@@ -8202,4 +8203,375 @@ button.gold {
 @keyframes evo-spark {
   0% { transform: translate(0, 0) rotate(45deg) scale(1.4); opacity: 1; }
   100% { transform: translate(var(--dx), var(--dy)) rotate(45deg) scale(0.3); opacity: 0; }
+}
+
+.enc-sub {
+  margin-top: 4px;
+  font-family: 'Galmuri9', monospace;
+  font-size: 10px;
+  color: #c9b2f0;
+}
+
+.ut-var,
+.ip-var {
+  margin-left: 4px;
+  font-family: 'Galmuri9', monospace;
+  font-size: 10px;
+  font-weight: normal;
+  color: #c9b2f0;
+  white-space: nowrap;
+}
+
+.gim-fruit {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  pointer-events: auto;
+  cursor: grab;
+  z-index: 900;
+  animation: gimBob 1.6s ease-in-out infinite;
+}
+
+.gim-fruit.dragging {
+  opacity: 0.35;
+}
+
+.gim-fruit .gim-glow {
+  position: absolute;
+  left: -10px;
+  top: -6px;
+  width: 68px;
+  height: 56px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(255, 255, 255, 0.85) 0%, rgba(190, 150, 255, 0.55) 35%, rgba(150, 110, 255, 0) 70%);
+  animation: gimGlow 1.2s ease-in-out infinite alternate;
+}
+
+.gim-fruit .gim-ico {
+  position: absolute;
+  left: 6px;
+  top: 4px;
+  filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 5px rgba(200, 160, 255, 0.95));
+  image-rendering: pixelated;
+}
+
+.gim-fruit::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 44px;
+  width: 32px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+@keyframes gimBob {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -6px; }
+}
+
+@keyframes gimGlow {
+  0% { opacity: 0.55; transform: scale(0.92); }
+  100% { opacity: 1; transform: scale(1.08); }
+}
+
+.pfx {
+  position: absolute;
+  pointer-events: none;
+  background: var(--c);
+  transform: translate(-50%, -50%);
+  z-index: 40;
+}
+
+.pfx.p-dot {
+  border-radius: 50%;
+  box-shadow: 0 0 3px var(--c);
+}
+
+.pfx.p-sq {
+  box-shadow: 0 0 3px var(--c);
+}
+
+.pfx.p-dia {
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.pfx.p-bar {
+  height: 2px !important;
+  box-shadow: 0 0 4px var(--c);
+}
+
+.pfx.p-ring {
+  background: transparent;
+  border: 2px solid var(--c);
+  border-radius: 50%;
+}
+
+.pfx.p-star {
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+}
+
+.pfx.p-leaf {
+  height: 4px !important;
+  border-radius: 0 80% 0 80%;
+}
+
+.sfx {
+  position: absolute;
+  pointer-events: none;
+  z-index: 45;
+  animation-fill-mode: forwards;
+  animation-timing-function: cubic-bezier(.2, .7, .3, 1);
+}
+
+.sfx-slash {
+  width: 70px;
+  height: 4px;
+  margin: -2px 0 0 -35px;
+  background: linear-gradient(90deg, transparent, var(--c1), var(--c0), var(--c1), transparent);
+  box-shadow: 0 0 8px var(--c0);
+  animation-name: sfxSlash;
+}
+
+.sfx-slash.l {
+  --r: 38deg;
+}
+
+.sfx-slash.r {
+  --r: -38deg;
+}
+
+@keyframes sfxSlash {
+  0% { transform: rotate(var(--r)) scaleX(0); opacity: 1; }
+  40% { transform: rotate(var(--r)) scaleX(1.1); opacity: 1; }
+  100% { transform: rotate(var(--r)) scaleX(1.2) scaleY(0.2); opacity: 0; }
+}
+
+.sfx-jaw {
+  width: 40px;
+  height: 18px;
+  margin-left: -20px;
+  border: 3px solid var(--c1);
+  box-shadow: 0 0 8px var(--c0);
+  animation-name: sfxJaw;
+}
+
+.sfx-jaw.t {
+  margin-top: -30px;
+  border-bottom: none;
+  border-radius: 20px 20px 0 0;
+  --d: 12px;
+}
+
+.sfx-jaw.b {
+  margin-top: 12px;
+  border-top: none;
+  border-radius: 0 0 20px 20px;
+  --d: -12px;
+}
+
+@keyframes sfxJaw {
+  0% { transform: translateY(calc(var(--d) * -1)); opacity: 0; }
+  30% { opacity: 1; }
+  60% { transform: translateY(var(--d)); opacity: 1; }
+  100% { transform: translateY(var(--d)) scale(1.2); opacity: 0; }
+}
+
+.sfx-hit {
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, var(--c0) 40%, transparent 70%);
+  animation-name: sfxHit;
+}
+
+@keyframes sfxHit {
+  0% { transform: scale(0.3); opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+.sfx-rock {
+  margin: -6px 0 0 -6px;
+  background: var(--c0);
+  border: 2px solid var(--c1);
+  animation-name: sfxRock;
+}
+
+@keyframes sfxRock {
+  0% { transform: translateY(-70px) rotate(0); opacity: 0; }
+  20% { opacity: 1; }
+  75% { transform: translateY(0) rotate(160deg); opacity: 1; }
+  100% { transform: translateY(2px) rotate(180deg) scale(0.6); opacity: 0; }
+}
+
+.sfx-z {
+  font-family: 'Galmuri11', monospace;
+  font-weight: bold;
+  font-size: 14px;
+  color: var(--c0);
+  text-shadow: 1px 1px 0 #1a1a2e;
+  animation-name: sfxZ;
+}
+
+@keyframes sfxZ {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translate(14px, -26px) scale(1.3); opacity: 0; }
+}
+
+.sfx-wave {
+  width: 40px;
+  height: 22px;
+  margin: -11px 0 0 -20px;
+  border-radius: 50%;
+  border: 3px solid var(--c0);
+  box-shadow: 0 0 10px var(--c0), inset 0 0 8px var(--c1);
+  animation-name: sfxWave;
+}
+
+@keyframes sfxWave {
+  0% { transform: scale(0.3); opacity: 1; }
+  100% { transform: scale(4); opacity: 0; }
+}
+
+.sfx-shield {
+  width: 54px;
+  height: 54px;
+  margin: -27px 0 0 -27px;
+  clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%);
+  background: radial-gradient(circle, transparent 45%, var(--c1) 60%, var(--c0) 72%, transparent 80%);
+  animation-name: sfxShield;
+}
+
+@keyframes sfxShield {
+  0% { transform: scale(0.5); opacity: 0; }
+  25% { transform: scale(1.05); opacity: 1; }
+  70% { transform: scale(1); opacity: 0.9; }
+  100% { transform: scale(1.15); opacity: 0; }
+}
+
+.sfx-fist {
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border-radius: 40% 40% 45% 45%;
+  background: radial-gradient(circle at 50% 45%, var(--c1) 0%, var(--c0) 55%, transparent 72%);
+  filter: drop-shadow(0 0 6px var(--c0));
+  animation-name: sfxFist;
+}
+
+@keyframes sfxFist {
+  0% { transform: translateY(-50px) scale(2.2); opacity: 0; }
+  50% { transform: translateY(0) scale(1); opacity: 1; }
+  70% { transform: scale(1.4); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+.sfx-orb {
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, var(--c1), var(--c0) 60%);
+  box-shadow: 0 0 10px 3px var(--c1);
+  animation-name: sfxSpin;
+}
+
+@keyframes sfxSpin {
+  0% { transform: scale(0.6) rotate(0); }
+  100% { transform: scale(1.1) rotate(360deg); }
+}
+
+.sfx-pop {
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--c1) 0%, var(--c0) 45%, transparent 70%);
+  animation-name: sfxHit;
+}
+
+.sfx-psyring {
+  width: 70px;
+  height: 36px;
+  margin: -18px 0 0 -35px;
+  border-radius: 50%;
+  border: 2px solid var(--c0);
+  box-shadow: 0 0 8px var(--c0);
+  animation-name: sfxIn;
+}
+
+@keyframes sfxIn {
+  0% { transform: scale(1.6); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: scale(0.1); opacity: 0.2; }
+}
+
+.sfx-beam {
+  width: 18px;
+  height: 120px;
+  margin: -120px 0 0 -9px;
+  transform-origin: 50% 100%;
+  background: linear-gradient(90deg, transparent, var(--c0), #fff, var(--c0), transparent);
+  box-shadow: 0 0 14px var(--c0);
+  animation-name: sfxBeam;
+}
+
+.sfx-beam.big {
+  width: 34px;
+  margin-left: -17px;
+}
+
+@keyframes sfxBeam {
+  0% { transform: scaleY(0); opacity: 1; }
+  35% { transform: scaleY(1); opacity: 1; }
+  100% { transform: scaleY(1) scaleX(0.2); opacity: 0; }
+}
+
+.sfx-bolt {
+  width: 34px;
+  height: 160px;
+  margin: -160px 0 0 -17px;
+  transform-origin: 50% 100%;
+  clip-path: polygon(40% 0, 70% 0, 52% 38%, 78% 38%, 30% 100%, 44% 52%, 22% 52%);
+  background: linear-gradient(180deg, #fff, var(--c0));
+  filter: drop-shadow(0 0 6px var(--c0));
+  animation-name: sfxBolt;
+}
+
+@keyframes sfxBolt {
+  0% { transform: scaleY(0); opacity: 1; }
+  25% { transform: scaleY(1); opacity: 1; }
+  40% { opacity: 0.3; }
+  55% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.sfx-burst {
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, var(--c1) 30%, var(--c0) 55%, transparent 72%);
+  animation-name: sfxBurst;
+}
+
+@keyframes sfxBurst {
+  0% { transform: scale(0.2); opacity: 1; }
+  45% { transform: scale(2); opacity: 1; }
+  100% { transform: scale(2.8); opacity: 0; }
+}
+
+.pfx-flash {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 39;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, var(--c) 35%, transparent 70%);
+  animation: sfxHit 320ms ease-out forwards;
 }

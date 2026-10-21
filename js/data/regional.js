@@ -21,6 +21,9 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "기습",
+    "skillType": "악",
     "stats": {
      "hp": 30,
      "atk": 56,
@@ -39,13 +42,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "기습",
+    "skillType": "악",
     "stats": {
-     "hp": 75,
-     "atk": 71,
-     "spa": 40,
-     "def": 70,
-     "spd": 80,
-     "spe": 77
+     "hp": 55,
+     "atk": 81,
+     "spa": 50,
+     "def": 60,
+     "spd": 70,
+     "spe": 97
     }
    },
    {
@@ -57,13 +63,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "기습",
+    "skillType": "악",
     "stats": {
-     "hp": 75,
-     "atk": 71,
-     "spa": 40,
-     "def": 70,
-     "spd": 80,
-     "spe": 77
+     "hp": 55,
+     "atk": 81,
+     "spa": 50,
+     "def": 60,
+     "spd": 70,
+     "spe": 97
     }
    }
   ]
@@ -90,12 +99,15 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 탱커",
+    "skill": "아이스스피너",
+    "skillType": "얼음",
     "stats": {
      "hp": 50,
      "atk": 75,
-     "spa": 10,
-     "def": 90,
-     "spd": 35,
+     "spa": 20,
+     "def": 85,
+     "spd": 30,
      "spe": 40
     }
    },
@@ -108,12 +120,15 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 탱커",
+    "skill": "아이스스피너",
+    "skillType": "얼음",
     "stats": {
      "hp": 75,
      "atk": 100,
-     "spa": 25,
-     "def": 120,
-     "spd": 65,
+     "spa": 45,
+     "def": 110,
+     "spd": 55,
      "spe": 65
     }
    },
@@ -126,12 +141,15 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 탱커",
+    "skill": "아이스스피너",
+    "skillType": "얼음",
     "stats": {
      "hp": 75,
      "atk": 100,
-     "spa": 25,
-     "def": 120,
-     "spd": 65,
+     "spa": 45,
+     "def": 110,
+     "spd": 55,
      "spe": 65
     }
    }
@@ -159,6 +177,9 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 탱커",
+    "skill": "신통력",
+    "skillType": "에스퍼",
     "stats": {
      "hp": 60,
      "atk": 40,
@@ -177,13 +198,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 탱커",
+    "skill": "용의파동",
+    "skillType": "드래곤",
     "stats": {
      "hp": 95,
-     "atk": 105,
+     "atk": 95,
      "spa": 125,
      "def": 85,
      "spd": 75,
-     "spe": 45
+     "spe": 55
     }
    },
    {
@@ -195,13 +219,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 탱커",
+    "skill": "용의파동",
+    "skillType": "드래곤",
     "stats": {
      "hp": 95,
-     "atk": 105,
+     "atk": 95,
      "spa": 125,
      "def": 85,
      "spd": 75,
-     "spe": 45
+     "spe": 55
     }
    }
   ]
@@ -227,13 +254,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "바위깨기",
+    "skillType": "격투",
     "stats": {
      "hp": 52,
-     "atk": 95,
+     "atk": 90,
      "spa": 58,
      "def": 55,
      "spd": 62,
-     "spe": 55
+     "spe": 60
     }
    },
    {
@@ -244,13 +274,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "스타어설트",
+    "skillType": "격투",
     "stats": {
-     "hp": 62,
-     "atk": 135,
-     "spa": 68,
-     "def": 95,
-     "spd": 82,
-     "spe": 65
+     "hp": 52,
+     "atk": 90,
+     "spa": 58,
+     "def": 55,
+     "spd": 62,
+     "spe": 60
     }
    },
    {
@@ -261,13 +294,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "스타어설트",
+    "skillType": "격투",
     "stats": {
-     "hp": 62,
-     "atk": 135,
-     "spa": 68,
-     "def": 95,
-     "spd": 82,
-     "spe": 65
+     "hp": 52,
+     "atk": 90,
+     "spa": 58,
+     "def": 55,
+     "spd": 62,
+     "spe": 60
     }
    }
   ]
@@ -294,6 +330,9 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 탱커",
+    "skill": "흉내내기",
+    "skillType": "노말",
     "stats": {
      "hp": 20,
      "atk": 25,
@@ -312,13 +351,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 탱커",
+    "skill": "오로라베일",
+    "skillType": "얼음",
     "stats": {
-     "hp": 50,
-     "atk": 65,
-     "spa": 90,
+     "hp": 40,
+     "atk": 45,
+     "spa": 100,
      "def": 65,
-     "spd": 90,
-     "spe": 100
+     "spd": 120,
+     "spe": 90
     }
    },
    {
@@ -330,13 +372,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 탱커",
+    "skill": "오로라베일",
+    "skillType": "얼음",
     "stats": {
-     "hp": 80,
-     "atk": 85,
-     "spa": 110,
-     "def": 75,
-     "spd": 100,
-     "spe": 70
+     "hp": 40,
+     "atk": 45,
+     "spa": 100,
+     "def": 65,
+     "spd": 120,
+     "spe": 90
     }
    }
   ]
@@ -362,6 +407,9 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 탱커",
+    "skill": "매지컬샤인",
+    "skillType": "페어리",
     "stats": {
      "hp": 50,
      "atk": 85,
@@ -380,6 +428,9 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 탱커",
+    "skill": "매지컬샤인",
+    "skillType": "페어리",
     "stats": {
      "hp": 65,
      "atk": 100,
@@ -398,6 +449,9 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 탱커",
+    "skill": "매지컬샤인",
+    "skillType": "페어리",
     "stats": {
      "hp": 65,
      "atk": 100,
@@ -429,11 +483,14 @@ const REGIONAL_DATA = [
      "악"
     ],
     "range": 1,
-    "special": true,
+    "special": false,
+    "role": "물리 전사",
+    "skill": "도둑질",
+    "skillType": "악",
     "stats": {
      "hp": 40,
-     "atk": 35,
-     "spa": 50,
+     "atk": 45,
+     "spa": 40,
      "def": 35,
      "spd": 40,
      "spe": 90
@@ -446,11 +503,14 @@ const REGIONAL_DATA = [
      "악"
     ],
     "range": 1,
-    "special": true,
+    "special": false,
+    "role": "물리 전사",
+    "skill": "도둑질",
+    "skillType": "악",
     "stats": {
      "hp": 65,
-     "atk": 60,
-     "spa": 75,
+     "atk": 70,
+     "spa": 65,
      "def": 60,
      "spd": 65,
      "spe": 115
@@ -463,11 +523,14 @@ const REGIONAL_DATA = [
      "악"
     ],
     "range": 1,
-    "special": true,
+    "special": false,
+    "role": "물리 전사",
+    "skill": "도둑질",
+    "skillType": "악",
     "stats": {
      "hp": 65,
-     "atk": 60,
-     "spa": 75,
+     "atk": 70,
+     "spa": 65,
      "def": 60,
      "spd": 65,
      "spe": 115
@@ -496,13 +559,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "메탈클로",
+    "skillType": "강철",
     "stats": {
-     "hp": 50,
-     "atk": 65,
+     "hp": 40,
+     "atk": 45,
      "spa": 40,
-     "def": 55,
+     "def": 35,
      "spd": 40,
-     "spe": 40
+     "spe": 90
     }
    },
    {
@@ -513,13 +579,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "메탈클로",
+    "skillType": "강철",
     "stats": {
-     "hp": 70,
-     "atk": 110,
-     "spa": 50,
-     "def": 100,
-     "spd": 60,
-     "spe": 50
+     "hp": 65,
+     "atk": 70,
+     "spa": 65,
+     "def": 60,
+     "spd": 65,
+     "spe": 115
     }
    },
    {
@@ -530,13 +599,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "메탈클로",
+    "skillType": "강철",
     "stats": {
-     "hp": 70,
-     "atk": 110,
-     "spa": 50,
-     "def": 100,
-     "spd": 60,
-     "spe": 50
+     "hp": 65,
+     "atk": 70,
+     "spa": 65,
+     "def": 60,
+     "spd": 65,
+     "spe": 115
     }
    }
   ]
@@ -563,13 +635,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "아이언헤드",
+    "skillType": "강철",
     "stats": {
      "hp": 10,
      "atk": 55,
      "spa": 35,
-     "def": 30,
+     "def": 25,
      "spd": 45,
-     "spe": 90
+     "spe": 95
     }
    },
    {
@@ -581,13 +656,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "아이언헤드",
+    "skillType": "강철",
     "stats": {
      "hp": 35,
      "atk": 100,
      "spa": 50,
-     "def": 60,
+     "def": 50,
      "spd": 70,
-     "spe": 110
+     "spe": 120
     }
    },
    {
@@ -599,13 +677,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "아이언헤드",
+    "skillType": "강철",
     "stats": {
      "hp": 35,
      "atk": 100,
      "spa": 50,
-     "def": 60,
+     "def": 50,
      "spd": 70,
-     "spe": 110
+     "spe": 120
     }
    }
   ]
@@ -619,7 +700,7 @@ const REGIONAL_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "학살자"
+   "도전자"
   ],
   "uniques": [],
   "forms": [
@@ -631,6 +712,9 @@ const REGIONAL_DATA = [
     ],
     "range": 4,
     "special": true,
+    "role": "특수 마법사",
+    "skill": "10만볼트",
+    "skillType": "전기",
     "stats": {
      "hp": 20,
      "atk": 40,
@@ -648,6 +732,9 @@ const REGIONAL_DATA = [
     ],
     "range": 4,
     "special": true,
+    "role": "특수 마법사",
+    "skill": "10만볼트",
+    "skillType": "전기",
     "stats": {
      "hp": 35,
      "atk": 55,
@@ -666,12 +753,15 @@ const REGIONAL_DATA = [
     ],
     "range": 4,
     "special": true,
+    "role": "특수 마법사",
+    "skill": "사이코키네시스",
+    "skillType": "에스퍼",
     "stats": {
      "hp": 60,
-     "atk": 85,
-     "spa": 95,
-     "def": 50,
-     "spd": 85,
+     "atk": 90,
+     "spa": 90,
+     "def": 55,
+     "spd": 80,
      "spe": 110
     }
    }
@@ -699,6 +789,9 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 탱커",
+    "skill": "와일드볼트",
+    "skillType": "전기",
     "stats": {
      "hp": 40,
      "atk": 80,
@@ -717,6 +810,9 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 탱커",
+    "skill": "와일드볼트",
+    "skillType": "전기",
     "stats": {
      "hp": 55,
      "atk": 95,
@@ -735,6 +831,9 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 탱커",
+    "skill": "와일드볼트",
+    "skillType": "전기",
     "stats": {
      "hp": 80,
      "atk": 120,
@@ -751,7 +850,7 @@ const REGIONAL_DATA = [
   "family": "야돈",
   "variant": "가라르",
   "region": "가라르",
-  "cost": 4,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -767,6 +866,9 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 탱커",
+    "skill": "신통력",
+    "skillType": "에스퍼",
     "stats": {
      "hp": 90,
      "atk": 65,
@@ -784,6 +886,9 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 탱커",
+    "skill": "신통력",
+    "skillType": "에스퍼",
     "stats": {
      "hp": 90,
      "atk": 65,
@@ -801,6 +906,9 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 탱커",
+    "skill": "신통력",
+    "skillType": "에스퍼",
     "stats": {
      "hp": 90,
      "atk": 65,
@@ -834,6 +942,9 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 전사",
+    "skill": "클로로블라스트",
+    "skillType": "풀",
     "stats": {
      "hp": 40,
      "atk": 30,
@@ -852,6 +963,9 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 전사",
+    "skill": "클로로블라스트",
+    "skillType": "풀",
     "stats": {
      "hp": 60,
      "atk": 50,
@@ -870,6 +984,9 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 전사",
+    "skill": "클로로블라스트",
+    "skillType": "풀",
     "stats": {
      "hp": 60,
      "atk": 50,
@@ -886,7 +1003,7 @@ const REGIONAL_DATA = [
   "family": "탕구리",
   "variant": "알로라",
   "region": "알로라",
-  "cost": 4,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -902,6 +1019,9 @@ const REGIONAL_DATA = [
     ],
     "range": 4,
     "special": false,
+    "role": "물리 마법사",
+    "skill": "뼈다귀부메랑",
+    "skillType": "땅",
     "stats": {
      "hp": 50,
      "atk": 50,
@@ -920,6 +1040,9 @@ const REGIONAL_DATA = [
     ],
     "range": 4,
     "special": false,
+    "role": "물리 마법사",
+    "skill": "섀도본",
+    "skillType": "고스트",
     "stats": {
      "hp": 60,
      "atk": 80,
@@ -938,6 +1061,9 @@ const REGIONAL_DATA = [
     ],
     "range": 4,
     "special": false,
+    "role": "물리 마법사",
+    "skill": "섀도본",
+    "skillType": "고스트",
     "stats": {
      "hp": 60,
      "atk": 80,
@@ -971,13 +1097,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "바위떨구기",
+    "skillType": "바위",
     "stats": {
-     "hp": 60,
-     "atk": 75,
-     "spa": 65,
+     "hp": 55,
+     "atk": 70,
+     "spa": 70,
      "def": 45,
      "spd": 50,
-     "spe": 55
+     "spe": 60
     }
    },
    {
@@ -989,13 +1118,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "분노의불꽃",
+    "skillType": "불꽃",
     "stats": {
-     "hp": 95,
-     "atk": 115,
-     "spa": 95,
+     "hp": 90,
+     "atk": 110,
+     "spa": 100,
      "def": 80,
      "spd": 80,
-     "spe": 90
+     "spe": 95
     }
    },
    {
@@ -1007,13 +1139,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "분노의불꽃",
+    "skillType": "불꽃",
     "stats": {
-     "hp": 95,
-     "atk": 115,
-     "spa": 95,
+     "hp": 90,
+     "atk": 110,
+     "spa": 100,
      "def": 80,
      "spd": 80,
-     "spe": 90
+     "spe": 95
     }
    }
   ]
@@ -1039,6 +1174,9 @@ const REGIONAL_DATA = [
     ],
     "range": 4,
     "special": true,
+    "role": "특수 마법사",
+    "skill": "파우더스노",
+    "skillType": "얼음",
     "stats": {
      "hp": 38,
      "atk": 41,
@@ -1057,13 +1195,16 @@ const REGIONAL_DATA = [
     ],
     "range": 4,
     "special": true,
+    "role": "특수 마법사",
+    "skill": "눈보라",
+    "skillType": "얼음",
     "stats": {
      "hp": 73,
-     "atk": 67,
+     "atk": 76,
      "spa": 81,
      "def": 75,
      "spd": 100,
-     "spe": 109
+     "spe": 100
     }
    },
    {
@@ -1075,13 +1216,16 @@ const REGIONAL_DATA = [
     ],
     "range": 4,
     "special": true,
+    "role": "특수 마법사",
+    "skill": "눈보라",
+    "skillType": "얼음",
     "stats": {
      "hp": 73,
-     "atk": 67,
+     "atk": 76,
      "spa": 81,
      "def": 75,
      "spd": 100,
-     "spe": 109
+     "spe": 100
     }
    }
   ]
@@ -1107,6 +1251,9 @@ const REGIONAL_DATA = [
     ],
     "range": 4,
     "special": true,
+    "role": "특수 마법사",
+    "skill": "스모그",
+    "skillType": "독",
     "stats": {
      "hp": 40,
      "atk": 65,
@@ -1125,6 +1272,9 @@ const REGIONAL_DATA = [
     ],
     "range": 4,
     "special": true,
+    "role": "특수 마법사",
+    "skill": "이상한연기",
+    "skillType": "페어리",
     "stats": {
      "hp": 65,
      "atk": 90,
@@ -1143,6 +1293,9 @@ const REGIONAL_DATA = [
     ],
     "range": 4,
     "special": true,
+    "role": "특수 마법사",
+    "skill": "이상한연기",
+    "skillType": "페어리",
     "stats": {
      "hp": 65,
      "atk": 90,
@@ -1176,6 +1329,9 @@ const REGIONAL_DATA = [
     ],
     "range": 4,
     "special": false,
+    "role": "물리 마법사",
+    "skill": "탁쳐서떨구기",
+    "skillType": "악",
     "stats": {
      "hp": 80,
      "atk": 80,
@@ -1194,6 +1350,9 @@ const REGIONAL_DATA = [
     ],
     "range": 4,
     "special": false,
+    "role": "물리 마법사",
+    "skill": "탁쳐서떨구기",
+    "skillType": "악",
     "stats": {
      "hp": 105,
      "atk": 105,
@@ -1212,6 +1371,9 @@ const REGIONAL_DATA = [
     ],
     "range": 4,
     "special": false,
+    "role": "물리 마법사",
+    "skill": "탁쳐서떨구기",
+    "skillType": "악",
     "stats": {
      "hp": 105,
      "atk": 105,
@@ -1245,12 +1407,15 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 탱커",
+    "skill": "셸암즈",
+    "skillType": "독",
     "stats": {
      "hp": 95,
-     "atk": 100,
+     "atk": 75,
      "spa": 100,
-     "def": 95,
-     "spd": 70,
+     "def": 110,
+     "spd": 80,
      "spe": 30
     }
    },
@@ -1263,12 +1428,15 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 탱커",
+    "skill": "셸암즈",
+    "skillType": "독",
     "stats": {
      "hp": 95,
-     "atk": 100,
+     "atk": 75,
      "spa": 100,
-     "def": 95,
-     "spd": 70,
+     "def": 110,
+     "spd": 80,
      "spe": 30
     }
    },
@@ -1281,12 +1449,15 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 탱커",
+    "skill": "셸암즈",
+    "skillType": "독",
     "stats": {
      "hp": 95,
-     "atk": 100,
+     "atk": 75,
      "spa": 100,
-     "def": 95,
-     "spd": 70,
+     "def": 110,
+     "spd": 80,
      "spe": 30
     }
    }
@@ -1314,10 +1485,13 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 탱커",
+    "skill": "기묘한주문",
+    "skillType": "에스퍼",
     "stats": {
      "hp": 95,
-     "atk": 65,
-     "spa": 110,
+     "atk": 75,
+     "spa": 100,
      "def": 80,
      "spd": 110,
      "spe": 30
@@ -1332,10 +1506,13 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 탱커",
+    "skill": "기묘한주문",
+    "skillType": "에스퍼",
     "stats": {
      "hp": 95,
-     "atk": 65,
-     "spa": 110,
+     "atk": 75,
+     "spa": 100,
      "def": 80,
      "spd": 110,
      "spe": 30
@@ -1350,10 +1527,13 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
+    "role": "특수 탱커",
+    "skill": "기묘한주문",
+    "skillType": "에스퍼",
     "stats": {
      "hp": 95,
-     "atk": 65,
-     "spa": 110,
+     "atk": 75,
+     "spa": 100,
      "def": 80,
      "spd": 110,
      "spe": 30
@@ -1382,13 +1562,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "레이징불",
+    "skillType": "격투",
     "stats": {
      "hp": 75,
-     "atk": 110,
-     "spa": 30,
-     "def": 105,
+     "atk": 100,
+     "spa": 40,
+     "def": 95,
      "spd": 70,
-     "spe": 100
+     "spe": 110
     }
    },
    {
@@ -1399,13 +1582,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "레이징불",
+    "skillType": "격투",
     "stats": {
      "hp": 75,
-     "atk": 110,
-     "spa": 30,
-     "def": 105,
+     "atk": 100,
+     "spa": 40,
+     "def": 95,
      "spd": 70,
-     "spe": 100
+     "spe": 110
     }
    },
    {
@@ -1416,13 +1602,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "레이징불",
+    "skillType": "격투",
     "stats": {
      "hp": 75,
-     "atk": 110,
-     "spa": 30,
-     "def": 105,
+     "atk": 100,
+     "spa": 40,
+     "def": 95,
      "spd": 70,
-     "spe": 100
+     "spe": 110
     }
    }
   ]
@@ -1449,13 +1638,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "레이징불",
+    "skillType": "불꽃",
     "stats": {
      "hp": 75,
-     "atk": 110,
-     "spa": 30,
-     "def": 105,
+     "atk": 100,
+     "spa": 40,
+     "def": 95,
      "spd": 70,
-     "spe": 100
+     "spe": 110
     }
    },
    {
@@ -1467,13 +1659,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "레이징불",
+    "skillType": "불꽃",
     "stats": {
      "hp": 75,
-     "atk": 110,
-     "spa": 30,
-     "def": 105,
+     "atk": 100,
+     "spa": 40,
+     "def": 95,
      "spd": 70,
-     "spe": 100
+     "spe": 110
     }
    },
    {
@@ -1485,13 +1680,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "레이징불",
+    "skillType": "불꽃",
     "stats": {
      "hp": 75,
-     "atk": 110,
-     "spa": 30,
-     "def": 105,
+     "atk": 100,
+     "spa": 40,
+     "def": 95,
      "spd": 70,
-     "spe": 100
+     "spe": 110
     }
    }
   ]
@@ -1518,13 +1716,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "레이징불",
+    "skillType": "물",
     "stats": {
      "hp": 75,
-     "atk": 110,
-     "spa": 30,
-     "def": 105,
+     "atk": 100,
+     "spa": 40,
+     "def": 95,
      "spd": 70,
-     "spe": 100
+     "spe": 110
     }
    },
    {
@@ -1536,13 +1737,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "레이징불",
+    "skillType": "물",
     "stats": {
      "hp": 75,
-     "atk": 110,
-     "spa": 30,
-     "def": 105,
+     "atk": 100,
+     "spa": 40,
+     "def": 95,
      "spd": 70,
-     "spe": 100
+     "spe": 110
     }
    },
    {
@@ -1554,13 +1758,16 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": false,
+    "role": "물리 전사",
+    "skill": "레이징불",
+    "skillType": "물",
     "stats": {
      "hp": 75,
-     "atk": 110,
-     "spa": 30,
-     "def": 105,
+     "atk": 100,
+     "spa": 40,
+     "def": 95,
      "spd": 70,
-     "spe": 100
+     "spe": 110
     }
    }
   ]

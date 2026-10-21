@@ -302,7 +302,7 @@ class Driver {
         const op = orbFlatPos(o);
         if (Math.hypot(op.x - s.x, op.y - s.y) < 39) {
           g.pickOrb(p, o.id);
-          this.emit('orb', { pid: p.id, id: o.id });
+          this.emit('orb', { pid: p.id, id: o.id, tier: o.tier, grade: o.grade });
         }
       }
     }
@@ -383,6 +383,10 @@ class Driver {
         break;
       case 'feed':
         res = g.feed(p, inst(a.f), inst(a.e));
+        break;
+      case 'fruit':
+        if (ph !== 'planning') return;
+        res = g.takeFruit(p, a.iid != null ? Number(a.iid) : null);
         break;
       case 'item': {
         if (ph === 'over') return;

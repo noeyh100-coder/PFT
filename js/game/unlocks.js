@@ -7,7 +7,9 @@ const EVOLVE_EXCLUDES = {
   '후딘': ['캐이시'],
   '해피너스': ['핑복'],
   '야도킹': ['야돈', '야도란'],
-  '야도란': ['야돈', '야도킹']
+  '야도란': ['야돈', '야도킹'],
+  '가라르 야도킹': ['가라르 야돈', '가라르 야도란'],
+  '가라르 야도란': ['가라르 야돈', '가라르 야도킹']
 };
 
 const Unlocks = {
@@ -36,9 +38,10 @@ const Unlocks = {
     }
     const used = new Set();
     for (const inst of board) {
-      if (inst.unitId !== '야돈' || inst.fz) continue;
-      const up = '야도킹';
-      const down = '야도란';
+      if ((inst.unitId !== '야돈' && inst.unitId !== '가라르 야돈') || inst.fz) continue;
+      const pre = inst.unitId === '가라르 야돈' ? '가라르 ' : '';
+      const up = pre + '야도킹';
+      const down = pre + '야도란';
       const tryCells = (cells, target) => {
         if (p.excluded.has(target)) return false;
         for (const [r, c] of cells) {
@@ -177,6 +180,7 @@ const Unlocks = {
     if (id === '핑복') return '치유 스택 ' + Math.floor(p.counters.heal) + (p.counters.heal >= cfg.healStack ? ' · 럭키가 전투에 참여하면 해피너스 진화' : '/' + cfg.healStack + ' (해피너스)');
     if (id === '해피너스') return '치유 스택 ' + Math.floor(p.counters.heal);
     if (id === '야돈') return '앞 칸에 셀러 → 야도킹 / 뒤 칸에 셀러 → 야도란 (둘 중 낮은 별로 진화)';
+    if (id === '가라르 야돈') return '앞 칸에 셀러 → 가라르 야도킹 / 뒤 칸에 셀러 → 가라르 야도란 (둘 중 낮은 별로 진화)';
     if (id === '메타몽') {
       const tgt = dittoTargetOf(p);
       const name = tgt ? formOf(UNITS[tgt.unitId], tgt.star, p).name : '없음';

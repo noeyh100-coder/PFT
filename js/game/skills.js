@@ -14,8 +14,8 @@ const SKILL_P = {
   '푸푸린': { m: 1.5, ring: 0, stun: 1.5 },
   '푸린': { m: 1.7, ring: 1, stun: 1.5 },
   '푸크린': { m: 2.0, ring: 1, stun: 2 },
-  '콘팡': { m: 1.8, n: 1, red: 0.2 },
-  '도나리': { m: 2.2, n: 2, red: 0.25 },
+  '콘팡': { m: 1.8, n: 1, red: 0 },
+  '도나리': { m: 2.2, n: 2, red: 0 },
   '고라파덕': { m: 1.7, line: 0 },
   '골덕': { m: 2.1, line: 2 },
   '발챙이': { m: 1.8, heal: 0.02 },
@@ -24,8 +24,8 @@ const SKILL_P = {
   '왕구리': { m: 2.3 },
   '두두': { m: 1.8, behind: 1 },
   '두트리오': { m: 2.15, behind: 2 },
-  '슬리프': { m: 2.0, steal: 0.4, stunMul: 1.5, guard: 1 },
-  '슬리퍼': { m: 2.4, steal: 0.5, stunMul: 2, guard: 1, guardDef: 1 },
+  '슬리프': { m: 2.0, steal: 0.4, stunMul: 1.5, guard: 0 },
+  '슬리퍼': { m: 2.4, steal: 0.5, stunMul: 2, guard: 0, guardDef: 0 },
   '아라리': { m: 1.8, allies: false },
   '나시': { m: 2.15, allies: true },
   '콘치': { m: 1.7, crit: 0 },
@@ -135,8 +135,8 @@ const SKILL_P = {
   '꼬마돌': { m: 0.8, dur: 3, def: 1, red: 0, stun: 0, shield: 0, buff: 0 },
   '데구리': { m: 0.3, dur: 3, def: 0, red: 0.2, stun: 0, shield: 0.2, buff: 0 },
   '딱구리': { m: 1.1, dur: 4, def: 0, red: 0.3, stun: 0.5, shield: 0.25, buff: 2 },
-  '별가사리': { m: 2.3, heal: 0, spd: 1, shield: 0.15 },
-  '아쿠스타': { m: 2.9, heal: 0, spd: 2, shield: 0.25 },
+  '별가사리': { m: 2.3, heal: 0, spd: 0, shield: 0 },
+  '아쿠스타': { m: 2.9, heal: 0, spd: 0, shield: 0 },
   '고오스': { m: 2.0, hide: 0, pierce: false },
   '고우스트': { m: 2.3, hide: 0.5, pierce: true },
   '알통몬': { m: 2.0, crit: 1 },
@@ -195,7 +195,42 @@ const SKILL_P = {
   '라프라스': { m: 2.3 },
   '프리져': { m: 0.4, radius: 2, dur: 5 },
   '파이어': { orb: 1.5, blast: 2.0, stun: 1.5, arm: 3, burn: 5, anti: 0.5 },
-  '썬더': { dur: 5 }
+  '썬더': { dur: 5 },
+  '꼬렛·기습': { m: 1.7, extra: false },
+  '레트라·기습': { m: 2.2, extra: true },
+  '모래두지·아이스스피너': { m: 1.5, buff: 1, heal: 0.25, chill: 1 },
+  '고지·아이스스피너': { m: 1.8, buff: 2, heal: 0.4, chill: 2 },
+  '나시·용의파동': { m: 2.0 },
+  '파오리·바위깨기': { m: 2.2, n: 1 },
+  '창파나이트·스타어설트': { m: 3.2, stun: 1 },
+  '마임맨·오로라베일': { m: 1.8, red: 0.2, dur: 6, radius: 2, shield: 0.2, chill: 1 },
+  '마임꽁꽁·오로라베일': { m: 2.1, red: 0.25, dur: 6, radius: 2, shield: 0.25, chill: 2 },
+  '포니타·매지컬샤인': { m: 1.6, conf: 0 },
+  '날쌩마·매지컬샤인': { m: 1.95, conf: 0.3 },
+  '나옹·도둑질': { m: 1.7, ring: 0, gold: 1 },
+  '페르시온·도둑질': { m: 2.1, ring: 1, gold: 2 },
+  '나옹·메탈클로': { m: 1.8, chance: 0.5 },
+  '나이킹·메탈클로': { m: 2.4, chance: 1 },
+  '디그다·아이언헤드': { m: 2.2, splash: 0 },
+  '닥트리오·아이언헤드': { m: 2.6, splash: 0.5 },
+  '라이츄·사이코키네시스': { m: 2.7 },
+  '꼬마돌·와일드볼트': { m: 0.8, dur: 3, def: 1, red: 0, stun: 0, shield: 0, buff: 0, para: 0.2 },
+  '데구리·와일드볼트': { m: 0.3, dur: 3, def: 0, red: 0.2, stun: 0, shield: 0.2, buff: 0, para: 0.3 },
+  '딱구리·와일드볼트': { m: 1.1, dur: 4, def: 0, red: 0.3, stun: 0.5, shield: 0.25, buff: 2, para: 0.4 },
+  '야돈·신통력': { m: 1.85, allies: false },
+  '야도란·셸암즈': { m: 2.0, chance: 0.3 },
+  '야도킹·기묘한주문': { m: 1.8, pp: 4 },
+  '찌리리공·클로로블라스트': { m: 2.1, recoil: 0.15 },
+  '붐볼·클로로블라스트': { m: 2.7, recoil: 0.15 },
+  '텅구리·섀도본': { m: 1.3, chance: 0.2 },
+  '가디·바위떨구기': { m: 2.0 },
+  '윈디·분노의불꽃': { m: 2.6, splash: 0.5, burn: 0.3 },
+  '식스테일·파우더스노': { m: 2.0, chill: 2 },
+  '나인테일·눈보라': { m: 1.9 },
+  '또도가스·이상한연기': { m: 1.9, chance: 0.5 },
+  '질퍽이·탁쳐서떨구기': { m: 2.2 },
+  '질뻐기·탁쳐서떨구기': { m: 2.55 },
+  '켄타로스·레이징불': { m: 2.65 }
 };
 
 const SKILL_NOCOPY = new Set(['포자', '잠자기', '오리진즈슈퍼노바', '폭포오르기', '번개', '사이코브레이크', '흉내내기', '불대문자', '절대영도', '용성군', '미래예지']);
@@ -1600,10 +1635,149 @@ const SKILLS = {
   '사이코키네시스'(S, u, t, P) {
     S.hit(u, t, P.m, { onHit: o => S.debuff(u, o, 'spd', -1, 4) });
   },
+  '아이스스피너'(S, u, t, P) {
+    S.buff(u, 'def', P.buff, 5);
+    S.buff(u, 'spd', P.buff, 5);
+    S.healAmt(u, u, (u.maxHp - u.hp) * P.heal);
+    S.ringFx(u, u.r, u.c, 1);
+    S.hitAll(u, S.ring(u, u.r, u.c, 1), P.m, { onHit: o => S.chillN(u, o, P.chill) });
+  },
+  '용의파동'(S, u, t, P) {
+    S.hitAll(u, S.line(u, t, 2), P.m, {});
+    for (const a of S.alliesOf(u)) if (Hex.dist(u.r, u.c, a.r, a.c) <= 1) S.buff(a, 'spd', 1, 5);
+  },
+  '스타어설트'(S, u, t, P) {
+    S.dashTo(u, t);
+    S.hit(u, t, P.m, {});
+    S.selfStun(u, P.stun);
+  },
+  '오로라베일'(S, u, t, P) {
+    for (const a of S.alliesOf(u)) if (Hex.dist(u.r, u.c, a.r, a.c) <= P.radius) S.reduce(u, a, P.red, P.dur, 'all');
+    S.shieldPct(u, P.shield, 0);
+    S.ringFx(u, t.r, t.c, 1);
+    S.hitAll(u, S.ring(u, t.r, t.c, 1), P.m, { onHit: o => S.chillN(u, o, P.chill) });
+  },
+  '매지컬샤인'(S, u, t, P) {
+    S.dashTo(u, t);
+    S.ringFx(u, t.r, t.c, 1);
+    S.hitAll(u, S.ring(u, t.r, t.c, 1), P.m, { onHit: o => { if (P.conf) S.status(u, o, 'confuse', 2, P.conf); } });
+    if ((u.nitroN || 0) < 3) {
+      u.nitroN = (u.nitroN || 0) + 1;
+      S.perma(u, 'spe', 1);
+    }
+  },
+  '메탈클로'(S, u, t, P) {
+    S.hit(u, t, P.m, {});
+    if ((u.clawN || 0) < 3 && S.chance(P.chance)) {
+      u.clawN = (u.clawN || 0) + 1;
+      S.perma(u, 'atk', 1);
+    }
+  },
+  '아이언헤드'(S, u, t, P) {
+    S.hit(u, t, P.m, { onHit: o => S.status(u, o, 'flinch', 1, 0.3) });
+    if (P.splash) S.hitAll(u, S.ring(u, t.r, t.c, 1).filter(o => o !== t), P.m * P.splash, {});
+  },
+  '와일드볼트'(S, u, t, P) {
+    const dur = P.dur;
+    S.buff(u, 'def', P.def, dur);
+    S.reduce(u, u, P.red, dur, 'all');
+    let n = 0;
+    S.channel(u, {
+      dur,
+      move: true,
+      tick: () => {
+        const list = S.ring(u, u.r, u.c, 1);
+        if (!list.length) return;
+        S.hitAll(u, list, P.m * (1 + 0.5 * n), {
+          onHit: o => {
+            if (P.stun) S.status(u, o, 'stun', P.stun);
+            S.status(u, o, 'para', 3, P.para);
+          }
+        });
+        n += 1;
+      },
+      end: () => {
+        S.shieldPct(u, P.shield, 0);
+        S.buff(u, 'def', P.buff, 5);
+        S.buff(u, 'spd', P.buff, 5);
+      }
+    });
+  },
+  '셸암즈'(S, u, t, P) {
+    S.hit(u, t, P.m, { onHit: o => S.status(u, o, 'poison', 3, P.chance) });
+    S.buff(u, 'def', 1, 5);
+    S.buff(u, 'spd', 1, 5);
+  },
+  '기묘한주문'(S, u, t, P) {
+    S.ringFx(u, t.r, t.c, 1);
+    S.hitAll(u, S.ring(u, t.r, t.c, 1), P.m, { onHit: o => { o.mana = Math.max(0, o.mana - P.pp); } });
+    S.buff(u, 'spd', 1, 5);
+  },
+  '클로로블라스트'(S, u, t, P) {
+    S.ringFx(u, u.r, u.c, 1);
+    const total = S.hitAll(u, S.ring(u, u.r, u.c, 1), P.m, {});
+    if (total > 0) S.dealDamage(null, u, total * P.recoil, { trueDmg: true, kind: 'recoil' });
+  },
+  '섀도본'(S, u, t, P) {
+    const deb = o => S.debuff(u, o, 'def', -1, 4, P.chance);
+    S.hit(u, t, P.m, { onHit: deb });
+    if (t.alive) S.hit(u, t, P.m, { onHit: deb });
+    const ax = S.axis(u, t);
+    const back = S.foesOf(u).filter(o => {
+      if (o === t) return false;
+      const q = S.project(ax, o);
+      return q.along > 0.3 && q.along < ax.len - 0.3 && q.side <= 0.62;
+    });
+    S.hitAll(u, back, P.m, { onHit: deb });
+  },
+  '바위떨구기'(S, u, t, P) {
+    S.hit(u, t, P.m, { onHit: o => S.debuff(u, o, 'spe', -1, 4) });
+  },
+  '분노의불꽃'(S, u, t, P) {
+    S.dashTo(u, t);
+    const burn = o => S.status(u, o, 'burn', 3, P.burn);
+    S.hit(u, t, P.m, { onHit: burn });
+    if (P.splash) S.hitAll(u, S.ring(u, t.r, t.c, 1).filter(o => o !== t), P.m * P.splash, { onHit: burn });
+  },
+  '파우더스노'(S, u, t, P) {
+    S.hitAll(u, S.cone(u, t, 2), P.m, { onHit: o => S.chillN(u, o, P.chill) });
+  },
+  '이상한연기'(S, u, t, P) {
+    S.ringFx(u, t.r, t.c, 1);
+    S.hitAll(u, S.ring(u, t.r, t.c, 1), P.m, { onHit: o => S.status(u, o, 'confuse', 2, P.chance) });
+  },
+  '탁쳐서떨구기'(S, u, t, P) {
+    if (t.shield > 0) {
+      t.shield = 0;
+      t.shieldTimed = [];
+      S.emit({ type: 'buff', target: t.uid, kind: 'break' });
+    }
+    S.hit(u, t, P.m * (t.items && t.items.length ? 1.3 : 1), {});
+  },
+  '레이징불'(S, u, t, P) {
+    S.dashTo(u, t);
+    if (t.shield > 0) {
+      t.shield = 0;
+      t.shieldTimed = [];
+      S.emit({ type: 'buff', target: t.uid, kind: 'break' });
+    }
+    const st = u.skillType;
+    S.hit(u, t, P.m, {
+      crit: st === '격투' ? 1 : 0,
+      onHit: o => {
+        if (st === '불꽃') S.status(u, o, 'burn', 3, 0.3);
+        if (st === '물') S.debuff(u, o, 'spe', -1, 4);
+      }
+    });
+  },
   '철제광선'(S, u, t, P) {
     S.hitAll(u, S.line(u, t, 4), P.m, {});
     S.dealDamage(null, u, u.maxHp * 0.25, { trueDmg: true, kind: 'recoil' });
   }
 };
+
+SKILLS['기습'] = SKILLS['전광석화'];
+SKILLS['바위깨기'] = SKILLS['아쿠아브레이크'];
+SKILLS['도둑질'] = SKILLS['고양이돈받기'];
 
 Object.assign(CombatSim.prototype, SKILL_HELPERS);
