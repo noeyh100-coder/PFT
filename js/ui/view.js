@@ -355,7 +355,8 @@ const View = {
     const row = this.el('div', 'augp-row');
     offer.choices.forEach((c, n) => {
       const d = augDef(c.id);
-      const col = this.el('div', 'augp-col');
+      const col = this.el('div', 'augp-col' + (hooks.animate ? ' augp-in' : ''));
+      if (hooks.animate) col.style.animationDelay = (n * 0.1).toFixed(2) + 's';
       const card = this.el('button', 'augc t' + offer.tier);
       const medal = this.el('div', 'augc-medal');
       medal.appendChild(this.el('div', 'augc-teeth'));

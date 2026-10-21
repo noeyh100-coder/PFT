@@ -414,7 +414,9 @@ class App {
       if (n.p === this.human && !this.replaying && n.kind !== 'unlock') this.toast(n.msg, n.kind);
     });
     this.game.on('unlocked', d => {
-      if (d && d.p === this.human && !this.replaying) this.showUnlockCard(d.id, d.sub);
+      if (!d || d.p !== this.human || this.replaying) return;
+      if (this.game.phase === 'planning') this.showUnlockCard(d.id, d.sub);
+      else (this.unlockHold = this.unlockHold || []).push(d);
     });
     this.game.on('branch', d => {
       if (d && d.p === this.human) this.maybeShowBranch();
@@ -440,7 +442,7 @@ class App {
       this.showGameOver();
     });
     d.on('carry', pid => this.onCarry(pid));
-    d.on('carouselEnd', () => this.endCarousel());
+    d.on('carouselEnd', () => this.curtain(() => this.endCarousel()));
     d.on('carouselDone', () => {
       if (!this.replaying) this.taxiCarouselDone();
     });
@@ -680,6 +682,33 @@ class App {
     mute.appendChild(cb);
     mute.appendChild(document.createTextNode(' 음소거'));
     pop.appendChild(mute);
+    pop.appendChild(View.el('b', null, '배경음악'));
+    const row2 = View.el('div', 'snd-row');
+    const range2 = document.createElement('input');
+    range2.type = 'range';
+    range2.min = '0';
+    range2.max = '100';
+    range2.value = String(Math.round(Bgm.vol * 100));
+    const num2 = View.el('span', 'snd-num', range2.value);
+    range2.addEventListener('input', () => {
+      Bgm.vol = Number(range2.value) / 100;
+      num2.textContent = range2.value;
+      Bgm.save();
+    });
+    row2.appendChild(range2);
+    row2.appendChild(num2);
+    pop.appendChild(row2);
+    const off = View.el('label', 'snd-mute');
+    const cb2 = document.createElement('input');
+    cb2.type = 'checkbox';
+    cb2.checked = Bgm.off;
+    cb2.addEventListener('change', () => {
+      Bgm.off = cb2.checked;
+      Bgm.save();
+    });
+    off.appendChild(cb2);
+    off.appendChild(document.createTextNode(' 배경음악 끄기'));
+    pop.appendChild(off);
     pop.classList.add('show');
   }
 
@@ -745,7 +774,47 @@ class App {
     this.renderHud();
   }
 
+  bgmKey() {
+    const g = this.game;
+    const d = this.driver;
+    if (g.phase === 'over' || !this.human || !this.human.alive) return null;
+    if (g.phase === 'carousel' || d.state === 'carousel' || d.state === 'carouselEnd') return g.carousel && g.carousel.encounter ? 'encounter' : 'carousel';
+    if (['precombat', 'combat', 'ending', 'result', 'between'].includes(d.state)) return 'battle';
+    return 'planning';
+  }
+
+  curtain(fn) {
+    if (this.replaying || !this._taxi) {
+      fn();
+      return;
+    }
+    const fx = this.taxiFx();
+    if (fx.fadeVal >= 0.999 && !(fx.fadeAnim && fx.fadeAnim.to < 1)) {
+      fn();
+      return;
+    }
+    this.holdScene = true;
+    this.curtainQ = (this.curtainQ || []).concat([fn]);
+    if (!(fx.fadeAnim && fx.fadeAnim.to === 1)) fx.fadeTo(1, 0.25);
+  }
+
+  flushCurtain() {
+    const fx = this.taxiFx();
+    if (!this.curtainQ || !this.curtainQ.length || fx.fadeVal < 0.999) return;
+    const q = this.curtainQ;
+    this.curtainQ = [];
+    this.holdScene = false;
+    for (const f of q) f();
+    this.arenaKey = null;
+    this.render();
+    if (!fx.fadeAnim || fx.fadeAnim.to !== 0) fx.fadeTo(0, 0.5);
+  }
+
   onRound(info) {
+    if (this.curtainQ && this.curtainQ.length && !this.replaying) {
+      this.curtainQ.push(() => this.onRound(info));
+      return;
+    }
     this.arenaKey = null;
     this.combatRunning = false;
     this.ending = false;
@@ -756,6 +825,11 @@ class App {
     }
     this.taxiRoundStart();
     if (this.rightMode === 'damage') this.rightMode = 'players';
+    if (this.game.phase === 'planning' && this.unlockHold && this.unlockHold.length) {
+      const list = this.unlockHold;
+      this.unlockHold = [];
+      for (const d of list) this.showUnlockCard(d.id, d.sub);
+    }
     if (this.game.phase === 'planning') {
       const inc = this.game.lastIncome;
       if (inc && info.type !== 'encounter') {
@@ -815,6 +889,7 @@ class App {
   }
 
   renderArena() {
+    if (this.holdScene && !this.replaying) return;
     if (this.travelHold) return;
     const a = this.arena;
     const sc = this.scene();
@@ -1056,9 +1131,12 @@ class App {
     }
     const key = o.tier + '|' + o.choices.map(c => c.id + (c.trait || '') + (c.traits || []).join('')).join(',') + '|' + (o.rerolls || []).join(',');
     if (key !== this.augKey) {
+      const fresh = this.augAnimFor !== o;
+      this.augAnimFor = o;
       View.renderAugPick(box, o, {
         pick: n => this.act({ t: 'aug', k: 'pick', n }),
-        reroll: n => this.act({ t: 'aug', k: 'reroll', n })
+        reroll: n => this.act({ t: 'aug', k: 'reroll', n }),
+        animate: fresh
       });
       this.augKey = key;
     }
@@ -1959,7 +2037,9 @@ class App {
     }
     if (d.state === 'combat' && this.lastDrvState !== 'combat' && !this.replaying && this.rightMode !== 'damage') this.setRightMode('damage');
     this.lastDrvState = d.state;
+    Bgm.play(this.bgmKey());
     this.taxiFx().update(dt);
+    if (this.curtainQ && this.curtainQ.length) this.flushCurtain();
     this.taxiPlanTick();
     if (this.boxKey) this.updateBoxTimer();
     if (this.augKey || this.$('aug-toggle').classList.contains('show')) this.updateAugTimer();

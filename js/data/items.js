@@ -24,7 +24,7 @@ const ITEM_COMPLETED = [
   { id: 'assault-vest', name: '돌격조끼', from: ['x-sp-def', 'x-sp-def'], bonus: { spd: 3, hp: 200 }, desc: '특수방어가 크게 오르고, 10초마다 공격·특수공격이 1랭크씩 오릅니다.' },
   { id: 'weakness-policy', name: '약점보험', from: ['leftovers', 'muscle-band'], desc: '효과가 굉장한 공격을 처음 맞으면 최대 체력 30%의 보호막을 얻고 공격·특수공격이 30% 증가합니다.' },
   { id: 'black-sludge', name: '검은오물', from: ['leftovers', 'wise-glasses'], desc: '피해를 입힌 적의 회복량이 33% 줄고 화상을 입습니다.' },
-  { id: 'flame-orb', name: '불구슬플레이트', from: ['leftovers', 'protective-pads'], desc: '바로 옆 칸의 적의 회복량이 33% 줄고 화상을 입습니다.' },
+  { id: 'flame-orb', name: '불구슬플레이트', from: ['leftovers', 'protective-pads'], desc: '바로 옆 칸의 적의 회복량이 33% 줄고 3초 동안 화상을 입습니다.' },
   { id: 'lax-incense', name: '무사태평향로', from: ['leftovers', 'x-sp-def'], desc: '2칸 안의 적의 방어와 명중률이 1랭크 내려갑니다.' },
   { id: 'big-root', name: '큰뿌리', from: ['leftovers', 'leftovers'], desc: '최대 체력이 20% 증가합니다.' },
   { id: 'black-belt', name: '검은띠', from: ['swift-wing', 'muscle-band'], desc: '최대 체력이 1300 이상인 적에게 주는 피해가 45% 증가합니다.' },

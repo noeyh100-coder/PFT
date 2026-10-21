@@ -578,6 +578,10 @@ class Arena {
     const status = document.createElement('div');
     status.className = 'status';
     el.appendChild(status);
+    const sfx = document.createElement('div');
+    sfx.className = 'st-fx';
+    sfx.innerHTML = '<i class="sf-poison"><b></b><b></b><b></b></i><i class="sf-para"><b></b><b></b></i><i class="sf-burn"><b></b><b></b></i><i class="sf-ice"><b></b><b></b><b></b><b></b></i>';
+    el.appendChild(sfx);
     const f = this.combatFlat(u.r, u.c);
     el.style.transitionDuration = '0s';
     placeSprite(el, f.x, f.y, UNIT_ORIGIN.x, UNIT_ORIGIN.y, UNIT_SCALE);

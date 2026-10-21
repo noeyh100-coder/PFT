@@ -323,7 +323,7 @@ const ITEM_FX = {
           }
           if (it['flame-orb'] && d <= 1) {
             this.antiHealOn(o, Math.min(0.9, 0.33 * it['flame-orb']), 0.7);
-            this.itemBurn(o, u, 1);
+            this.itemBurn(o, u, 3);
           }
         }
       }

@@ -239,7 +239,7 @@ class Driver {
         }
       }
       this.state = 'carouselEnd';
-      this.wait = 1.7;
+      this.wait = 2;
       this.emit('carouselDone');
     }
   }

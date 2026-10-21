@@ -99,12 +99,13 @@ img/dot/pokemon/Corviknight/Hover.png  아머까오 날갯짓 (PMD, 택시를 �
 img/dot/pokemon/Zygarde·Tapu Koko·Eternatus·Terapagos/  조우자 지가르데·카푸꼬꼬꼭·무한다이노·테라파고스 (PMD)
 img/dot/pokemon/<영어이름>-Mega(-X·-Y)/  메가진화 모습 8종 (PMD, 메가스톤을 끼면 이 그림으로 바뀜)
 img/dot/player/   Strategist-TrAA.png ~ Strategist-TrCE.png (전략가 57명. 16×24 프레임, 가로 3칸 걷기 × 세로 4줄 아래·왼쪽·오른쪽·위)
-sound/cry/        포켓몬 울음소리 (PokeAPI cries, 영어이름.ogg)
+sound/cry/        포켓몬 울음소리 (PokeAPI cries, 영어이름.ogg, -24 LUFS로 음량 통일)
+sound/bgm/        배경음악 10곡 (encounter, planning1~6, carousel1~2, battle.mp3, 사용자 제공, -24 LUFS로 음량 통일)
 img/item/         아이템 아이콘 (PokeAPI 아이템 도트, 투명 여백을 잘라 정사각형으로 맞춤. 자석·조가비갑옷·불구슬플레이트는 사용자 그림). 새 그림을 넣을 때도 여백 없이 정사각형 PNG로 넣으면 칸을 꽉 채웁니다
 js/core/          rng.js(시드 난수), hex.js(육각 좌표)
 js/game/          게임 로직 (화면과 분리). 아이템 전투 효과는 itemfx.js, 에스퍼 효과(매직룸·미러코트·신통력·치유소원·봉인)는 esper.js, 증강의 골드·상점·라운드 효과는 augments.js, 증강의 전투 효과는 augfx.js, 메가스톤·Z크리스탈·다이버섯·테라스탈오브와 효과 판정(effMult)은 gimmick.js
 server/           server.js(파일 제공 + 방·행동 기록 중계 웹소켓 서버)
-js/ui/            taxi.js(아머까오택시 이동 연출, 펑펑 효과), net.js(서버 연결), lobby.js(로그인·메인·파티·설정), sound.js(효과음·울음소리·음량), driver.js(시간 흐름·행동 적용, 혼자/온라인 공용), assets.js(그림·아이콘), sprites.js(도트 애니메이션), mapkit.js(맵 그리기 도구), maps.js(지방별 전장 9종), view.js(패널·카드), projection.js(2.5D 카메라·바닥), arena.js(결투장·전략가), planner.js(배치 도구), app.js(진행)
+js/ui/            taxi.js(아머까오택시 이동 연출, 펑펑 효과), net.js(서버 연결), lobby.js(로그인·메인·파티·설정), sound.js(효과음·울음소리·배경음악·음량), driver.js(시간 흐름·행동 적용, 혼자/온라인 공용), assets.js(그림·아이콘), sprites.js(도트 애니메이션), mapkit.js(맵 그리기 도구), maps.js(지방별 전장 9종), view.js(패널·카드), projection.js(2.5D 카메라·바닥), arena.js(결투장·전략가), planner.js(배치 도구), app.js(진행)
 ```
 
 ## 바꾸고 싶은 수치가 있을 때
@@ -115,7 +116,7 @@ js/ui/            taxi.js(아머까오택시 이동 연출, 펑펑 효과), net.
 |---|---|
 | 레벨업 경험치, 상점 확률, 풀 크기 | `xpToNext`(최대 10레벨, 증강 "성취"는 9레벨이 되면 바로 10레벨), `shopOdds`, `poolSize`(6코스트 10) |
 | 6코스트 색 | `js/data/config.js`의 `COST_COLORS[6]`(단색 대체값), `COST6_GRAD`·CSS `.c6`(보라 그라데이션 테두리) |
-| 택시·펑펑 연출 | `js/ui/taxi.js`의 `TAXI_SCALE`, `TAXI_T`(구간별 시간: 접근 1.0·착지 0.35·대기 0.15·상승 0.35·이탈 0.8초), `TAXI_LEAD`(원정 택시가 준비 시간 몇 초 전부터 날아오는지, 1.5초). 결과 단계 대기 `js/ui/driver.js`의 `finishCombat`(PvP 2.9초, 그 밖 1.4초), 회전초밥 끝 대기 1.7초, 첫 결계 해제 `carousel.firstRelease`(4초) |
+| 택시·펑펑 연출 | `js/ui/taxi.js`의 `TAXI_SCALE`, `TAXI_T`(구간별 시간: 접근 1.0·착지 0.35·대기 0.15·상승 0.35·이탈 0.8초), `TAXI_LEAD`(원정 택시가 준비 시간 몇 초 전부터 날아오는지, 1.5초). 결과 단계 대기 `js/ui/driver.js`의 `finishCombat`(PvP 2.9초, 그 밖 1.4초), 회전초밥 끝 대기 2초, 첫 결계 해제 `carousel.firstRelease`(3초), 장면 전환은 0.5초 동안 완전히 검게 덮인 뒤 바꾸고 0.5초 동안 밝아짐(`App.curtain`·`holdScene`) |
 | 수입, 이자, 연승·연패 보너스 | `baseIncome`, `earlyIncome`, `interest*`, `streakBonus` |
 | 패배 피해 | `stageDamage`, `unitDamage` |
 | 해금 조건 수치 (임시값) | `unlock` (치유 스택 `healStack` 14000, 화상 피해 `burnDamage` 10000, 뮤 타입 시너지 개수 `mewTypes` 5, 썬더 낙뢰 `electricBolts` 80) |
@@ -141,7 +142,7 @@ js/ui/            taxi.js(아머까오택시 이동 연출, 펑펑 효과), net.
 | 투구·프테라 해금 조건 | `unlock`의 `kabutoWins`, `aerodactylLosses` |
 | 증강 라운드, 준비 시간, 자동 선택 | `js/data/augments.js`의 `AUG_ROUNDS`, `AUG_PATTERNS`(등급 조합 12가지) / `planningTime.augment`(40초), `augAuto`(5초) |
 | 증강 수치 | `js/game/augments.js`의 `AUG_GOLD`·`AUG_XP`·`AUG_ROLLS`·`AUG_ITEMS`(즉시 보상), `applyAugPick`·`augRoundStart`·`augAfterCombat`(라운드·전투 후 효과)과 `js/game/augfx.js`의 `augInit`·`augPost`·`augTick`(전투 효과) |
-| 조우자 | `js/data/encounters.js` (`ENCOUNTERS` 설명, 나옹 골드 `encounterGold`). 효과는 `js/game/game.js`의 `applyEncounterStart`, `encounterAfterDamage` / 조우 시간 `encounterTime`(11초) |
+| 조우자 | `js/data/encounters.js` (`ENCOUNTERS` 설명, 나옹 골드 `encounterGold`). 효과는 `js/game/game.js`의 `applyEncounterStart`, `encounterAfterDamage` / 조우 시간 `encounterTime`(13초) |
 | 아이템 상자·주사위 | 상자 선택 시간 `boxTime`(20초), 크립 라운드 주사위 확률 `diceChance`(0.15) |
 
 ## 능력치 규칙
@@ -167,7 +168,7 @@ js/ui/            taxi.js(아머까오택시 이동 연출, 펑펑 효과), net.
 ## 라운드 진행
 
 - 해금 기물이 풀리면 화면 위쪽 가운데에 "해금했습니다!" 카드가 약 2.7초 동안 뜹니다(위에서 튀어 내려옴, 회전하는 빛살과 반짝이 효과, 잠긴 자물쇠가 열리는 배지, 그 포켓몬의 울음소리). 여러 개가 동시에 풀리면 차례로 뜹니다.
-- 1-1은 조우 라운드입니다(11초). 시작하면 화면이 내 자리를 2배로 확대한 채 검은 화면에서 밝아지고, 8명이 각자 방향에서 아머까오택시를 타고 초밥집 모래판에 내립니다. 내가 내리면 2초 동안 천천히 전체 화면으로 줌아웃하면서 위쪽에 조우자 카드(이름·효과)가 페이드 인됩니다. 가운데에는 이번 게임의 조우자 포켓몬이 있습니다. 끝나면 일반 회전초밥처럼 택시가 태워 가고 검게 어두워졌다가 내 맵에 내려 주며, 선물 기물(보통 1코스트, 피카츄는 2코스트, 이브이는 3코스트)을 받습니다.
+- 1-1은 조우 라운드입니다(13초). 시작하면 화면이 내 자리를 2배로 확대한 채 검은 화면에서 밝아지고, 8명이 각자 방향에서 아머까오택시를 타고 초밥집 모래판에 내립니다. 내가 내리면 2초 동안 천천히 전체 화면으로 줌아웃하고(그동안 다른 플레이어 택시가 차례로 도착), 줌아웃이 끝나면 위쪽에 조우자 카드(이름·효과)가 페이드 인됩니다. 가운데에는 이번 게임의 조우자 포켓몬이 있습니다. 끝나면 일반 회전초밥처럼 택시가 태워 가고 검게 어두워졌다가 내 맵에 내려 주며, 선물 기물(보통 1코스트, 피카츄는 2코스트, 이브이는 3코스트)을 받습니다.
 - 2-1 · 3-2 · 4-2 라운드는 증강 라운드라 준비 시간이 40초입니다. 증강 규칙과 목록은 docs/증강체.md를 보세요.
 - 1-2 라운드는 수입이 없습니다. 크립 라운드의 준비 시간은 10초입니다.
 - PvP 전투에서 이기면 바로 1골드를 받습니다.
@@ -275,3 +276,29 @@ js/ui/            taxi.js(아머까오택시 이동 연출, 펑펑 효과), net.
 - 모으령 상자 아이콘: PokeAPI 모으령(상자폼) 도트를 닫힌 상자로 고친 것. 아머까오택시와 정면 몬스터볼·슈퍼볼 구체는 Claude가 그린 도트입니다.
 - 폰트: Galmuri (SIL Open Font License 1.1, `fonts/OFL.md`)
 - Pokémon © Nintendo, Creatures, GAME FREAK. 이 게임은 비공식 팬 게임입니다.
+
+## _31 변경
+
+- 게임 시작: 로비가 0.35초 동안 검게 페이드 아웃 → 검은 화면 유지 → 조우자 장면이 0.6초 동안 페이드 인(시작 직후 프레임이 끊겨도 배경이 먼저 보이지 않도록 연출 시간 한 프레임 최대 0.05초로 제한).
+- 포켓몬 울음소리 205개를 배경음악과 같은 -24 LUFS로 맞춰 줄이고 통일(원래 -5 ~ -22 LUFS로 들쭉날쭉).
+
+## _30 변경
+
+- 배경음악 10곡으로 교체: 조우자 1곡(24번도로), 준비 단계 6곡(무지개시티·보라타운·포켓몬타워·상트앙느호·…·회색시티), 공동 선택 2곡(태초마을·게임코너), 전투 1곡(석영고원).
+- 준비 단계와 공동 선택은 라운드마다 목록에서 무작위로 고르고, 바로 전에 나온 곡은 다시 고르지 않습니다.
+- 모든 곡을 -24 LUFS로 맞춰 음량을 통일하고 낮췄으며, 배경음악 기본 음량을 40 → 30으로 내렸습니다. 곡 전환은 그대로 1.2초 페이드 아웃·인.
+
+## _29 변경
+
+- 배경음악 추가: 시작 조우자(1-1) = encounter, 준비 단계(증강 라운드 포함) = planning, 공동 선택 = carousel, 전투(PvE 포함, 결과 화면까지) = battle.
+- 곡이 바뀔 때 1.2초 동안 페이드 아웃·페이드 인으로 서로 겹쳐 넘어갑니다. 같은 곡이 이어지는 단계에서는 다시 시작하지 않습니다.
+- 탈락하거나 게임이 끝나면 음악이 페이드 아웃됩니다. 로비·메인·파티 화면은 음악 없음.
+- 소리 설정 창에 배경음악 음량(기본 40) 슬라이더와 「배경음악 끄기」 추가. 효과음 음소거를 켜면 배경음악도 꺼집니다.
+
+## _28 변경
+
+- 증강 카드는 새 제안이 나올 때 3장이 0.1초 간격으로 24px 아래에서 0.35초 동안 떠오르며 나타납니다(새로고침한 카드는 연출 없음).
+- 독·마비·얼음·화상: 기물 머리 위 도트 이펙트(보라 거품, 노란 번개 깜빡임, 얼음 결정, 주황 불꽃).
+- 불구슬플레이트: 주변 1칸의 적에게 3초 화상(회복 감소는 그대로).
+- 콘팡 계열 매복자 → 감시자, 모다피 계열 난동꾼 → 주문술사.
+- 해금 카드는 해금된 다음 라운드 준비 단계가 시작되자마자 뜹니다(준비 단계 중에 해금되면 바로).

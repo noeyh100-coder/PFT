@@ -198,6 +198,7 @@ class TaxiFx {
   }
 
   update(dt) {
+    dt = Math.min(dt, 0.05);
     for (const r of this.rides) r.update(dt);
     this.rides = this.rides.filter(r => !r.done);
     if (this.timers.length) {
@@ -288,6 +289,12 @@ const TRAVEL_APP = {
     this.tx = {};
     this.hpHold = {};
     this.travelHold = false;
+    this.holdScene = false;
+    if (this.curtainQ && this.curtainQ.length) {
+      const q = this.curtainQ;
+      this.curtainQ = [];
+      for (const f of q) f();
+    }
     this.ballReset();
     const card = this.$('enc-card');
     if (card) card.classList.remove('enc-fade');
@@ -641,7 +648,7 @@ const TRAVEL_APP = {
     } else if (this.tx.carouselReturn) {
       this.tx.carouselReturn = false;
       this.taxiHide.add(h.id);
-      this.taxiFx().fadeTo(0, 0.3);
+      this.taxiFx().fadeTo(0, 0.5);
       this.taxiDrop(HOME_BOTTOM, h.id, null, this.ballHide.has(h.id) ? () => this.ballThrow(h.id) : null);
     } else {
       this.taxiHide.delete(h.id);
@@ -658,7 +665,7 @@ const TRAVEL_APP = {
     const card = this.$('enc-card');
     card.classList.remove('show', 'enc-fade');
     if (!sc) {
-      fx.fadeTo(0, 0.3);
+      fx.fadeTo(0, 0.5);
       return true;
     }
     const h = this.human;
@@ -667,7 +674,7 @@ const TRAVEL_APP = {
     const g = Proj.toScreen(mine.x, mine.y);
     const focus = { x: g.x, y: g.y - 40 };
     fx.camera(focus, 1, 2);
-    fx.fadeTo(0, 0.3);
+    fx.after(0.4, () => fx.fadeTo(0, 0.6));
     let k = 0;
     for (const p of car.order) {
       if (!p.alive) continue;
@@ -681,8 +688,10 @@ const TRAVEL_APP = {
         this.taxiSeatRide(p.id, sp, true, () => {
           this.taxiHide.delete(p.id);
           if (!isMe) return;
-          if (this.carouselScene === sc) card.classList.add('show', 'enc-fade');
-          fx.tween(2, t => fx.camera(focus, 1 - t * t * (3 - 2 * t), 2), () => fx.camera(null, 0));
+          fx.tween(2, t => fx.camera(focus, 1 - t * t * (3 - 2 * t), 2), () => {
+            fx.camera(null, 0);
+            if (this.carouselScene === sc) card.classList.add('show', 'enc-fade');
+          });
         });
       };
       if (isMe) ride();
@@ -700,9 +709,11 @@ const TRAVEL_APP = {
     this.tx.carouselPending = true;
     this.tx.freezeMe = true;
     this.travelHold = true;
+    this.holdScene = true;
     const h = this.human;
     const go = () => {
-      fx.fadeTo(1, 0.3, () => {
+      fx.fadeTo(1, 0.5, () => {
+        this.holdScene = false;
         this.travelHold = false;
         this.tx.carouselPending = false;
         this.tx.freezeMe = false;
@@ -711,11 +722,11 @@ const TRAVEL_APP = {
         this.buildCarousel();
         const sc = this.carouselScene;
         if (!sc) {
-          fx.fadeTo(0, 0.3);
+          fx.fadeTo(0, 0.5);
           return;
         }
         for (const p of car.order) if (p.alive) this.taxiHide.add(p.id);
-        fx.fadeTo(0, 0.3);
+        fx.fadeTo(0, 0.5);
         for (const p of car.order) {
           if (!p.alive) continue;
           const sp = sc.spawn[p.id];
@@ -744,7 +755,7 @@ const TRAVEL_APP = {
       if (!sprite) continue;
       this.taxiSeatRide(p.id, { x: sprite.x, y: sprite.y }, false, () => this.taxiHide.add(p.id));
     }
-    fx.after(1.25, () => fx.fadeTo(1, 0.3));
+    fx.after(1.0, () => fx.fadeTo(1, 0.5));
   },
 
   boomFx() {

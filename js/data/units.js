@@ -307,7 +307,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "매복자"
+   "감시자"
   ],
   "uniques": [],
   "forms": [
@@ -2170,7 +2170,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "난동꾼"
+   "주문술사"
   ],
   "uniques": [],
   "forms": [

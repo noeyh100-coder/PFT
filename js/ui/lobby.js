@@ -241,13 +241,32 @@ class Lobby {
     }
     this.startInfo = m;
     this.net.resetTicks();
-    this.closeLobby();
-    this.app = new App({ mode: 'mp', seed: m.seed, seats: m.seats, slot: m.slot, net: this.net });
-    window.app = this.app;
-    if (this.buffer.length) {
-      this.app.pushTicks(this.buffer);
-      this.buffer = [];
-    }
+    this.lobbyCurtain(() => {
+      this.closeLobby();
+      this.app = new App({ mode: 'mp', seed: m.seed, seats: m.seats, slot: m.slot, net: this.net });
+      window.app = this.app;
+      if (this.buffer.length) {
+        this.app.pushTicks(this.buffer);
+        this.buffer = [];
+      }
+    });
+  }
+
+  lobbyCurtain(fn) {
+    if (this.curtainBusy) return;
+    this.curtainBusy = true;
+    const c = document.createElement('div');
+    c.className = 'lb-curtain';
+    document.body.appendChild(c);
+    requestAnimationFrame(() => c.classList.add('on'));
+    setTimeout(() => {
+      fn();
+      this.curtainBusy = false;
+      setTimeout(() => {
+        c.classList.remove('on');
+        setTimeout(() => c.remove(), 600);
+      }, 300);
+    }, 380);
   }
 
   startSolo() {
@@ -255,9 +274,11 @@ class Lobby {
     this.room = null;
     this.net.wantOpen = false;
     if (this.net.ws) this.net.ws.close();
-    this.closeLobby();
-    this.app = new App({ mode: 'solo', name: this.name || '나', look: this.look, map: this.mapPick });
-    window.app = this.app;
+    this.lobbyCurtain(() => {
+      this.closeLobby();
+      this.app = new App({ mode: 'solo', name: this.name || '나', look: this.look, map: this.mapPick });
+      window.app = this.app;
+    });
   }
 
   pressStart() {
