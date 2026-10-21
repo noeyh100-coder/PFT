@@ -954,7 +954,7 @@ const REGIONAL_DATA = [
   "family": "가디",
   "variant": "히스이",
   "region": "히스이",
-  "cost": 4,
+  "cost": 5,
   "shop": true,
   "unlockOnly": false,
   "traits": [

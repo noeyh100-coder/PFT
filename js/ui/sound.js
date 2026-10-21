@@ -33,6 +33,10 @@ const Sound = {
     }
   },
 
+  sfx(name) {
+    this.play('sound/sfx/' + name + '.ogg', 0.55);
+  },
+
   cry(en) {
     if (en) this.play('sound/cry/' + en + '.ogg', 0.55);
   }

@@ -410,6 +410,7 @@ class App {
 
   bindGameEvents() {
     this.game.on('round', info => this.onRound(info));
+    this.game.on('starup', e => this.onStarUpEvent(e));
     this.game.on('notify', n => {
       if (n.p === this.human && !this.replaying && n.kind !== 'unlock') this.toast(n.msg, n.kind);
     });
@@ -586,6 +587,7 @@ class App {
       return;
     }
     this.act({ t: 'reroll' });
+    Sound.sfx('reroll');
   }
 
   onShopPointerDown(e, slot, card) {
@@ -645,6 +647,7 @@ class App {
       return;
     }
     this.act({ t: 'buy', s: slot });
+    Sound.sfx('buy');
   }
 
   toggleSoundPop() {
@@ -728,6 +731,7 @@ class App {
       const cell = this.game.frontCell(h);
       if (!cell) return;
       this.act({ t: 'move', iid: inst.iid, z: 'board', r: cell.r, c: cell.c });
+      Sound.sfx('place');
     } else {
       const slot = h.freeBenchSlot();
       if (slot < 0) {
@@ -735,6 +739,7 @@ class App {
         return;
       }
       this.act({ t: 'move', iid: inst.iid, z: 'bench', i: slot });
+      Sound.sfx('place');
     }
     this.hoverInst = null;
   }
@@ -756,6 +761,7 @@ class App {
       return;
     }
     this.act({ t: 'sell', iid: inst.iid });
+    Sound.sfx('sell');
     this.hoverInst = null;
   }
 
@@ -972,6 +978,7 @@ class App {
     const sel = this.selected && this.selected.inst === inst;
     v.className = 'unit' + (sel ? ' selected' : '');
     const el = View.unitEl(v);
+    if (this.evoHidden(inst, owner)) el.classList.add('evo-hide');
     el._inst = inst;
     el._owner = owner;
     el._maxHp = instanceStats(inst, owner).hp;
@@ -1893,6 +1900,7 @@ class App {
         return;
       }
       this.act({ t: 'sell', iid: inst.iid });
+      Sound.sfx('sell');
       this.hoverInst = null;
       return;
     }
@@ -1906,7 +1914,11 @@ class App {
         return;
       }
       this.act({ t: 'move', iid: inst.iid, z: 'board', r: t.r, c: t.c });
-    } else if (t.kind === 'bench') this.act({ t: 'move', iid: inst.iid, z: 'bench', i: t.i });
+      Sound.sfx('place');
+    } else if (t.kind === 'bench') {
+      this.act({ t: 'move', iid: inst.iid, z: 'bench', i: t.i });
+      Sound.sfx('place');
+    }
   }
 
   moveStrategist(cx, cy) {
@@ -2038,6 +2050,11 @@ class App {
     if (d.state === 'combat' && this.lastDrvState !== 'combat' && !this.replaying && this.rightMode !== 'damage') this.setRightMode('damage');
     this.lastDrvState = d.state;
     Bgm.play(this.bgmKey());
+    this.evoUpdate(dt);
+    if (this.human.level !== this.sfxLevel) {
+      if (this.sfxLevel && this.human.level > this.sfxLevel && !this.replaying) Sound.sfx('levelup');
+      this.sfxLevel = this.human.level;
+    }
     this.taxiFx().update(dt);
     if (this.curtainQ && this.curtainQ.length) this.flushCurtain();
     this.taxiPlanTick();

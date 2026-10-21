@@ -463,6 +463,7 @@ class Game {
         const keep = onBoard[0] || onBench[0] || placed.find(u => u.overflow);
         if (!keep) continue;
         const others = g.filter(u => u !== keep).sort((a, b) => rank(a) - rank(b)).slice(0, 2);
+        const srcs = others.map(o => ({ iid: o.iid, loc: o.loc ? Object.assign({}, o.loc) : null }));
         for (const o of others) {
           if (o === floating) floating = null;
           else p.remove(o);
@@ -503,6 +504,7 @@ class Game {
         }
         this.onStarUp(p, keep);
         this.augStarUp(p, keep, fielded);
+        this.emit('starup', { p, iid: keep.iid, star: keep.star, srcs, removed: others.map(o => o.iid) });
         merged = true;
         break;
       }

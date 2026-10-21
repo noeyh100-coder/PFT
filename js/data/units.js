@@ -3,7 +3,7 @@ const UNIT_DATA = [
   "id": "캐터피",
   "family": "캐터피",
   "variant": "원종",
-  "cost": 1,
+  "cost": 3,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -1717,7 +1717,7 @@ const UNIT_DATA = [
   "id": "셀러",
   "family": "셀러",
   "variant": "원종",
-  "cost": 4,
+  "cost": 3,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -3146,7 +3146,7 @@ const UNIT_DATA = [
   "id": "뚜벅쵸",
   "family": "뚜벅쵸",
   "variant": "원종",
-  "cost": 2,
+  "cost": 3,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -4054,11 +4054,11 @@ const UNIT_DATA = [
   "id": "별가사리",
   "family": "별가사리",
   "variant": "원종",
-  "cost": 3,
+  "cost": 4,
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "파수꾼"
+   "전쟁기계"
   ],
   "uniques": [],
   "forms": [
@@ -4068,9 +4068,9 @@ const UNIT_DATA = [
     "types": [
      "물"
     ],
-    "range": 4,
+    "range": 1,
     "special": true,
-    "role": "특수 마법사",
+    "role": "특수 탱커",
     "skill": "사이코쇼크",
     "skillType": "에스퍼",
     "stats": {
@@ -4089,9 +4089,9 @@ const UNIT_DATA = [
      "물",
      "에스퍼"
     ],
-    "range": 4,
+    "range": 1,
     "special": true,
-    "role": "특수 마법사",
+    "role": "특수 탱커",
     "skill": "사이코쇼크",
     "skillType": "에스퍼",
     "stats": {
@@ -4110,9 +4110,9 @@ const UNIT_DATA = [
      "물",
      "에스퍼"
     ],
-    "range": 4,
+    "range": 1,
     "special": true,
-    "role": "특수 마법사",
+    "role": "특수 탱커",
     "skill": "사이코쇼크",
     "skillType": "에스퍼",
     "stats": {
@@ -4207,7 +4207,7 @@ const UNIT_DATA = [
   "id": "파라스",
   "family": "파라스",
   "variant": "원종",
-  "cost": 2,
+  "cost": 1,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -4435,7 +4435,7 @@ const UNIT_DATA = [
   "id": "배루키",
   "family": "배루키",
   "variant": "원종",
-  "cost": 2,
+  "cost": 4,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -4658,7 +4658,7 @@ const UNIT_DATA = [
   "id": "쁘사이저",
   "family": "쁘사이저",
   "variant": "원종",
-  "cost": 3,
+  "cost": 4,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -5036,7 +5036,7 @@ const UNIT_DATA = [
   "id": "가디",
   "family": "가디",
   "variant": "원종",
-  "cost": 4,
+  "cost": 5,
   "shop": true,
   "unlockOnly": false,
   "traits": [

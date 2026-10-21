@@ -100,12 +100,13 @@ img/dot/pokemon/Zygarde·Tapu Koko·Eternatus·Terapagos/  조우자 지가르�
 img/dot/pokemon/<영어이름>-Mega(-X·-Y)/  메가진화 모습 8종 (PMD, 메가스톤을 끼면 이 그림으로 바뀜)
 img/dot/player/   Strategist-TrAA.png ~ Strategist-TrCE.png (전략가 57명. 16×24 프레임, 가로 3칸 걷기 × 세로 4줄 아래·왼쪽·오른쪽·위)
 sound/cry/        포켓몬 울음소리 (PokeAPI cries, 영어이름.ogg, -24 LUFS로 음량 통일)
+sound/sfx/        효과음 7종 (reroll·levelup·buy·place·sell·star2·star3.ogg, 직접 합성)
 sound/bgm/        배경음악 10곡 (encounter, planning1~6, carousel1~2, battle.mp3, 사용자 제공, -24 LUFS로 음량 통일)
 img/item/         아이템 아이콘 (PokeAPI 아이템 도트, 투명 여백을 잘라 정사각형으로 맞춤. 자석·조가비갑옷·불구슬플레이트는 사용자 그림). 새 그림을 넣을 때도 여백 없이 정사각형 PNG로 넣으면 칸을 꽉 채웁니다
 js/core/          rng.js(시드 난수), hex.js(육각 좌표)
 js/game/          게임 로직 (화면과 분리). 아이템 전투 효과는 itemfx.js, 에스퍼 효과(매직룸·미러코트·신통력·치유소원·봉인)는 esper.js, 증강의 골드·상점·라운드 효과는 augments.js, 증강의 전투 효과는 augfx.js, 메가스톤·Z크리스탈·다이버섯·테라스탈오브와 효과 판정(effMult)은 gimmick.js
 server/           server.js(파일 제공 + 방·행동 기록 중계 웹소켓 서버)
-js/ui/            taxi.js(아머까오택시 이동 연출, 펑펑 효과), net.js(서버 연결), lobby.js(로그인·메인·파티·설정), sound.js(효과음·울음소리·배경음악·음량), driver.js(시간 흐름·행동 적용, 혼자/온라인 공용), assets.js(그림·아이콘), sprites.js(도트 애니메이션), mapkit.js(맵 그리기 도구), maps.js(지방별 전장 9종), view.js(패널·카드), projection.js(2.5D 카메라·바닥), arena.js(결투장·전략가), planner.js(배치 도구), app.js(진행)
+js/ui/            taxi.js(아머까오택시 이동 연출, 펑펑 효과), evofx.js(2성·3성 진화 연출), net.js(서버 연결), lobby.js(로그인·메인·파티·설정), sound.js(효과음·울음소리·배경음악·음량), driver.js(시간 흐름·행동 적용, 혼자/온라인 공용), assets.js(그림·아이콘), sprites.js(도트 애니메이션), mapkit.js(맵 그리기 도구), maps.js(지방별 전장 9종), view.js(패널·카드), projection.js(2.5D 카메라·바닥), arena.js(결투장·전략가), planner.js(배치 도구), app.js(진행)
 ```
 
 ## 바꾸고 싶은 수치가 있을 때
@@ -276,6 +277,19 @@ js/ui/            taxi.js(아머까오택시 이동 연출, 펑펑 효과), net.
 - 모으령 상자 아이콘: PokeAPI 모으령(상자폼) 도트를 닫힌 상자로 고친 것. 아머까오택시와 정면 몬스터볼·슈퍼볼 구체는 Claude가 그린 도트입니다.
 - 폰트: Galmuri (SIL Open Font License 1.1, `fonts/OFL.md`)
 - Pokémon © Nintendo, Creatures, GAME FREAK. 이 게임은 비공식 팬 게임입니다.
+
+## _34 변경 (_33 되돌림 후 코스트 조정)
+
+- _33의 코스트·직업·역할군 변경은 모두 되돌렸습니다.
+- 코스트: 파라스 계열 2→1, 캐터피 계열 1→3, 뚜벅쵸 계열 2→3, 배루키 계열 2→4, 가디 계열 4→5, 쁘사이저 3→4, 셀러 계열 4→3, 별가사리 계열 3→4. 티어별 기물 수(해금 포함) 17 / 17 / 18 / 18 / 17(5코+6코).
+- 별가사리 계열: 파수꾼 → 전쟁기계, 특수 마법사 → 특수 탱커(사거리 4→1). 사이코쇼크에 탱커 효과 추가(별가사리: 5초 특수방어 1랭크·보호막 15%, 아쿠스타: 2랭크·25%).
+- 리전폼 데이터(게임 미사용)의 히스이 가디도 5코스트로 맞췄습니다.
+
+## _32 변경
+
+- 효과음 7종(직접 합성한 부드러운 소리, sound/sfx/): 새로고침(reroll), 레벨업(levelup, 레벨이 오를 때), 기물 구매(buy), 기물 놓기(place, 필드·대기석 이동), 판매(sell), 2성(star2), 3성(star3). 울음소리와 같은 크기로 맞추고 효과음 슬라이더를 따릅니다.
+- 2성·3성 진화 연출(약 2초, js/ui/evofx.js): 재료 기물이 하얗게 빛나며 합쳐지는 자리로 날아감 → 진화 전·후 모습의 하얀 실루엣이 점점 빠르게 번갈아 깜빡이며 커짐 → 하얀 빛이 터지고 반짝이가 흩어짐 → 진화한 모습이 하얀색에서 원래 색으로 돌아옴. 진화하지 않는 포켓몬도 같은 연출, 전투 중 대기석에서 합쳐질 때도 보여 줍니다. 연속 합성(1성→2성→3성)은 한 번의 3성 연출로 합칩니다.
+- 연출은 화면 전용이라 게임 진행·온라인 동기화에는 영향이 없습니다(기물은 바로 합쳐지고, 연출 중 기물을 옮기면 연출이 끝납니다).
 
 ## _31 변경
 

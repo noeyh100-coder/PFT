@@ -8120,3 +8120,86 @@ button.gold {
 .lb-curtain.on {
   opacity: 1;
 }
+
+#evo-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1500;
+  pointer-events: none;
+}
+
+.unit.evo-hide {
+  visibility: hidden;
+}
+
+.evo-ghost {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  pointer-events: none;
+}
+
+.evo-ghost .unit {
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+
+.evo-ghost .unit::before,
+.evo-ghost .unit::after,
+.evo-ghost .cost-ring,
+.evo-ghost .stars,
+.evo-ghost .label,
+.evo-ghost .badge,
+.evo-ghost .unit-items,
+.evo-ghost .bars {
+  display: none !important;
+}
+
+.evo-ghost .evo-white .orb {
+  filter: brightness(0) invert(1) drop-shadow(0 0 3px #fff) drop-shadow(0 0 6px rgba(255, 246, 200, 0.9));
+}
+
+.evo-flash {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, rgba(255, 255, 255, 0.95) 30%, rgba(255, 244, 190, 0.55) 55%, rgba(255, 244, 190, 0) 72%);
+  animation: evo-flash 0.55s ease-out forwards;
+  z-index: 3000;
+}
+
+.evo-flash.big {
+  background: radial-gradient(circle, #fff 0%, rgba(255, 255, 255, 0.95) 30%, rgba(255, 216, 110, 0.6) 55%, rgba(255, 216, 110, 0) 72%);
+  animation-duration: 0.7s;
+}
+
+@keyframes evo-flash {
+  0% { transform: scale(0.4); opacity: 1; }
+  35% { transform: scale(6); opacity: 1; }
+  100% { transform: scale(9); opacity: 0; }
+}
+
+.evo-spark {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  background: #fff;
+  box-shadow: 0 0 4px #fff, 0 0 8px rgba(255, 240, 180, 0.9);
+  transform: rotate(45deg);
+  z-index: 3001;
+  animation: evo-spark 0.75s ease-out forwards;
+}
+
+.evo-spark.gold {
+  background: #fff3b0;
+  box-shadow: 0 0 4px #fff, 0 0 8px rgba(255, 200, 80, 0.95);
+}
+
+@keyframes evo-spark {
+  0% { transform: translate(0, 0) rotate(45deg) scale(1.4); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(45deg) scale(0.3); opacity: 0; }
+}
