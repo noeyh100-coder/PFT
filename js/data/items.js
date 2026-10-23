@@ -8,7 +8,7 @@ const ITEM_COMPONENTS = [
   { id: 'leftovers', name: '먹다남은음식', stats: { hp: 150 } },
   { id: 'swift-wing', name: '순발력깃털', stats: { spe: 1 } },
   { id: 'razor-claw', name: '예리한손톱', stats: { crit: 1 } },
-  { id: 'leppa-berry', name: '과사열매', stats: { pp: 5 } }
+  { id: 'leppa-berry', name: '과사열매', stats: { pp: 15 } }
 ];
 
 const ITEM_COMPLETED = [
@@ -40,14 +40,14 @@ const ITEM_COMPLETED = [
   { id: 'metronome', name: '메트로놈', from: ['razor-claw', 'leftovers'], desc: '같은 대상을 3초 공격할 때마다 주는 피해가 30%씩 증가합니다. 대상을 바꾸면 처음부터 다시 쌓입니다.' },
   { id: 'spell-tag', name: '저주의부적', from: ['razor-claw', 'swift-wing'], bonus: { atk: 1 }, desc: '피해를 입힌 적의 방어가 6초 동안 3랭크 내려갑니다. (겹치지 않음)' },
   { id: 'scope-lens', name: '초점렌즈', from: ['razor-claw', 'razor-claw'], desc: '기본 공격이 모두 급소에 맞습니다. 같은 줄 양옆 아군의 급소율이 1랭크 오릅니다.' },
-  { id: 'ether', name: 'PP에이드', from: ['leppa-berry', 'muscle-band'], desc: '기본 공격할 때 PP를 3 더 얻습니다.' },
+  { id: 'ether', name: 'PP에이드', from: ['leppa-berry', 'muscle-band'], desc: '기본 공격할 때 PP를 30 더 얻습니다.' },
   { id: 'soul-dew', name: '마음의물방울', from: ['leppa-berry', 'wise-glasses'], desc: '5초마다 특수공격이 18%씩 증가합니다.' },
-  { id: 'soothe-bell', name: '평온의방울', from: ['leppa-berry', 'protective-pads'], desc: '공격에 맞을 때 PP를 2 더 얻습니다.' },
+  { id: 'soothe-bell', name: '평온의방울', from: ['leppa-berry', 'protective-pads'], desc: '공격에 맞을 때 PP를 20 더 얻습니다.' },
   { id: 'everstone', name: '변함없는돌', from: ['leppa-berry', 'x-sp-def'], unique: true, bonus: { hp: 350 }, desc: '진화하지 않습니다. 별은 오르지만 모습·스킬·타입은 그대로입니다. 돌을 빼면 전투를 한 번 치른 뒤 다음 라운드에 진화합니다.' },
   { id: 'super-potion', name: '좋은상처약', from: ['leppa-berry', 'leftovers'], desc: '매초 최대 체력의 1.5%를 회복하고, 바로 옆 칸의 아군도 매초 이 기물의 최대 체력의 1%만큼 회복시킵니다.' },
   { id: 'twisted-spoon', name: '휘어진스푼', from: ['leppa-berry', 'swift-wing'], bonus: { spa: 1 }, desc: '피해를 입힌 적의 특수방어가 6초 동안 3랭크 내려갑니다. (겹치지 않음)' },
-  { id: 'dragon-fang', name: '용의이빨', from: ['leppa-berry', 'razor-claw'], desc: '기본 공격할 때 PP를 3 더 얻고, 급소에 맞히면 3을 더 얻습니다.' },
-  { id: 'max-ether', name: 'PP맥스', from: ['leppa-berry', 'leppa-berry'], bonus: { pp: 4 }, desc: '시작 PP가 더 많고, 스킬을 쓴 뒤 PP를 12 얻습니다.' }
+  { id: 'dragon-fang', name: '용의이빨', from: ['leppa-berry', 'razor-claw'], desc: '기본 공격할 때 PP를 30 더 얻고, 급소에 맞히면 30을 더 얻습니다.' },
+  { id: 'max-ether', name: 'PP맥스', from: ['leppa-berry', 'leppa-berry'], desc: '시작 PP가 30이고, 스킬을 쓴 뒤 PP를 10 얻습니다.' }
 ];
 
 const ITEM_MAGNET = { id: 'magnet', name: '자석', kind: 'consumable', magnet: true, desc: '아이템을 가진 기물에게 쓰면 그 기물의 아이템을 모두 빼서 아이템 칸으로 돌려줍니다.' };
@@ -111,19 +111,19 @@ const ITEM_TREASURES = [
   { id: 'griseous-orb-1', name: '큰백금옥', tier: 1, icon: 'griseous-orb', desc: '기본 공격이나 스킬에 맞을 때마다 방어·특수방어가 3씩 오릅니다(최대 15번). 최대로 쌓이면 공격받은 뒤 1칸 안의 적에게 방어·특수방어 중 높은 쪽의 50%만큼 특수 피해를 입힙니다. (재사용 대기시간 2초)' },
   { id: 'life-orb-1', name: '생명의구슬', tier: 1, icon: 'life-orb', desc: '적에게 받는 모든 피해가 5초에 걸쳐 나누어 들어옵니다. 체력이 처음으로 40% 이하가 되면 남은 피해를 모두 없애고, 5초 동안 잃은 체력의 50%만큼 보호막을 얻습니다.' },
   { id: 'red-orb-1', name: '주홍구슬', tier: 1, icon: 'red-orb', desc: '피해를 6번 입힐 때마다 체력이 가장 낮은 적 2명에게 충격을 가해 150의 물리 피해를 입힙니다.' },
-  { id: 'blue-orb-1', name: '쪽빛구슬', tier: 1, icon: 'blue-orb', desc: '기본 공격할 때 PP를 1 더 얻습니다. 스킬을 쓴 뒤 PP를 2 얻고 특수공격이 5%씩 증가합니다.' },
+  { id: 'blue-orb-1', name: '쪽빛구슬', tier: 1, icon: 'blue-orb', desc: '기본 공격할 때 PP를 10 더 얻습니다. 스킬을 쓴 뒤 PP를 5 얻고 특수공격이 5%씩 증가합니다.' },
   { id: 'rusted-sword-2', name: '강화 녹슨검', tier: 2, icon: 'rusted-sword', desc: '모든 공격이 체력이 12% 이하인 적을 처형합니다. 적을 쓰러뜨리면 3칸 안에서 가장 멀리 있는 적에게 이동해 공격의 100% 물리 피해를 입히고, 5초 동안 내구력과 피해증폭이 10% 증가합니다.' },
   { id: 'rusted-shield-2', name: '강화 녹슨방패', tier: 2, icon: 'rusted-shield', desc: '체력이 처음으로 50% 이하가 되면 최대 체력 50%의 보호막을 얻고, 그 뒤 8초마다 최대 체력 10%의 보호막을 얻습니다.' },
   { id: 'griseous-orb-2', name: '강화 큰백금옥', tier: 2, icon: 'griseous-orb', desc: '기본 공격이나 스킬에 맞을 때마다 방어·특수방어가 5씩 오릅니다(최대 15번). 최대로 쌓이면 공격받은 뒤 1칸 안의 적에게 방어·특수방어 중 높은 쪽의 75%만큼 특수 피해를 입힙니다. (재사용 대기시간 2초)' },
   { id: 'life-orb-2', name: '강화 생명의구슬', tier: 2, icon: 'life-orb', desc: '적에게 받는 모든 피해가 7초에 걸쳐 나누어 들어옵니다. 체력이 처음으로 40% 이하가 되면 남은 피해를 모두 없애고, 10초 동안 잃은 체력의 50%만큼 보호막을 얻습니다.' },
   { id: 'red-orb-2', name: '강화 주홍구슬', tier: 2, icon: 'red-orb', desc: '피해를 6번 입힐 때마다 체력이 가장 낮은 적 2명에게 충격을 가해 250의 물리 피해를 입힙니다.' },
-  { id: 'blue-orb-2', name: '강화 쪽빛구슬', tier: 2, icon: 'blue-orb', desc: '기본 공격할 때 PP를 2 더 얻습니다. 스킬을 쓴 뒤 PP를 3 얻고 특수공격이 7%씩 증가합니다.' },
+  { id: 'blue-orb-2', name: '강화 쪽빛구슬', tier: 2, icon: 'blue-orb', desc: '기본 공격할 때 PP를 20 더 얻습니다. 스킬을 쓴 뒤 PP를 8 얻고 특수공격이 7%씩 증가합니다.' },
   { id: 'rusted-sword-3', name: '완벽한 녹슨검', tier: 3, icon: 'rusted-sword', desc: '모든 공격이 체력이 15% 이하인 적을 처형합니다. 적을 쓰러뜨리면 3칸 안에서 가장 멀리 있는 적에게 이동해 공격의 100% 물리 피해를 입히고, 5초 동안 내구력과 피해증폭이 15% 증가합니다. 처형할 때마다 3골드를 얻고 최대 체력의 40%를 회복합니다.' },
   { id: 'rusted-shield-3', name: '완벽한 녹슨방패', tier: 3, icon: 'rusted-shield', desc: '체력이 처음으로 50% 이하가 되면 최대 체력 70%의 보호막을 얻고, 그 뒤 8초마다 최대 체력 15%의 보호막을 얻습니다. 보호막을 얻을 때마다 가까운 적 3명에게 대지의 힘을 가해 최대 체력 15%만큼 특수 피해를 입힙니다.' },
   { id: 'griseous-orb-3', name: '완벽한 큰백금옥', tier: 3, icon: 'griseous-orb', desc: '기본 공격이나 스킬에 맞을 때마다 방어·특수방어가 10씩 오릅니다(최대 15번). 최대로 쌓이면 공격받은 뒤 1칸 안의 적에게 방어·특수방어 중 높은 쪽의 90%만큼 특수 피해를 입히고(재사용 대기시간 2초), 4칸 안의 적에게 높은 쪽의 50%만큼 고정 피해를 입힙니다(재사용 대기시간 3초).' },
   { id: 'life-orb-3', name: '완벽한 생명의구슬', tier: 3, icon: 'life-orb', desc: '적에게 받는 모든 피해가 10초에 걸쳐 나누어 들어옵니다. 체력이 처음으로 40% 이하가 되면 남은 피해를 모두 없애고, 15초 동안 잃은 체력의 50%만큼 보호막을 얻습니다. 잃은 체력의 비율만큼 모든 피해 흡혈을 얻습니다(최대 100%).' },
   { id: 'red-orb-3', name: '완벽한 주홍구슬', tier: 3, icon: 'red-orb', desc: '피해를 6번 입힐 때마다 체력이 가장 낮은 적 2명에게 충격을 가해 300의 물리 피해를 입힙니다. 충격을 가할 때마다 공격 속도가 20% 증가합니다.' },
-  { id: 'blue-orb-3', name: '완벽한 쪽빛구슬', tier: 3, icon: 'blue-orb', desc: '기본 공격할 때 PP를 3 더 얻습니다. 스킬을 쓴 뒤 PP를 5 얻고 특수공격이 10%씩 증가합니다. 스킬을 쓸 때마다 이번 전투의 최대 PP가 2 줄어듭니다(최소 8).' }
+  { id: 'blue-orb-3', name: '완벽한 쪽빛구슬', tier: 3, icon: 'blue-orb', desc: '기본 공격할 때 PP를 30 더 얻습니다. 스킬을 쓴 뒤 PP를 13 얻고 특수공격이 10%씩 증가합니다. 스킬을 쓸 때마다 이번 전투의 최대 PP가 5 줄어듭니다(최소 20).' }
 ];
 
 const ITEMS = (function () {

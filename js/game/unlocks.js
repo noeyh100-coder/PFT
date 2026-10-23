@@ -71,7 +71,7 @@ const Unlocks = {
       const id = inst.unitId;
       if ((id === '미뇽' || id === '신뇽') && inst.star >= 2 && won) inst.wins += 1;
       if (id === '잉어킹' && inst.star === 3) inst.battles = (inst.battles || 0) + 1;
-      if (id === '고오스' && inst.star >= 2) inst.takedowns += cu.takedowns;
+      if (id === '고오스') inst.takedowns += cu.takedowns;
       if (id === '미뇽' && inst.star >= 2 && inst.wins >= cfg.dratiniWins) {
         this.queue(p, { iid: inst.iid, to: '신뇽', star: Math.max(1, inst.star - 1) });
       }
@@ -174,7 +174,7 @@ const Unlocks = {
     if (id === '미뇽') return inst.star >= 2 ? '신뇽 진화: 승리 ' + inst.wins + '/' + cfg.dratiniWins : '2성이 되면 승리 횟수를 셉니다 (신뇽)';
     if (id === '신뇽') return inst.star >= 2 ? '망나뇽 진화: 승리 ' + inst.wins + '/' + cfg.dragonairWins : '2성이 되면 승리 횟수를 셉니다 (망나뇽)';
     if (id === '잉어킹') return inst.star === 3 ? '갸라도스 진화: 전투 참여 ' + (inst.battles || 0) + '/' + cfg.magikarpBattles : '3성이 되면 전투 참여 횟수를 셉니다 (갸라도스)';
-    if (id === '고오스') return inst.star >= 2 ? '팬텀 진화: 처치 관여 ' + inst.takedowns + '/' + cfg.gastlyTakedowns : '고우스트가 되면 처치 관여를 셉니다 (팬텀)';
+    if (id === '고오스') return '팬텀 진화: 처치 관여 ' + Math.min(inst.takedowns, cfg.gastlyTakedowns) + '/' + cfg.gastlyTakedowns + (inst.star >= 2 ? '' : ' (고우스트가 되어야 진화)');
     if (id === '망키') return inst.star >= 2 ? '저승갓숭 진화: PvP 전투에서 쓰러지면 진화' : '성원숭이 되면 조건이 열립니다 (저승갓숭)';
     if (id === '캐이시') return '후딘 진화: 윤겔라가 재운 시간 ' + Math.floor(p.counters.hypnosis) + '/' + cfg.hypnosisSeconds + '초 + 윤겔라 전투 참여';
     if (id === '핑복') return '치유 스택 ' + Math.floor(p.counters.heal) + (p.counters.heal >= cfg.healStack ? ' · 럭키가 전투에 참여하면 해피너스 진화' : '/' + cfg.healStack + ' (해피너스)');

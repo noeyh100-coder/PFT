@@ -9,6 +9,18 @@ const REGION_FAMILIES = new Set();
     for (const u of REGIONAL_DATA) if (!UNIT_DATA.includes(u)) UNIT_DATA.push(u);
   }
   for (const u of UNIT_DATA) if (u.region) REGION_FAMILIES.add(u.family);
+  if (typeof PP_UNIT !== 'undefined') {
+    for (const u of UNIT_DATA) {
+      const base = u.region ? u.id.split(' ').slice(1).join(' ') : u.id;
+      const pp = PP_UNIT[u.id] != null ? PP_UNIT[u.id] : PP_UNIT[base] != null ? PP_UNIT[base] : PP_UNIT[u.family];
+      const all = (u.stageForms || u.forms).concat(u.branches ? u.branches.map(b => b.form) : []);
+      for (const f of all) {
+        const own = PP_FORM[f.name + '·' + f.skill] != null ? PP_FORM[f.name + '·' + f.skill] : PP_FORM[f.name];
+        if (own != null) f.pp = own;
+        else if (pp != null) f.pp = pp;
+      }
+    }
+  }
   for (const u of UNIT_DATA) {
     UNITS[u.id] = u;
     if (!FAMILIES[u.family]) FAMILIES[u.family] = [];
@@ -117,9 +129,11 @@ const PP_ADJUST = { '거북왕': 3, '폴리곤Z': 3, '거대코뿌리': 3, '해�
 function ppFor(form, cost, role) {
   const kind = (role || '').split(' ')[1] || '전사';
   const base = PP_ROLE[kind] || PP_ROLE.전사;
-  const max = Math.round(base[0] + (Math.max(1, Math.min(5, cost)) - 1) * base[1] + (PP_ADJUST[form.name] || 0));
+  const fixed = typeof PP_FORM !== 'undefined' ? (PP_FORM[form.name + '·' + form.skill] != null ? PP_FORM[form.name + '·' + form.skill] : form.pp) : null;
+  const old = Math.round(base[0] + (Math.max(1, Math.min(5, cost)) - 1) * base[1] + (PP_ADJUST[form.name] || 0));
+  const max = fixed != null ? fixed : Math.max(30, Math.round((old * 2.5) / 10) * 10);
   const start = kind === '탱커' && cost >= 3 ? Math.round(max * 0.15) : 0;
-  return { max: Math.max(8, max), start };
+  return { max: Math.max(1, max), start };
 }
 
 function computeStats(form, cost, star, bonus, opts) {
@@ -200,9 +214,9 @@ const ADAPT = {
     cmp: 'dmgtank',
     tie: 'eq',
     modes: {
-      dmg: { skill: '로킥', role: '물리 마법사', range: 4, special: false, skillType: '격투' },
-      tank: { skill: '판별', role: '물리 탱커', range: 1, special: false, skillType: '격투' },
-      eq: { skill: '마하펀치', role: '물리 전사', range: 1, special: false, skillType: '격투' }
+      dmg: { skill: '로킥', role: '물리 전사', range: 1, special: false, skillType: '격투' },
+      tank: { skill: '카운터', role: '물리 탱커', range: 1, special: false, skillType: '격투' },
+      eq: { skill: '인파이트', role: '물리 전사', range: 1, special: false, skillType: '격투' }
     },
     evo: { dmg: '시라소몬', tank: '홍수몬', eq: '카포에라' }
   },
@@ -211,7 +225,7 @@ const ADAPT = {
     tie: 'dmg',
     modes: {
       tank: { skill: '벌레먹기', role: '물리 탱커', range: 1, special: false, skillType: '벌레' },
-      dmg: { skill: '시저크로스', role: '물리 전사', range: 1, special: false, skillType: '벌레' }
+      dmg: { skill: '엄습하는일격', role: '물리 전사', range: 1, special: false, skillType: '악' }
     },
     evo: { tank: '핫삼', dmg: '사마자르' }
   }

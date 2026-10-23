@@ -300,9 +300,10 @@ const AUG_GAME = {
     else if (id === 'fossil') this.augGive(p, '암나이트', 2);
     else if (id === 'patience2' || id === 'patience1') {
       const ids = [];
-      for (let i = 0; i < (id === 'patience2' ? 2 : 1); i++) {
-        const inst = this.augUnit(p, id === 'patience2' ? 2 : 1, 1);
-        if (inst) ids.push(inst.unitId);
+      const inst = this.augUnit(p, id === 'patience2' ? 2 : 1, 1);
+      if (inst) {
+        ids.push(inst.unitId);
+        if (id === 'patience2') this.augCopy(p, inst.unitId);
       }
       S.waitIds = (S.waitIds || []).concat(ids);
     } else if (id === 'boomlearn1' || id === 'boomlearn2') {
@@ -430,6 +431,7 @@ const AUG_GAME = {
     for (let i = CONFIG.benchSize - 1; i >= 0 && n < 3; i--) {
       const inst = p.unitAt({ zone: 'bench', i });
       if (!inst) continue;
+      if (p.freshIids && p.freshIids.includes(inst.iid)) continue;
       n++;
       const def = UNITS[inst.unitId];
       if (!def || !def.shop) continue;
@@ -509,8 +511,19 @@ const AUG_GAME = {
       this.notify(p, '오박사의 도움: ' + formOf(UNITS[S.oakId], 1, p).name + '을(를) 다시 받았습니다', 'loot');
     }
     for (const id of S.waitIds || []) this.augCopy(p, id);
-    if (this.hasAnyAug(p, AUG_PANDORA)) p.items = p.items.map(x => (isConsumable(x) ? x : this.reforgeId(x)));
+    if (this.hasAnyAug(p, AUG_PANDORA)) {
+      const skip = Object.assign({}, p.freshItems || {});
+      p.items = p.items.map(x => {
+        if (skip[x] > 0) {
+          skip[x] -= 1;
+          return x;
+        }
+        return isConsumable(x) ? x : this.reforgeId(x);
+      });
+    }
     if (has('pandorabench')) this.pandoraBench(p);
+    p.freshItems = null;
+    p.freshIids = null;
     if (S.rosaId) {
       const id = S.rosaId;
       S.rosaId = null;

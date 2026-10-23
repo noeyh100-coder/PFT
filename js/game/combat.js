@@ -390,8 +390,10 @@ class CombatSim {
     if (sk === '잠자기') u.sleep = { gained: 0, awake: false, P: P0 };
     if (sk === '불대문자') u.fireBasic = true;
     if (sk === '절대영도') u.icicle = true;
+    this.initPassive(u, sk, P0);
     this.applyItems(u, spec);
     u.mana = Math.min(u.maxMana, (st.startMana || 0) + u.itemPP);
+    if (u.experiment) u.mana = 0;
     this.units.push(u);
     this.byUid[uid] = u;
     this.grid[r][c] = uid;
@@ -413,7 +415,7 @@ class CombatSim {
           if (e.rank) for (const k in e.rank) u.rk[k] += e.rank[k];
           if (e.healMod) u.healMod += e.healMod;
           if (e.vamp) u.vamp += e.vamp;
-          if (e.pp) u.ppBonus += e.pp;
+          if (e.pp) u.ppBonus += e.pp * PP_RULE.event;
           if (e.allPct) for (const k in u.pct) u.pct[k] += e.allPct;
           if (e.hpPct) u.pct.hp += e.hpPct;
           if (e.shieldMod) u.shieldMod += e.shieldMod;
@@ -460,7 +462,7 @@ class CombatSim {
         if (ty('비행') && t('비행') >= 2) {
           u.rk.acc += 1;
           u.rk.eva += 1;
-          u.dodgePP = 2;
+          u.dodgePP = 2 * PP_RULE.event;
         }
         if (ty('벌레')) {
           const bt = t('벌레');
@@ -497,7 +499,7 @@ class CombatSim {
         if (ty('독') && t('독')) u.poisoner = t('독');
         if (ty('격투') && t('격투')) u.bulkGain = v('격투', 'mult');
         if (ty('물') && t('물')) {
-          u.waterPP = 1;
+          u.waterPP = PP_RULE.event;
           u.waterHeal = v('물', 'heal');
           u.waterSkillAmp = v('물', 'skillAmp');
           u.waterRefund = v('물', 'refund');
@@ -532,7 +534,7 @@ class CombatSim {
           else u.flatHp += v('난동꾼', 'flat');
         }
         if (t('선도자')) {
-          u.ppBonus += v('선도자', 'pp');
+          u.ppBonus += v('선도자', 'pp') * PP_RULE.event;
           u.ppRefund += v('선도자', 'refund');
         }
         if (cl('최면술사')) u.hypno = v('최면술사', 'duration');
@@ -619,6 +621,7 @@ class CombatSim {
     u.stats = Object.assign({}, u.stats, { role: n.role, special: n.special, range: u.range, as: n.as, maxMana: u.maxMana, startMana: n.startMana, basic: n.basic });
     const P0 = skillParamsOf(nf);
     u.basicHeal = (nf.skill === '깨뜨리다' || nf.skill === '폭발펀치') && P0.heal ? P0.heal : 0;
+    this.initPassive(u, nf.skill, P0);
   }
 
   findFreeCell(side) {
@@ -724,6 +727,7 @@ class CombatSim {
     if ((k === 'def' || k === 'spd') && u.poisonUntil > this.time && this.tier(this.enemyOf(u.side), '독') >= 2) n -= 1;
     if (k === 'spe' && u.chalMax && u.chal >= u.chalMax) n += u.chalRank;
     if (u.kingN && (k === 'def' || k === 'spd')) n += u.kingN;
+    if (u.decoy && (k === 'def' || k === 'spd')) n += this.targetersOf(u);
     return n;
   }
 
@@ -808,11 +812,21 @@ class CombatSim {
     };
   }
 
+  checkStalemate() {
+    const A = this.units.filter(u => u.alive && u.side === 'A');
+    const B = this.units.filter(u => u.alive && u.side === 'B');
+    if (!A.length || !B.length) return;
+    for (const a of A) for (const b of B) if (this.effMult(a, b) > 0 || this.effMult(b, a) > 0) return;
+    this.immuneOff = true;
+    this.emit({ type: 'stalemate' });
+  }
+
   gainPP(u, n) {
     if (!u.alive || n <= 0 || u.experiment || u.egg || u.casting || u.channel) return;
+    if (u.manaLockUntil > this.time) return;
     let g = n + u.ppBonus;
     if (u.ppFreezeUntil > this.time) g *= 0.5;
-    u.mana = Math.min(u.maxMana, u.mana + g);
+    u.mana = Math.min(u.maxMana * 2, u.mana + g);
   }
 
   fireReduction(u) {
@@ -1019,6 +1033,7 @@ class CombatSim {
       if (this.rng.next() >= chance) {
         this.emit({ type: 'miss', target: t.uid });
         u.lastMissed = true;
+        u.missFlag = true;
         if (!skill && t.dodgePP) this.gainPP(t, t.dodgePP);
         if (t.bugFrenzy) this.bugFrenzy(t);
         return 0;
@@ -1026,7 +1041,7 @@ class CombatSim {
     }
     this.lastHit = true;
     u.lastMissed = false;
-    const crit = this.rng.next() < (u.alwaysCrit && !skill ? 1 : this.critChance(u));
+    const crit = this.rng.next() < (u.alwaysCrit && !skill ? 1 : this.critChance(u) + (this.side[u.side].sunny && t.stormUntil > this.time ? 0.2 : 0));
     let raw = this.offense(u) * (skill ? cfg.skillMult * (1 + u.skillAmp) * (u.pwStar || 1) : 1) * (mult || 1);
     if (crit) raw *= cfg.critMult + (u.critDmg || 0);
     if (diff > 0) raw *= 1 + cfg.hitBonus;
@@ -1041,6 +1056,7 @@ class CombatSim {
       if (t.alive) this.addChill(t, 1, u.side);
     } else dmg = this.dealDamage(u, t, raw, o);
     if (!skill && !shadow && u.alive) this.itemOnBasic(u, t, raw, dmg, crit);
+    if (!skill && !shadow && u.alive) this.basicPassive(u, t, raw, o, dmg);
     if (!skill && dmg > 0) this.augOnBasic(u, t, dmg);
     if (!skill && u.basicHeal && dmg > 0 && u.alive) this.heal(u, u.maxHp * u.basicHeal, u);
     if (!skill && u.thunder && !shadow) this.zapStrike(u, t, raw);
@@ -1104,7 +1120,7 @@ class CombatSim {
       return;
     }
     const used = u.maxMana;
-    u.mana = 0;
+    u.mana = Math.min(u.maxMana - 1, Math.max(0, u.mana - u.maxMana));
     u.skillCount += 1;
     if (u.shadowCaster) this.summonShadows(u);
     this.skillBoost = boost;
@@ -1126,11 +1142,12 @@ class CombatSim {
     this.skillBoost = 1;
     this.shadowIndex = 0;
     u.casting = false;
+    u.manaLockUntil = this.time + PP_RULE.lock;
     this.gimmickAfterCast(u);
     if (this.side[this.enemyOf(u.side)].frost) u.ppFreezeUntil = this.time + 3;
     const refund = u.ppRefund + u.waterRefund;
-    if (refund > 0 && u.alive) u.mana = Math.min(u.maxMana, used * refund);
-    if (u.it['max-ether'] && u.alive) u.mana = Math.min(u.maxMana, u.mana + 12 * u.it['max-ether']);
+    if (refund > 0 && u.alive) u.mana = Math.min(u.maxMana, u.mana + used * refund);
+    if (u.it['max-ether'] && u.alive) u.mana = Math.min(u.maxMana, u.mana + 10 * u.it['max-ether']);
     if (u.items.length && u.alive) this.itemAfterCast(u);
     if (u.fairyHeal) {
       const a = this.lowestRatioAlly(u.side);
@@ -1241,13 +1258,15 @@ class CombatSim {
     const vamp = src ? src.vamp + this.orbVamp(src) + this.augVamp(src, t) : 0;
     if (src && src.alive && vamp > 0 && total > 0 && src.side !== t.side) this.heal(src, total * vamp, src);
     if (src && src.side !== t.side && src.it && (o.kind === 'basic' || o.kind === 'skill')) this.redOrbCount(src);
-    if (isHit) this.gainPP(t, CONFIG.combat.ppPerHit);
+    if (isHit && src && src.side !== t.side) this.gainPP(t, Math.min(PP_RULE.hitCap, raw * PP_RULE.hitRaw + dmg * PP_RULE.hitReal));
     if (isHit && src && src.side !== t.side) this.itemAfterHit(src, t, o, total);
     if (isHit && src && src.side !== t.side) {
       if (src.chillOn) this.addChill(t, 1, src.side);
       if (src.poisoner && (o.kind === 'skill' || src.poisoner >= 3)) this.addPoison(t, src, traitVal('독', 'duration', src.poisoner), false);
     }
     if (o.kind === 'basic' && src && t.reflect && src.alive) this.dealDamage(t, src, total * t.reflect, { trueDmg: true, kind: 'reflect' });
+    if (t.fsMark && t.fsMark.until > this.time && (!src || src.side !== t.side)) t.fsMark.acc += total * t.fsMark.amp;
+    if (isHit && t.charge != null && src && src.side !== t.side) t.charge += 1;
     if (t.hp <= 0) {
       t.killedBy = src && src.side !== t.side ? src : null;
       this.kill(t, o.kind);
@@ -1314,7 +1333,7 @@ class CombatSim {
     if (t.suggest && ((t.suggest === 'phys' && !special) || (t.suggest === 'spec' && special))) {
       let up = 0;
       for (const k of ['atk', 'spa', 'def', 'spd', 'spe', 'acc', 'eva', 'crit']) up += Math.max(0, this.rank(t, k));
-      red += 0.05 * up;
+      red += 0.1 * up;
     }
     return Math.min(0.8, red);
   }
@@ -1338,6 +1357,7 @@ class CombatSim {
       if (k) k.takedowns += 1;
     }
     this.emit({ type: 'death', uid: t.uid, execute: kind === 'execute' });
+    this.deathPassive(t);
     const foe = this.enemyOf(t.side);
     if (t.frozenUntil > this.time && t.frozenBy === foe && traitVal('얼음', 'explode', this.tier(foe, '얼음')) > 0) this.iceExplode(t, foe, 0);
     if (this.tier(foe, '독') >= 4 && t.poisonUntil > this.time) this.addSpikes(foe, t.deathR, t.deathC);
@@ -1459,7 +1479,10 @@ class CombatSim {
 
   addBurn(t, src, dur) {
     if (!t.alive || t.egg) return;
-    if (t.burnUntil <= this.time) t.burnAcc = 0;
+    if (t.burnUntil <= this.time) {
+      t.burnAcc = 0;
+      t.burnStacks = 0;
+    }
     t.burnUntil = Math.max(t.burnUntil, this.time + (dur || 3));
     if (src) t.burnSrc = src.uid;
     this.emit({ type: 'status', target: t.uid, kind: 'burn' });
@@ -1709,7 +1732,7 @@ class CombatSim {
         st.seaAcc -= 2;
         for (const a of this.aliveOf(side)) {
           if (a.gyaraFx || !st.sea.has(a.r * 10 + a.c)) continue;
-          this.gainPP(a, 1);
+          this.gainPP(a, PP_RULE.event);
           this.heal(a, (a.maxHp - a.hp) * 0.05, null);
         }
       }
@@ -1856,6 +1879,9 @@ class CombatSim {
     for (const u of this.units) {
       if (u.reviving && this.time >= u.reviveAt) this.revive(u);
       if (!u.alive) continue;
+      if (u.channel) u.manaLockUntil = Math.max(u.manaLockUntil || 0, this.time + PP_RULE.lock);
+      if (u.charge != null) u.charge += 3 * dt;
+      if (u.danceRegen && u.hp < u.maxHp) this.heal(u, u.maxHp * u.danceRegen * dt, u);
       if (u.untargetUntil && this.time >= u.untargetUntil) {
         u.untargetUntil = 0;
         if ((!u.channel || !u.channel.hidden) && !(u.bulkUntil > this.time)) {
@@ -1921,7 +1947,7 @@ class CombatSim {
           while (u.burnAcc >= 0.5 && u.alive) {
             u.burnAcc -= 0.5;
             const src = u.burnSrc ? this.byUid[u.burnSrc] : null;
-            this.dealDamage(src && src.side !== u.side ? src : null, u, u.hp * 0.01, { trueDmg: true, kind: 'burn' });
+            this.dealDamage(src && src.side !== u.side ? src : null, u, u.hp * 0.01 * Math.max(1, u.burnStacks || 1), { trueDmg: true, kind: 'burn' });
           }
         }
       }
@@ -1934,6 +1960,11 @@ class CombatSim {
   step(dt) {
     if (this.over) return;
     this.time += dt;
+    this.stalemateAcc = (this.stalemateAcc || 0) + dt;
+    if (!this.immuneOff && this.stalemateAcc >= 0.5) {
+      this.stalemateAcc = 0;
+      this.checkStalemate();
+    }
     this.esperTick();
     this.augTick(dt);
     this.tickSide('A', dt);
@@ -2022,6 +2053,7 @@ class CombatSim {
           u.atkTimer = 1 / this.attackSpeed(u);
         }
       } else {
+        if (u.rootUntil > this.time) continue;
         let s = this.pathStep(u, t);
         if (!s) {
           const alt = this.reachableFoe(u, t);

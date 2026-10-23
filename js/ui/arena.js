@@ -578,7 +578,7 @@ class Arena {
     el.appendChild(status);
     const sfx = document.createElement('div');
     sfx.className = 'st-fx';
-    sfx.innerHTML = '<i class="sf-poison"><b></b><b></b><b></b></i><i class="sf-para"><b></b><b></b></i><i class="sf-burn"><b></b><b></b></i><i class="sf-ice"><b></b><b></b><b></b><b></b></i>';
+    sfx.innerHTML = '<i class="sf-poison"><b></b><b></b><b></b></i><i class="sf-para"><b></b><b></b></i><i class="sf-burn"><b></b><b></b></i><i class="sf-ice"><b></b><b></b><b></b><b></b></i><i class="sf-trap"><b></b><b></b><b></b><b></b></i><i class="sf-mark"><b></b></i>';
     el.appendChild(sfx);
     const f = this.combatFlat(u.r, u.c);
     el.style.transitionDuration = '0s';
@@ -637,7 +637,7 @@ class Arena {
       e.hpFill.style.width = Math.max(0, (u.hp / total) * 100) + '%';
       e.shFill.style.left = Math.max(0, (u.hp / total) * 100) + '%';
       e.shFill.style.width = Math.max(0, (u.shield / total) * 100) + '%';
-      e.manaFill.style.width = Math.max(0, (u.mana / u.maxMana) * 100) + '%';
+      e.manaFill.style.width = Math.max(0, Math.min(100, (u.mana / u.maxMana) * 100)) + '%';
       if (e.itemKey !== (u.items || []).join(',')) this.syncItemRow(e, u);
       if (e.itemEls) {
         for (const it of e.itemEls) {
@@ -658,8 +658,10 @@ class Arena {
       if (u.burnUntil > now) flags += ' burned';
       if (u.chill > 0 && u.chillUntil > now) flags += ' chilled';
       if (u.endureUntil > now) flags += ' enduring';
+      if (u.vortexUntil > now) flags += ' trapped';
+      if (u.fsMark && !u.fsMark.done && u.fsMark.until > now) flags += ' marked';
       if (flags !== e.flags) {
-        for (const c of ['sleeping', 'egg', 'frozen', 'stunned', 'paralyzed', 'confused', 'toxic', 'poisoned', 'burned', 'chilled', 'enduring']) e.el.classList.toggle(c, flags.includes(' ' + c));
+        for (const c of ['sleeping', 'egg', 'frozen', 'stunned', 'paralyzed', 'confused', 'toxic', 'poisoned', 'burned', 'chilled', 'enduring', 'trapped', 'marked']) e.el.classList.toggle(c, flags.includes(' ' + c));
         e.flags = flags;
       }
     }
@@ -792,7 +794,7 @@ class Arena {
       } else if (ev.type === 'rocks') {
         for (const [r, c] of ev.cells) this.cellFx(r, c, 'fx-rock', 0.5, 0);
       } else if (ev.type === 'status') {
-        const label = { toxic: '맹독', burn: '화상', para: '마비', confuse: '혼란' }[ev.kind];
+        const label = { toxic: '맹독', burn: '화상', para: '마비', confuse: '혼란', yawn: '하품 ' + (ev.value || '') }[ev.kind];
         if (label) this.floatText(ev.target, label, 'st-' + ev.kind);
       } else if (ev.type === 'fail') {
         this.floatText(ev.target, ev.kind === 'para' ? '몸이 저림' : '혼란', 'st-' + ev.kind);
@@ -890,7 +892,7 @@ class Arena {
           if (label && (ev.kind !== 'chaos' || uid === (ev.uids || [])[0])) this.floatText(uid, label, ev.kind === 'loot' ? 'gold' : 'buff');
         }
       } else if (ev.type === 'buff') {
-        const label = { endure: '버티기', warrior: '학살자의 각오', bug: '회복', harden: '단단해지기', break: '보호막 파괴', thunder: '흡수', frenzy: '야단법석', cleanse: '정화', sash: '기합의띠', cloak: '은밀망토', policy: '약점보험', boost: '부스트 완료', tshield: '녹슨방패', lifeorb: '생명의구슬', room: '매직룸', steal: '도구 강탈', mirror: '미러코트', wish: '치유소원', bulk: '벌크업', bulkon: '벌크업 완료', future: '미래예지' }[ev.kind];
+        const label = { endure: '버티기', warrior: '학살자의 각오', bug: '회복', harden: '단단해지기', break: '보호막 파괴', thunder: '흡수', frenzy: '야단법석', cleanse: '정화', sash: '기합의띠', cloak: '은밀망토', policy: '약점보험', boost: '부스트 완료', tshield: '녹슨방패', lifeorb: '생명의구슬', room: '매직룸', steal: '도구 강탈', mirror: '미러코트', wish: '치유소원', bulk: '벌크업', bulkon: '벌크업 완료', future: '미래예지', curl: '웅크리기', aquastep: '물 중첩 ' + (ev.value || ''), aquaring: '아쿠아링', wing: '더블윙', xcross: 'X자 집게', sun: '광합성', again: '한 번 더!' }[ev.kind];
         if (label) this.floatText(ev.target, label, 'buff');
       } else if (ev.type === 'death') {
         const e = this.cunits[ev.uid];
@@ -992,6 +994,9 @@ class Arena {
           this.fx.appendChild(el);
           setTimeout(() => el.remove(), (ev.dur * 1000) / speed);
         }
+      } else if (ev.type === 'smog') {
+        const el = this.cellFx(ev.r, ev.c, 'fx-smog', ev.radius * 2 + 1.3, (ev.dur * 1000) / speed);
+        el.style.animationDuration = (ev.dur / speed) + 's';
       } else if (ev.type === 'vortexpop') {
         this.unitFx(ev.target, 'fx-vortex-pop', 600);
         this.flash(this.root, 'shake', 300);
@@ -1391,7 +1396,12 @@ const SIG_FX = {
   '번개': { tpl: 'pillar', c: ['#fff27a', '#ffffff'], snd: 'thunder' },
   '불대문자': { tpl: 'burst', c: ['#ff6a2a', '#ffe070'], snd: 'fireblast' },
   '분노의불꽃': { tpl: 'burst', c: ['#ff7a2a', '#ffd070'], snd: 'ragefire' },
-  '바위떨구기': { tpl: 'rocks', c: ['#c8b080', '#7a6040'], snd: 'rockfall' }
+  '바위떨구기': { tpl: 'rocks', c: ['#c8b080', '#7a6040'], snd: 'rockfall' },
+  '열풍': { tpl: 'burst', c: ['#ff5a1a', '#ffd070'], snd: 'heatwave' },
+  '헤비봄버': { tpl: 'rocks', c: ['#c0c8d0', '#5a6470'], snd: 'heavyslam' },
+  '엄습하는일격': { tpl: 'slash', c: ['#5a3a7a', '#d8c0f0'], snd: 'ambush' },
+  '벌레먹기': { tpl: 'bite', c: ['#a8d040', '#f0ffb0'], snd: 'bugbite' },
+  '고스트다이브': { tpl: 'orb', c: ['#3a1050', '#a878e0'], snd: 'ghostdive' }
 };
 
 const SKILL_FX_APP = {

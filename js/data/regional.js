@@ -331,8 +331,8 @@ const REGIONAL_DATA = [
     "range": 1,
     "special": true,
     "role": "특수 탱커",
-    "skill": "흉내내기",
-    "skillType": "노말",
+    "skill": "리플렉터",
+    "skillType": "에스퍼",
     "stats": {
      "hp": 20,
      "atk": 25,
@@ -391,7 +391,7 @@ const REGIONAL_DATA = [
   "family": "포니타",
   "variant": "가라르",
   "region": "가라르",
-  "cost": 2,
+  "cost": 1,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -407,7 +407,7 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
-    "role": "특수 탱커",
+    "role": "특수 전사",
     "skill": "매지컬샤인",
     "skillType": "페어리",
     "stats": {
@@ -428,7 +428,7 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
-    "role": "특수 탱커",
+    "role": "특수 전사",
     "skill": "매지컬샤인",
     "skillType": "페어리",
     "stats": {
@@ -449,7 +449,7 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
-    "role": "특수 탱커",
+    "role": "특수 전사",
     "skill": "매지컬샤인",
     "skillType": "페어리",
     "stats": {
@@ -713,7 +713,7 @@ const REGIONAL_DATA = [
     "range": 4,
     "special": true,
     "role": "특수 마법사",
-    "skill": "10만볼트",
+    "skill": "100만볼트",
     "skillType": "전기",
     "stats": {
      "hp": 20,
@@ -733,7 +733,7 @@ const REGIONAL_DATA = [
     "range": 4,
     "special": true,
     "role": "특수 마법사",
-    "skill": "10만볼트",
+    "skill": "100만볼트",
     "skillType": "전기",
     "stats": {
      "hp": 35,
@@ -942,7 +942,7 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
-    "role": "특수 전사",
+    "role": "특수 탱커",
     "skill": "클로로블라스트",
     "skillType": "풀",
     "stats": {
@@ -963,7 +963,7 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
-    "role": "특수 전사",
+    "role": "특수 탱커",
     "skill": "클로로블라스트",
     "skillType": "풀",
     "stats": {
@@ -984,7 +984,7 @@ const REGIONAL_DATA = [
     ],
     "range": 1,
     "special": true,
-    "role": "특수 전사",
+    "role": "특수 탱커",
     "skill": "클로로블라스트",
     "skillType": "풀",
     "stats": {
@@ -1080,7 +1080,7 @@ const REGIONAL_DATA = [
   "family": "가디",
   "variant": "히스이",
   "region": "히스이",
-  "cost": 5,
+  "cost": 4,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -1158,7 +1158,7 @@ const REGIONAL_DATA = [
   "family": "식스테일",
   "variant": "알로라",
   "region": "알로라",
-  "cost": 4,
+  "cost": 5,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -1327,9 +1327,9 @@ const REGIONAL_DATA = [
      "독",
      "악"
     ],
-    "range": 4,
-    "special": false,
-    "role": "물리 마법사",
+    "range": 1,
+    "special": true,
+    "role": "특수 탱커",
     "skill": "탁쳐서떨구기",
     "skillType": "악",
     "stats": {
@@ -1348,9 +1348,9 @@ const REGIONAL_DATA = [
      "독",
      "악"
     ],
-    "range": 4,
-    "special": false,
-    "role": "물리 마법사",
+    "range": 1,
+    "special": true,
+    "role": "특수 탱커",
     "skill": "탁쳐서떨구기",
     "skillType": "악",
     "stats": {
@@ -1369,9 +1369,9 @@ const REGIONAL_DATA = [
      "독",
      "악"
     ],
-    "range": 4,
-    "special": false,
-    "role": "물리 마법사",
+    "range": 1,
+    "special": true,
+    "role": "특수 탱커",
     "skill": "탁쳐서떨구기",
     "skillType": "악",
     "stats": {

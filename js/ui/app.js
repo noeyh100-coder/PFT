@@ -713,6 +713,15 @@ class App {
     off.appendChild(cb2);
     off.appendChild(document.createTextNode(' 배경음악 끄기'));
     pop.appendChild(off);
+    pop.appendChild(View.el('b', null, '화면'));
+    const nm = View.el('label', 'snd-mute');
+    const cb3 = document.createElement('input');
+    cb3.type = 'checkbox';
+    cb3.checked = NameLabels.on;
+    cb3.addEventListener('change', () => NameLabels.set(cb3.checked));
+    nm.appendChild(cb3);
+    nm.appendChild(document.createTextNode(' 기물 이름 표시'));
+    pop.appendChild(nm);
     pop.classList.add('show');
   }
 
@@ -1853,6 +1862,10 @@ class App {
 
   onTokenPointerDown(e, src, srcEl) {
     if (e.button !== 0) return;
+    if (srcEl && srcEl.classList.contains('evo-hide')) {
+      srcEl.classList.remove('evo-hide');
+      srcEl._evoGrab = true;
+    }
     e.preventDefault();
     e.stopPropagation();
     const sx = e.clientX;

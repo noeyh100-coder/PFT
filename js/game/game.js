@@ -1709,8 +1709,13 @@ class Game {
       const idx = car.picked[p.id];
       if (idx === undefined || !p.alive) continue;
       const it = car.items[idx];
+      const before = new Set(p.allUnits().map(u => u.iid));
       this.deliverUnit(p, it.unitId);
-      if (it.item) p.items.push(it.item);
+      p.freshIids = p.allUnits().filter(u => !before.has(u.iid)).map(u => u.iid);
+      if (it.item) {
+        p.items.push(it.item);
+        p.freshItems = { [it.item]: 1 };
+      }
       if (!car.encounter && p.augState.efficientLeft > 0) {
         p.augState.efficientLeft -= 1;
         this.deliverUnit(p, it.unitId);

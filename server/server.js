@@ -7,7 +7,7 @@ const { WebSocketServer } = require('ws');
 const PORT = Number(process.env.PORT) || 8080;
 const TICK_MS = Math.max(2, Number(process.env.TICK_MS) || 50);
 const ROOT = path.resolve(__dirname, '..');
-const PUBLIC = new Set(['index.html', 'css', 'js', 'img', 'fonts']);
+const PUBLIC = new Set(['index.html', 'css', 'js', 'img', 'fonts', 'sound']);
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -17,7 +17,10 @@ const TYPES = {
   '.woff2': 'font/woff2',
   '.ttf': 'font/ttf',
   '.svg': 'image/svg+xml',
-  '.md': 'text/plain; charset=utf-8'
+  '.md': 'text/plain; charset=utf-8',
+  '.ogg': 'audio/ogg',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav'
 };
 const MAX_GAME_MS = 100 * 60 * 1000;
 const EMPTY_ROOM_MS = 3 * 60 * 1000;
@@ -49,6 +52,11 @@ const server = http.createServer((req, res) => {
     res.end('not found');
     return;
   }
+  if (rel.split(path.sep)[0] === 'sound' && !/\.(ogg|mp3|wav)$/i.test(file)) {
+    res.writeHead(404);
+    res.end('not found');
+    return;
+  }
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) {
       res.writeHead(404);
@@ -57,7 +65,7 @@ const server = http.createServer((req, res) => {
     }
     const ext = path.extname(file).toLowerCase();
     const headers = { 'Content-Type': TYPES[ext] || 'application/octet-stream', 'Content-Length': st.size };
-    if (ext === '.png' || ext === '.woff2' || ext === '.ttf') headers['Cache-Control'] = 'public, max-age=86400';
+    if (ext === '.png' || ext === '.woff2' || ext === '.ttf' || ext === '.ogg' || ext === '.mp3') headers['Cache-Control'] = 'public, max-age=86400';
     else headers['Cache-Control'] = 'no-cache';
     res.writeHead(200, headers);
     fs.createReadStream(file).pipe(res);

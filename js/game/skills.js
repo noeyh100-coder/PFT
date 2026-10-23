@@ -190,8 +190,8 @@ const SKILL_P = {
   '핫삼': { m: 0.8 },
   '사마자르': { m: 2.0, rock: 0.5 },
   '프테라': { m: 2.2 },
-  '먹고자': { stock: 0.02, cap: 1, wake: 0.3, heal: 0.4, giga: 1.75, press: 1.05, air: 1.5, again: 0.6, air2: 1, as: 2.0, pp: 15 },
-  '잠만보': { stock: 0.03, cap: 1, wake: 0.3, heal: 0.4, giga: 2.5, press: 1.5, air: 1.5, again: 0.6, air2: 1, as: 2.0, pp: 15 },
+  '먹고자': { stock: 0.02, cap: 1, wake: 0.3, heal: 0.4, giga: 1.75, press: 1.05, air: 1.5, again: 0.6, air2: 1, as: 2.0, pp: 30 },
+  '잠만보': { stock: 0.03, cap: 1, wake: 0.3, heal: 0.4, giga: 2.5, press: 1.5, air: 1.5, again: 0.6, air2: 1, as: 2.0, pp: 30 },
   '라프라스': { m: 2.3 },
   '프리져': { m: 0.4, radius: 2, dur: 5 },
   '파이어': { orb: 1.5, blast: 2.0, stun: 1.5, arm: 3, burn: 5, anti: 0.5 },
@@ -716,7 +716,7 @@ const SKILL_HELPERS = {
     u.role = '물리 전사';
     u.special = false;
     u.pct.as += P.as || 2;
-    u.maxMana = P.pp || 15;
+    u.maxMana = P.pp || 30;
     u.mana = 0;
     const t = this.nearestEnemy(u);
     if (t) this.gigaCombo(u, t, 1, P.air || 1.5);

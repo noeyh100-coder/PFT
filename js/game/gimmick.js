@@ -20,7 +20,9 @@ const GIMMICK_FX = {
     if (a && d) return 1;
     if (d) return GIMMICK.resist;
     if (a) return GIMMICK.super;
-    return typeMult(src ? src.skillType : null, t.defTypes);
+    let m = typeMult(src ? src.skillType : null, t.defTypes);
+    if (t.thickFat && src && (src.skillType === '불꽃' || src.skillType === '얼음') && m > 0) m = GIMMICK.resist;
+    return m <= 0 && this.immuneOff ? 0.5 : m;
   },
 
   gimmickMods(u, a, b, live) {

@@ -9,8 +9,8 @@ const TR_GRIS_PCT = [0, 0.5, 0.75, 0.9];
 const TR_LIFE_DUR = [0, 5, 7, 10];
 const TR_LIFE_SHIELD = [0, 5, 10, 15];
 const TR_RED_DMG = [0, 150, 250, 300];
-const TR_BLUE_BASIC = [0, 1, 2, 3];
-const TR_BLUE_CAST = [0, 2, 3, 5];
+const TR_BLUE_BASIC = [0, 10, 20, 30];
+const TR_BLUE_CAST = [0, 5, 8, 13];
 const TR_BLUE_SA = [0, 0.05, 0.07, 0.1];
 
 function treasureCounts(it, base) {
@@ -521,7 +521,7 @@ const ITEM_FX = {
     u.blueSa += Math.round(sa * 100);
     if (n[3]) {
       const before = u.maxMana;
-      u.maxMana = Math.max(8, u.maxMana - 2 * n[3]);
+      u.maxMana = Math.max(20, u.maxMana - 5 * n[3]);
       u.blueMana += before - u.maxMana;
     }
   },
@@ -558,7 +558,7 @@ const ITEM_FX = {
     }
     const ti = t.it;
     if (!ti) return;
-    if (ti['soothe-bell']) this.gainPP(t, 2 * ti['soothe-bell']);
+    if (ti['soothe-bell']) this.gainPP(t, 20 * ti['soothe-bell']);
     if (ti['booster-energy']) this.boostStack(t);
     if (ti['weakness-policy'] && t.wpReady && this.effMult(src, t) > 1) {
       const k = t.wpK || 1;
@@ -598,8 +598,8 @@ const ITEM_FX = {
   itemOnBasic(u, t, raw, dmg, crit) {
     const it = u.it;
     if (!it || !u.items.length) return;
-    if (it['ether']) this.gainPP(u, 3 * it['ether']);
-    if (it['dragon-fang']) this.gainPP(u, (crit ? 6 : 3) * it['dragon-fang']);
+    if (it['ether']) this.gainPP(u, 30 * it['ether']);
+    if (it['dragon-fang']) this.gainPP(u, (crit ? 60 : 30) * it['dragon-fang']);
     const blue = treasureCounts(it, 'blue-orb');
     if (treasureTop(blue)) this.gainPP(u, treasureSum(blue, TR_BLUE_BASIC));
     if (it['choice-scarf']) {

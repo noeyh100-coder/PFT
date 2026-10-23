@@ -149,3 +149,30 @@ const Bgm = {
 
 Sound.init();
 Bgm.init();
+
+const NameLabels = {
+  on: false,
+  init() {
+    try {
+      this.on = localStorage.getItem('ptft-names') === '1';
+    } catch (e) {
+      this.on = false;
+    }
+    this.apply();
+  },
+  set(v) {
+    this.on = !!v;
+    try {
+      localStorage.setItem('ptft-names', this.on ? '1' : '0');
+    } catch (e) {
+      this.on = !!v;
+    }
+    this.apply();
+  },
+  apply() {
+    if (document.body) document.body.classList.toggle('hide-names', !this.on);
+    else document.addEventListener('DOMContentLoaded', () => this.apply());
+  }
+};
+
+NameLabels.init();

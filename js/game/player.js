@@ -48,6 +48,8 @@ class Player {
     this.history = {};
     this.orbs = [];
     this.fruit = null;
+    this.freshIids = null;
+    this.freshItems = null;
     this.items = ['magnet', 'magnet', 'magnet', 'magnet'];
     this.stage1Items = 0;
     this.stage1Given = 0;

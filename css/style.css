@@ -8130,7 +8130,7 @@ button.gold {
 }
 
 .unit.evo-hide {
-  visibility: hidden;
+  opacity: 0;
 }
 
 .evo-ghost {
@@ -8574,4 +8574,74 @@ button.gold {
   z-index: 39;
   background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, var(--c) 35%, transparent 70%);
   animation: sfxHit 320ms ease-out forwards;
+}
+
+body.hide-names #unit-layer .unit .label,
+body.hide-names #carousel-layer .unit .label {
+  display: none;
+}
+
+.fx-smog {
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 40%, rgba(170, 90, 210, 0.5) 0 18%, transparent 30%),
+    radial-gradient(circle at 65% 55%, rgba(140, 70, 190, 0.45) 0 20%, transparent 32%),
+    radial-gradient(circle at 50% 30%, rgba(200, 130, 230, 0.35) 0 14%, transparent 26%),
+    radial-gradient(circle, rgba(120, 60, 170, 0.35), rgba(120, 60, 170, 0.08) 65%, transparent 72%);
+  animation: smogLife 5s linear forwards;
+  pointer-events: none;
+}
+
+@keyframes smogLife {
+  0% { opacity: 0; scale: 0.6; }
+  8% { opacity: 1; scale: 1; }
+  50% { rotate: 25deg; }
+  88% { opacity: 1; }
+  100% { opacity: 0; scale: 1.08; rotate: 45deg; }
+}
+
+.unit.trapped .sf-trap,
+.unit.marked .sf-mark {
+  display: block;
+}
+
+.sf-trap b {
+  position: absolute;
+  top: 36px;
+  width: 10px;
+  height: 15px;
+  background: linear-gradient(180deg, #fff1a0 0%, #ff8a22 45%, #d8301a 100%);
+  clip-path: polygon(50% 0, 70% 30%, 85% 20%, 100% 60%, 85% 100%, 15% 100%, 0 60%, 18% 28%, 32% 40%);
+  transform-origin: 50% 100%;
+  animation: sfFlame 0.4s steps(3) infinite;
+  opacity: 0.95;
+}
+
+.sf-trap b:nth-child(1) { left: -4px; }
+.sf-trap b:nth-child(2) { left: 10px; top: 42px; animation-delay: 0.1s; }
+.sf-trap b:nth-child(3) { left: 24px; top: 42px; animation-delay: 0.25s; }
+.sf-trap b:nth-child(4) { left: 38px; animation-delay: 0.15s; }
+
+.sf-mark b {
+  position: absolute;
+  left: 13px;
+  top: -14px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px dashed #ff8ab8;
+  box-shadow: 0 0 6px #ff8ab8, inset 0 0 4px #ffd0e6;
+  animation: sfMark 1.6s linear infinite;
+}
+
+.sf-mark b::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: #ffd0e6;
+}
+
+@keyframes sfMark {
+  to { rotate: 360deg; }
 }

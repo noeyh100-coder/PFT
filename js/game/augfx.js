@@ -200,8 +200,8 @@ const AUG_FX = {
     const big = has('bigfriend') ? units.filter(o => o.maxHp >= 1750) : [];
     for (const u of units) {
       if (exile && !units.some(o => o !== u && Hex.dist(o.r, o.c, u.r, u.c) === 1)) this.timedShield(u, u.maxHp * exile, 10);
-      if (has('chaos') && u.traits.includes('주문술사') && !u.experiment) u.mana = Math.min(u.maxMana, u.mana + 15);
-      if (has('soulbeat') && !u.experiment) u.mana = Math.min(u.maxMana, u.mana + 4);
+      if (has('chaos') && u.traits.includes('주문술사') && !u.experiment) u.mana = Math.min(u.maxMana, u.mana + 40);
+      if (has('soulbeat') && !u.experiment) u.mana = Math.min(u.maxMana, u.mana + 10);
       if (has('shellup') && u.it && u.it['shell-bell']) {
         u.hp = Math.max(1, Math.round(u.hp - u.maxHp * 0.2));
         this.addShield(u, u.maxHp * 0.3);
@@ -212,7 +212,8 @@ const AUG_FX = {
   },
 
   augRegen(u, n) {
-    if (!u.alive || n <= 0 || u.experiment || u.egg || u.casting || u.channel) return;
+    if (!u.alive || n <= 0 || u.experiment || u.egg || u.casting || u.channel || u.manaLockUntil > this.time) return;
+    n *= PP_RULE.event;
     u.mana = Math.min(u.maxMana, u.mana + (u.ppFreezeUntil > this.time ? n * 0.5 : n));
   },
 
@@ -269,8 +270,8 @@ const AUG_FX = {
     const A = this.side[u.side].aug;
     if (!A || !A.has.has('chaos') || !u.traits.includes('주문술사')) return;
     A.chaosPP += used || 0;
-    while (A.chaosPP >= 150) {
-      A.chaosPP -= 150;
+    while (A.chaosPP >= 375) {
+      A.chaosPP -= 375;
       const foes = this.aliveOf(this.enemyOf(u.side)).filter(e => !e.hidden);
       this.emit({ type: 'augfx', side: u.side, kind: 'chaos', uids: foes.map(e => e.uid) });
       for (const e of foes) this.dealDamage(u.alive ? u : null, e, e.maxHp * 0.1, { special: true, kind: 'chaos' });

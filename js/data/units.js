@@ -61,7 +61,7 @@ const UNIT_DATA = [
     "range": 4,
     "special": true,
     "role": "특수 마법사",
-    "skill": "나비춤",
+    "skill": "삼중가루",
     "skillType": "벌레",
     "stats": {
      "hp": 60,
@@ -169,7 +169,7 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 탱커",
-    "skill": "브레이크클로",
+    "skill": "웅크리기",
     "skillType": "노말",
     "stats": {
      "hp": 50,
@@ -189,7 +189,7 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 탱커",
-    "skill": "브레이크클로",
+    "skill": "웅크리기",
     "skillType": "노말",
     "stats": {
      "hp": 75,
@@ -209,7 +209,7 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 탱커",
-    "skill": "브레이크클로",
+    "skill": "웅크리기",
     "skillType": "노말",
     "stats": {
      "hp": 75,
@@ -384,7 +384,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "도전자"
+   "학살자"
   ],
   "uniques": [],
   "forms": [
@@ -394,10 +394,10 @@ const UNIT_DATA = [
     "types": [
      "물"
     ],
-    "range": 4,
+    "range": 1,
     "special": true,
-    "role": "특수 마법사",
-    "skill": "물대포",
+    "role": "특수 전사",
+    "skill": "쓱쓱",
     "skillType": "물",
     "stats": {
      "hp": 50,
@@ -414,10 +414,10 @@ const UNIT_DATA = [
     "types": [
      "물"
     ],
-    "range": 4,
+    "range": 1,
     "special": true,
-    "role": "특수 마법사",
-    "skill": "물대포",
+    "role": "특수 전사",
+    "skill": "쓱쓱",
     "skillType": "물",
     "stats": {
      "hp": 80,
@@ -434,10 +434,10 @@ const UNIT_DATA = [
     "types": [
      "물"
     ],
-    "range": 4,
+    "range": 1,
     "special": true,
-    "role": "특수 마법사",
-    "skill": "물대포",
+    "role": "특수 전사",
+    "skill": "쓱쓱",
     "skillType": "물",
     "stats": {
      "hp": 80,
@@ -825,8 +825,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 탱커",
-    "skill": "뿔찌르기",
-    "skillType": "노말",
+    "skill": "아쿠아링",
+    "skillType": "물",
     "stats": {
      "hp": 45,
      "atk": 67,
@@ -845,8 +845,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 탱커",
-    "skill": "뿔찌르기",
-    "skillType": "노말",
+    "skill": "아쿠아링",
+    "skillType": "물",
     "stats": {
      "hp": 80,
      "atk": 92,
@@ -865,8 +865,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 탱커",
-    "skill": "뿔찌르기",
-    "skillType": "노말",
+    "skill": "아쿠아링",
+    "skillType": "물",
     "stats": {
      "hp": 80,
      "atk": 92,
@@ -901,7 +901,7 @@ const UNIT_DATA = [
     "range": 2,
     "special": true,
     "role": "특수 탱커",
-    "skill": "치료방울",
+    "skill": "알낳기",
     "skillType": "노말",
     "stats": {
      "hp": 100,
@@ -1127,8 +1127,8 @@ const UNIT_DATA = [
     "range": 2,
     "special": true,
     "role": "특수 탱커",
-    "skill": "드레인키스",
-    "skillType": "페어리",
+    "skill": "악마의키스",
+    "skillType": "노말",
     "stats": {
      "hp": 45,
      "atk": 30,
@@ -1148,8 +1148,8 @@ const UNIT_DATA = [
     "range": 2,
     "special": true,
     "role": "특수 탱커",
-    "skill": "드레인키스",
-    "skillType": "페어리",
+    "skill": "악마의키스",
+    "skillType": "노말",
     "stats": {
      "hp": 65,
      "atk": 50,
@@ -1169,8 +1169,8 @@ const UNIT_DATA = [
     "range": 2,
     "special": true,
     "role": "특수 탱커",
-    "skill": "드레인키스",
-    "skillType": "페어리",
+    "skill": "악마의키스",
+    "skillType": "노말",
     "stats": {
      "hp": 65,
      "atk": 50,
@@ -1338,7 +1338,7 @@ const UNIT_DATA = [
   "id": "마그비",
   "family": "마그비",
   "variant": "원종",
-  "cost": 1,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -1352,10 +1352,10 @@ const UNIT_DATA = [
     "types": [
      "불꽃"
     ],
-    "range": 2,
+    "range": 1,
     "special": true,
-    "role": "특수 전사",
-    "skill": "불꽃세례",
+    "role": "특수 탱커",
+    "skill": "회오리불꽃",
     "skillType": "불꽃",
     "stats": {
      "hp": 45,
@@ -1372,10 +1372,10 @@ const UNIT_DATA = [
     "types": [
      "불꽃"
     ],
-    "range": 2,
+    "range": 1,
     "special": true,
-    "role": "특수 전사",
-    "skill": "불꽃세례",
+    "role": "특수 탱커",
+    "skill": "회오리불꽃",
     "skillType": "불꽃",
     "stats": {
      "hp": 65,
@@ -1392,10 +1392,10 @@ const UNIT_DATA = [
     "types": [
      "불꽃"
     ],
-    "range": 2,
+    "range": 1,
     "special": true,
-    "role": "특수 전사",
-    "skill": "불꽃세례",
+    "role": "특수 탱커",
+    "skill": "회오리불꽃",
     "skillType": "불꽃",
     "stats": {
      "hp": 75,
@@ -1430,7 +1430,7 @@ const UNIT_DATA = [
     "range": 4,
     "special": false,
     "role": "물리 전사",
-    "skill": "실뿜기",
+    "skill": "마지막일침",
     "skillType": "벌레",
     "stats": {
      "hp": 40,
@@ -1451,8 +1451,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 전사",
-    "skill": "단단해지기",
-    "skillType": "노말",
+    "skill": "마지막일침",
+    "skillType": "벌레",
     "stats": {
      "hp": 45,
      "atk": 25,
@@ -1658,8 +1658,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 전사",
-    "skill": "리프블레이드",
-    "skillType": "풀",
+    "skill": "바둥바둥",
+    "skillType": "노말",
     "stats": {
      "hp": 52,
      "atk": 90,
@@ -1679,8 +1679,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 전사",
-    "skill": "리프블레이드",
-    "skillType": "풀",
+    "skill": "바둥바둥",
+    "skillType": "노말",
     "stats": {
      "hp": 52,
      "atk": 90,
@@ -1700,8 +1700,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 전사",
-    "skill": "리프블레이드",
-    "skillType": "풀",
+    "skill": "바둥바둥",
+    "skillType": "노말",
     "stats": {
      "hp": 52,
      "atk": 90,
@@ -1959,8 +1959,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": true,
     "role": "특수 탱커",
-    "skill": "흉내내기",
-    "skillType": "노말",
+    "skill": "리플렉터",
+    "skillType": "에스퍼",
     "stats": {
      "hp": 20,
      "atk": 25,
@@ -2035,7 +2035,7 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 탱커",
-    "skill": "몸통박치기",
+    "skill": "튀어오르기",
     "skillType": "노말",
     "stats": {
      "hp": 20,
@@ -2055,7 +2055,7 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 탱커",
-    "skill": "몸통박치기",
+    "skill": "튀어오르기",
     "skillType": "노말",
     "stats": {
      "hp": 20,
@@ -2075,7 +2075,7 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 탱커",
-    "skill": "몸통박치기",
+    "skill": "튀어오르기",
     "skillType": "노말",
     "stats": {
      "hp": 20,
@@ -2170,7 +2170,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "주문술사"
+   "선도자"
   ],
   "uniques": [],
   "forms": [
@@ -2243,7 +2243,7 @@ const UNIT_DATA = [
   "id": "포니타",
   "family": "포니타",
   "variant": "원종",
-  "cost": 2,
+  "cost": 1,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -2259,8 +2259,8 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": true,
-    "role": "특수 탱커",
-    "skill": "니트로차지",
+    "role": "특수 전사",
+    "skill": "불꽃세례",
     "skillType": "불꽃",
     "stats": {
      "hp": 50,
@@ -2279,8 +2279,8 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": true,
-    "role": "특수 탱커",
-    "skill": "니트로차지",
+    "role": "특수 전사",
+    "skill": "불꽃세례",
     "skillType": "불꽃",
     "stats": {
      "hp": 65,
@@ -2299,8 +2299,8 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": true,
-    "role": "특수 탱커",
-    "skill": "니트로차지",
+    "role": "특수 전사",
+    "skill": "불꽃세례",
     "skillType": "불꽃",
     "stats": {
      "hp": 65,
@@ -2559,7 +2559,7 @@ const UNIT_DATA = [
     "range": 4,
     "special": true,
     "role": "특수 마법사",
-    "skill": "10만볼트",
+    "skill": "100만볼트",
     "skillType": "전기",
     "stats": {
      "hp": 20,
@@ -2579,7 +2579,7 @@ const UNIT_DATA = [
     "range": 4,
     "special": true,
     "role": "특수 마법사",
-    "skill": "10만볼트",
+    "skill": "100만볼트",
     "skillType": "전기",
     "stats": {
      "hp": 35,
@@ -2599,7 +2599,7 @@ const UNIT_DATA = [
     "range": 4,
     "special": true,
     "role": "특수 마법사",
-    "skill": "10만볼트",
+    "skill": "100만볼트",
     "skillType": "전기",
     "stats": {
      "hp": 60,
@@ -3651,8 +3651,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 전사",
-    "skill": "드래곤테일",
-    "skillType": "드래곤",
+    "skill": "아쿠아테일",
+    "skillType": "물",
     "stats": {
      "hp": 41,
      "atk": 64,
@@ -3671,8 +3671,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 전사",
-    "skill": "드래곤테일",
-    "skillType": "드래곤",
+    "skill": "아쿠아테일",
+    "skillType": "물",
     "stats": {
      "hp": 41,
      "atk": 64,
@@ -3691,8 +3691,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 전사",
-    "skill": "드래곤테일",
-    "skillType": "드래곤",
+    "skill": "아쿠아테일",
+    "skillType": "물",
     "stats": {
      "hp": 41,
      "atk": 64,
@@ -3801,7 +3801,9 @@ const UNIT_DATA = [
       "spe": 65
      }
     },
-    "traits": null
+    "traits": [
+     "선도자"
+    ]
    },
    {
     "key": "쥬피썬더",
@@ -3811,9 +3813,9 @@ const UNIT_DATA = [
      "types": [
       "전기"
      ],
-     "range": 4,
+     "range": 1,
      "special": true,
-     "role": "특수 마법사",
+     "role": "특수 전사",
      "skill": "일렉트릭볼",
      "skillType": "전기",
      "stats": {
@@ -3825,7 +3827,9 @@ const UNIT_DATA = [
       "spe": 130
      }
     },
-    "traits": null
+    "traits": [
+     "도전자"
+    ]
    },
    {
     "key": "부스터",
@@ -3835,10 +3839,10 @@ const UNIT_DATA = [
      "types": [
       "불꽃"
      ],
-     "range": 4,
+     "range": 1,
      "special": true,
-     "role": "특수 마법사",
-     "skill": "화염방사",
+     "role": "특수 전사",
+     "skill": "니트로차지",
      "skillType": "불꽃",
      "stats": {
       "hp": 65,
@@ -3849,7 +3853,9 @@ const UNIT_DATA = [
       "spe": 65
      }
     },
-    "traits": null
+    "traits": [
+     "학살자"
+    ]
    },
    {
     "key": "에브이",
@@ -3859,9 +3865,9 @@ const UNIT_DATA = [
      "types": [
       "에스퍼"
      ],
-     "range": 4,
+     "range": 1,
      "special": true,
-     "role": "특수 마법사",
+     "role": "특수 탱커",
      "skill": "빛의장막",
      "skillType": "에스퍼",
      "stats": {
@@ -3873,7 +3879,9 @@ const UNIT_DATA = [
       "spe": 110
      }
     },
-    "traits": null
+    "traits": [
+     "파수꾼"
+    ]
    },
    {
     "key": "블래키",
@@ -3883,11 +3891,11 @@ const UNIT_DATA = [
      "types": [
       "악"
      ],
-     "range": 4,
+     "range": 1,
      "special": true,
-     "role": "특수 마법사",
-     "skill": "악의파동",
-     "skillType": "악",
+     "role": "특수 탱커",
+     "skill": "맹독",
+     "skillType": "독",
      "stats": {
       "hp": 95,
       "atk": 65,
@@ -3897,7 +3905,9 @@ const UNIT_DATA = [
       "spe": 65
      }
     },
-    "traits": null
+    "traits": [
+     "난동꾼"
+    ]
    },
    {
     "key": "리피아",
@@ -3921,7 +3931,9 @@ const UNIT_DATA = [
       "spe": 95
      }
     },
-    "traits": null
+    "traits": [
+     "주문술사"
+    ]
    },
    {
     "key": "글레이시아",
@@ -3945,7 +3957,9 @@ const UNIT_DATA = [
       "spe": 65
      }
     },
-    "traits": null
+    "traits": [
+     "주문술사"
+    ]
    },
    {
     "key": "님피아",
@@ -3969,7 +3983,9 @@ const UNIT_DATA = [
       "spe": 60
      }
     },
-    "traits": null
+    "traits": [
+     "최면술사"
+    ]
    }
   ]
  },
@@ -4130,7 +4146,7 @@ const UNIT_DATA = [
   "id": "고오스",
   "family": "고오스",
   "variant": "원종",
-  "cost": 3,
+  "cost": 5,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -4302,8 +4318,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": true,
     "role": "특수 탱커",
-    "skill": "머드샷",
-    "skillType": "땅",
+    "skill": "하품",
+    "skillType": "노말",
     "stats": {
      "hp": 90,
      "atk": 65,
@@ -4323,8 +4339,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": true,
     "role": "특수 탱커",
-    "skill": "머드샷",
-    "skillType": "땅",
+    "skill": "하품",
+    "skillType": "노말",
     "stats": {
      "hp": 90,
      "atk": 65,
@@ -4344,8 +4360,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": true,
     "role": "특수 탱커",
-    "skill": "머드샷",
-    "skillType": "땅",
+    "skill": "하품",
+    "skillType": "노말",
     "stats": {
      "hp": 90,
      "atk": 65,
@@ -4377,9 +4393,9 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": true,
-    "role": "특수 전사",
-    "skill": "방전",
-    "skillType": "전기",
+    "role": "특수 탱커",
+    "skill": "대폭발",
+    "skillType": "노말",
     "stats": {
      "hp": 40,
      "atk": 30,
@@ -4397,9 +4413,9 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": true,
-    "role": "특수 전사",
-    "skill": "방전",
-    "skillType": "전기",
+    "role": "특수 탱커",
+    "skill": "대폭발",
+    "skillType": "노말",
     "stats": {
      "hp": 60,
      "atk": 50,
@@ -4417,9 +4433,9 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": true,
-    "role": "특수 전사",
-    "skill": "방전",
-    "skillType": "전기",
+    "role": "특수 탱커",
+    "skill": "대폭발",
+    "skillType": "노말",
     "stats": {
      "hp": 60,
      "atk": 50,
@@ -4514,9 +4530,9 @@ const UNIT_DATA = [
      "types": [
       "격투"
      ],
-     "range": 4,
+     "range": 1,
      "special": false,
-     "role": "물리 마법사",
+     "role": "물리 전사",
      "skill": "로킥",
      "skillType": "격투",
      "stats": {
@@ -4541,7 +4557,7 @@ const UNIT_DATA = [
      "range": 1,
      "special": false,
      "role": "물리 탱커",
-     "skill": "판별",
+     "skill": "카운터",
      "skillType": "격투",
      "stats": {
       "hp": 50,
@@ -4565,7 +4581,7 @@ const UNIT_DATA = [
      "range": 1,
      "special": false,
      "role": "물리 전사",
-     "skill": "마하펀치",
+     "skill": "인파이트",
      "skillType": "격투",
      "stats": {
       "hp": 50,
@@ -4826,7 +4842,7 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": true,
-    "role": "특수 탱커",
+    "role": "특수 전사",
     "skill": "오물웨이브",
     "skillType": "독",
     "stats": {
@@ -4847,7 +4863,7 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": true,
-    "role": "특수 탱커",
+    "role": "특수 전사",
     "skill": "오물웨이브",
     "skillType": "독",
     "stats": {
@@ -4868,7 +4884,7 @@ const UNIT_DATA = [
     ],
     "range": 1,
     "special": true,
-    "role": "특수 탱커",
+    "role": "특수 전사",
     "skill": "오물웨이브",
     "skillType": "독",
     "stats": {
@@ -4905,7 +4921,7 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 탱커",
-    "skill": "더블어택",
+    "skill": "속이기/비장의무기",
     "skillType": "노말",
     "stats": {
      "hp": 105,
@@ -4925,7 +4941,7 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 탱커",
-    "skill": "더블어택",
+    "skill": "속이기/비장의무기",
     "skillType": "노말",
     "stats": {
      "hp": 105,
@@ -4945,7 +4961,7 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 탱커",
-    "skill": "더블어택",
+    "skill": "속이기/비장의무기",
     "skillType": "노말",
     "stats": {
      "hp": 105,
@@ -5036,7 +5052,7 @@ const UNIT_DATA = [
   "id": "가디",
   "family": "가디",
   "variant": "원종",
-  "cost": 5,
+  "cost": 4,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -5110,7 +5126,7 @@ const UNIT_DATA = [
   "id": "식스테일",
   "family": "식스테일",
   "variant": "원종",
-  "cost": 4,
+  "cost": 5,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -5272,10 +5288,10 @@ const UNIT_DATA = [
     "types": [
      "독"
     ],
-    "range": 4,
-    "special": false,
-    "role": "물리 마법사",
-    "skill": "더스트슈트",
+    "range": 1,
+    "special": true,
+    "role": "특수 탱커",
+    "skill": "녹기",
     "skillType": "독",
     "stats": {
      "hp": 80,
@@ -5292,10 +5308,10 @@ const UNIT_DATA = [
     "types": [
      "독"
     ],
-    "range": 4,
-    "special": false,
-    "role": "물리 마법사",
-    "skill": "더스트슈트",
+    "range": 1,
+    "special": true,
+    "role": "특수 탱커",
+    "skill": "녹기",
     "skillType": "독",
     "stats": {
      "hp": 105,
@@ -5312,10 +5328,10 @@ const UNIT_DATA = [
     "types": [
      "독"
     ],
-    "range": 4,
-    "special": false,
-    "role": "물리 마법사",
-    "skill": "더스트슈트",
+    "range": 1,
+    "special": true,
+    "role": "특수 탱커",
+    "skill": "녹기",
     "skillType": "독",
     "stats": {
      "hp": 105,
@@ -5347,8 +5363,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 전사",
-    "skill": "아쿠아테일",
-    "skillType": "물",
+    "skill": "드래곤테일",
+    "skillType": "드래곤",
     "stats": {
      "hp": 61,
      "atk": 84,
@@ -5367,8 +5383,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 전사",
-    "skill": "아쿠아테일",
-    "skillType": "물",
+    "skill": "드래곤테일",
+    "skillType": "드래곤",
     "stats": {
      "hp": 61,
      "atk": 84,
@@ -5387,8 +5403,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 전사",
-    "skill": "아쿠아테일",
-    "skillType": "물",
+    "skill": "드래곤테일",
+    "skillType": "드래곤",
     "stats": {
      "hp": 61,
      "atk": 84,
@@ -5718,8 +5734,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 전사",
-    "skill": "시저크로스",
-    "skillType": "벌레",
+    "skill": "엄습하는일격",
+    "skillType": "악",
     "stats": {
      "hp": 70,
      "atk": 110,
@@ -5739,8 +5755,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 전사",
-    "skill": "시저크로스",
-    "skillType": "벌레",
+    "skill": "엄습하는일격",
+    "skillType": "악",
     "stats": {
      "hp": 70,
      "atk": 110,
@@ -5760,8 +5776,8 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 전사",
-    "skill": "시저크로스",
-    "skillType": "벌레",
+    "skill": "엄습하는일격",
+    "skillType": "악",
     "stats": {
      "hp": 70,
      "atk": 110,
@@ -6228,7 +6244,7 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 탱커",
-    "skill": "철벽",
+    "skill": "헤비봄버",
     "skillType": "강철",
     "stats": {
      "hp": 35,
@@ -6249,7 +6265,7 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 탱커",
-    "skill": "철벽",
+    "skill": "헤비봄버",
     "skillType": "강철",
     "stats": {
      "hp": 75,
@@ -6270,7 +6286,7 @@ const UNIT_DATA = [
     "range": 1,
     "special": false,
     "role": "물리 탱커",
-    "skill": "철벽",
+    "skill": "헤비봄버",
     "skillType": "강철",
     "stats": {
      "hp": 75,

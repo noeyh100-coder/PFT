@@ -66,7 +66,7 @@ const EVO_APP = {
 
   evoTokens(iid, hide) {
     const layer = this.arena.unitLayer;
-    for (const el of layer.children) if (el._inst && el._inst.iid === iid && el._owner === this.human) el.classList.toggle('evo-hide', hide);
+    for (const el of layer.children) if (el._inst && el._inst.iid === iid && el._owner === this.human && !(hide && el._evoGrab)) el.classList.toggle('evo-hide', hide);
   },
 
   evoStop(a) {
