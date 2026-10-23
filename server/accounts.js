@@ -10,6 +10,7 @@ const SUPA_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY ||
 const DATA_DIR = path.resolve(__dirname, 'data');
 const FILE = path.join(DATA_DIR, 'accounts.json');
 const TOKEN_DAYS = 30;
+const DEV_IDS = new Set(String(process.env.DEV_IDS || 'noeyh100').split(',').map(x => x.trim().toLowerCase()).filter(Boolean));
 
 function rankOf(lp) {
   const p = Math.max(0, Math.floor(lp || 0));
@@ -161,7 +162,7 @@ function verify(token) {
 }
 
 function publicView(row) {
-  return { id: row.id, name: row.name, lp: row.lp || 0, games: row.games || 0, wins: row.wins || 0, top4: row.top4 || 0, rank: rankOf(row.lp) };
+  return { id: row.id, name: row.name, lp: row.lp || 0, games: row.games || 0, wins: row.wins || 0, top4: row.top4 || 0, rank: rankOf(row.lp), dev: DEV_IDS.has(row.id) };
 }
 
 function cleanId(v) {

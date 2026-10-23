@@ -834,6 +834,24 @@ class Lobby {
     this.view.appendChild(box);
   }
 
+  openLab() {
+    if (!this.lab) this.lab = new Lab(this);
+    this.labOpen = true;
+    this.overlay.innerHTML = '';
+    this.overlay.appendChild(this.lab.el);
+    this.overlay.classList.add('show');
+    this.gameEl.classList.add('cs-open');
+    this.lab.render();
+  }
+
+  closeLab() {
+    this.labOpen = false;
+    this.overlay.innerHTML = '';
+    this.overlay.classList.remove('show');
+    this.gameEl.classList.remove('cs-open');
+    this.render();
+  }
+
   openRecord() {
     const bg = this.el('div', 'lb-modal-bg');
     bg.addEventListener('pointerdown', e => {
@@ -915,6 +933,7 @@ class Lobby {
   renderMain() {
     this.view.appendChild(this.logoEl(false));
     const rec = this.btn('전적', 'lb-record', () => this.openRecord(), 'trophy', 18);
+    if (this.account && this.account.dev) this.view.appendChild(this.btn('실험실', 'lb-lab', () => this.openLab(), 'chart', 18));
     this.view.appendChild(rec);
     const quick = this.el('div', 'lb-quick');
     quick.appendChild(this.quickBtn('map', '결투장', this.mapPick ? MAPS[this.mapPick].name.split(' · ')[0] : '무작위'));

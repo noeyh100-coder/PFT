@@ -98,7 +98,7 @@ const AUG_GAME = {
     const tier = this.augPattern[idx];
     for (const p of this.alivePlayers()) {
       this.makeAugOffer(p, tier, idx);
-      if (!p.isHuman && p.augOffer) this.pickAug(p, this.rng.int(p.augOffer.choices.length));
+      if (!p.isHuman && p.augOffer) this.botPickAug(p);
     }
     for (const p of this.alivePlayers()) if (p.isHuman && p.augOffer) this.notify(p, AUG_TIER_NAME[p.augOffer.tier] + ' 증강을 고르세요', 'info');
   },
@@ -134,7 +134,7 @@ const AUG_GAME = {
   },
 
   autoPickAugs() {
-    for (const p of this.players) if (p.augOffer) this.pickAug(p, this.rng.int(p.augOffer.choices.length));
+    for (const p of this.players) if (p.augOffer) this.botPickAug(p);
   },
 
   augItem(p, id) {
@@ -535,7 +535,7 @@ const AUG_GAME = {
       S.indecisive = null;
       this.makeAugOffer(p, tier, this.augPoolRound());
       if (p.augOffer) {
-        if (!p.isHuman) this.pickAug(p, this.rng.int(p.augOffer.choices.length));
+        if (!p.isHuman) this.botPickAug(p);
         else this.notify(p, '우유부단: ' + AUG_TIER_NAME[p.augOffer.tier] + ' 증강을 고르세요', 'info');
       }
     }
