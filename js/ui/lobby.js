@@ -1,4 +1,115 @@
 const LOBBY_BORROW = ['toGame', 'showTooltip', 'hideTooltip', 'showUnitTip', 'hideUnitTip', 'showTraitTip', 'renderTraitTip', 'hideTraitTipSoon', 'toast'];
+const RANK_TIER_NAMES = ['몬스터볼', '슈퍼볼', '하이퍼볼', '마스터볼'];
+const RANK_BALLS = ['poke-ball', 'great-ball', 'ultra-ball', 'master-ball'];
+const RANK_DELTA_TABLE = [40, 30, 20, 10, -10, -20, -30, -40];
+const FIELD_ACTORS = [
+  { en: 'Pikachu', area: 'meadow' }, { en: 'Bulbasaur', area: 'meadow' }, { en: 'Charmander', area: 'meadow' }, { en: 'Squirtle', area: 'pond' },
+  { en: 'Eevee', area: 'meadow' }, { en: 'Jigglypuff', area: 'meadow' }, { en: 'Psyduck', area: 'pond' }, { en: 'Growlithe', area: 'meadow' },
+  { en: 'Clefairy', area: 'meadow' }, { en: 'Oddish', area: 'grass' }, { en: 'Meowth', area: 'meadow' }, { en: 'Snorlax', area: 'sleep' },
+  { en: 'Pidgey', area: 'sky' }, { en: 'Butterfree', area: 'sky' }
+];
+
+function rankLabel(r) {
+  if (!r) return '배치 전';
+  return RANK_TIER_NAMES[r.tier] + ' ' + r.div + ' · ' + r.lp + ' LP';
+}
+
+function rankBallSrc(tier) {
+  return 'img/aug/' + RANK_BALLS[Math.max(0, Math.min(3, tier || 0))] + '.png';
+}
+
+class FieldScene {
+  constructor() {
+    this.el = document.createElement('div');
+    this.el.className = 'fs-root';
+    this.el.appendChild(Object.assign(document.createElement('i'), { className: 'fs-field' }));
+    this.el.appendChild(Object.assign(document.createElement('i'), { className: 'fs-clouds' }));
+    this.layer = document.createElement('div');
+    this.layer.className = 'fs-actors';
+    this.el.appendChild(this.layer);
+    this.actors = [];
+    for (const a of FIELD_ACTORS) {
+      const form = ProfileForms.get(a.en);
+      if (!form) continue;
+      const box = document.createElement('div');
+      box.className = 'fs-actor' + (a.area === 'sky' ? ' fly' : '');
+      const spr = Sprites.make(form, { scale: 2 });
+      if (!spr) continue;
+      box.appendChild(spr);
+      this.layer.appendChild(box);
+      const act = { a, box, st: spr._spr, x: 0, y: 0, tx: 0, ty: 0, wait: Math.random() * 3, speed: a.area === 'sky' ? 34 : 22 + Math.random() * 14, phase: Math.random() * 6 };
+      const p = this.pick(a.area);
+      act.x = p[0];
+      act.y = p[1];
+      act.tx = act.x;
+      act.ty = act.y;
+      if (a.area === 'sleep') Sprites.base(act.st, 'sleep');
+      this.actors.push(act);
+      this.place(act);
+    }
+    this.last = 0;
+    this.loop = this.loop.bind(this);
+    requestAnimationFrame(this.loop);
+  }
+
+  pick(area) {
+    const r = (a, b) => a + Math.random() * (b - a);
+    if (area === 'pond') return Math.random() < 0.5 ? [r(140, 330), r(548, 566)] : [r(380, 420), r(500, 550)];
+    if (area === 'grass') return [r(440, 560), r(470, 500)];
+    if (area === 'sleep') return [1060, 470];
+    if (area === 'sky') return [r(60, 1220), r(150, 330)];
+    for (;;) {
+      const x = r(330, 1150);
+      const y = r(452, 600);
+      if (Math.abs(x - 700 - (600 - y) * 0.05) > 70) return [x, y];
+    }
+  }
+
+  place(act) {
+    const fly = act.a.area === 'sky';
+    const k = fly ? 1 : 0.72 + ((act.y - 440) / 200) * 0.28;
+    const bob = fly ? Math.sin(act.phase) * 6 : 0;
+    act.box.style.transform = 'translate(' + (act.x - 22 * k).toFixed(1) + 'px,' + (act.y - 39 * k + bob).toFixed(1) + 'px) scale(' + k.toFixed(3) + ')';
+    act.box.style.zIndex = String(Math.round(act.y));
+  }
+
+  loop(t) {
+    if (!this.el.isConnected && this.last) {
+      this.last = 0;
+      setTimeout(() => requestAnimationFrame(this.loop), 400);
+      return;
+    }
+    const dt = this.last ? Math.min(0.1, (t - this.last) / 1000) : 0;
+    this.last = t;
+    for (const act of this.actors) {
+      act.phase += dt * 3;
+      if (act.a.area === 'sleep') continue;
+      const dx = act.tx - act.x;
+      const dy = act.ty - act.y;
+      const d = Math.hypot(dx, dy);
+      if (d < 2) {
+        if (act.wait > 0) {
+          if (act.st.base !== 'idle') Sprites.base(act.st, 'idle');
+          act.wait -= dt;
+        } else {
+          const p = this.pick(act.a.area);
+          act.tx = p[0];
+          act.ty = p[1];
+          act.wait = act.a.area === 'sky' ? 0.3 : 1.5 + Math.random() * 4;
+          Sprites.base(act.st, 'walk');
+          Sprites.face(act.st, Sprites.dirFrom(act.tx - act.x, act.ty - act.y));
+        }
+      } else {
+        const step = Math.min(d, act.speed * dt);
+        act.x += (dx / d) * step;
+        act.y += (dy / d) * step;
+      }
+      this.place(act);
+    }
+    requestAnimationFrame(this.loop);
+  }
+}
+
 const LOBBY_SLOTS = [[800, 250], [1010, 250], [700, 400], [905, 400], [1110, 400], [800, 550], [1010, 550]];
 
 const ProfileForms = {
@@ -89,10 +200,112 @@ class Lobby {
     } catch (e) {
       toParty = false;
     }
-    if (this.name) {
+    this.authToken = this.load('ptft-auth');
+    this.account = null;
+    this.queue = null;
+    this.loginTab = 'login';
+    this.busy = false;
+    this.net.auth = this.authToken;
+    this.scene = null;
+    this.guest = this.load('ptft-guest') === '1';
+    if (this.authToken && Net.available()) {
+      this.show('boot');
+      this.api('me').then(r => {
+        if (r.account) {
+          this.setAccount(r.account);
+          this.show(toParty ? 'party' : 'main');
+          this.net.connect(this.name);
+        } else {
+          this.logout(true);
+          this.show('login');
+        }
+      });
+    } else if (this.guest && this.name) {
       this.show(toParty && Net.available() ? 'party' : 'main');
       if (Net.available()) this.net.connect(this.name);
     } else this.show('login');
+  }
+
+  async api(path, body) {
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (this.authToken) headers.Authorization = 'Bearer ' + this.authToken;
+      const res = await fetch('api/' + path, { method: 'POST', headers, body: JSON.stringify(body || {}) });
+      const j = await res.json().catch(() => null);
+      return j || { error: '서버 응답을 읽지 못했습니다' };
+    } catch (e) {
+      return { error: '서버에 연결하지 못했습니다' };
+    }
+  }
+
+  setAccount(acc, token) {
+    this.account = acc;
+    if (token) {
+      this.authToken = token;
+      this.store('ptft-auth', token);
+    }
+    this.net.auth = this.authToken;
+    this.name = acc.name;
+    this.guest = false;
+    this.store('ptft-guest', '');
+  }
+
+  logout(silent) {
+    this.authToken = '';
+    this.account = null;
+    this.store('ptft-auth', '');
+    this.net.auth = '';
+    this.guest = false;
+    this.store('ptft-guest', '');
+    if (this.queue && this.queue.on) this.net.send({ t: 'rankCancel' });
+    this.queue = null;
+    if (this.room) this.net.send({ t: 'leave' });
+    this.room = null;
+    this.net.wantOpen = false;
+    if (this.net.ws) this.net.ws.close();
+    if (!silent) {
+      this.closeSettings();
+      this.show('login');
+    }
+  }
+
+  async submitAuth(kind, vals) {
+    if (this.busy) return;
+    if (!Net.available()) {
+      this.flash('로그인은 서버 주소(https://…)로 접속했을 때만 됩니다');
+      return;
+    }
+    if (kind === 'register' && vals.pw !== vals.pw2) {
+      this.flash('비밀번호 확인이 맞지 않습니다');
+      return;
+    }
+    this.busy = true;
+    this.render();
+    const r = await this.api(kind, vals);
+    this.busy = false;
+    if (r.error || !r.token) {
+      this.render();
+      this.flash(r.error || '실패했습니다');
+      return;
+    }
+    this.setAccount(r.account, r.token);
+    this.show('main');
+    this.net.connect(this.name);
+    this.flash(kind === 'register' ? '가입을 환영합니다, ' + this.name + '!' : this.name + '님, 어서 오세요');
+  }
+
+  startGuest(n) {
+    const name = this.cleanName(n);
+    if (name.length < 2) {
+      this.flash('닉네임은 2글자 이상이어야 합니다');
+      return;
+    }
+    this.name = name;
+    this.guest = true;
+    this.store('ptft-name', name);
+    this.store('ptft-guest', '1');
+    this.show('main');
+    if (Net.available()) this.net.connect(name);
   }
 
   viewed() {
@@ -189,6 +402,8 @@ class Lobby {
     });
     n.on('welcome', m => {
       if (m.name) this.name = m.name;
+      if (m.rankSize) this.welcomeSize = m.rankSize;
+      if (this.screen === 'queue' && !m.rankQueued && this.queue) this.net.send({ t: 'rankQueue' });
       if (this.screen === 'party' && !this.room && !this.app && !m.room) this.createRoom();
     });
     n.on('room', m => {
@@ -196,6 +411,7 @@ class Lobby {
       this.room = m.room;
       if (this.app) return;
       if (m.room && m.room.state === 'lobby') this.buffer = [];
+      if (m.room && m.room.ranked) return;
       if (this.screen !== 'party') {
         this.net.send({ t: 'leave' });
         this.room = null;
@@ -207,7 +423,18 @@ class Lobby {
       this.room = null;
       this.render();
     });
-    n.on('error', m => this.flash(m.msg || '오류가 발생했습니다'));
+    n.on('error', m => {
+      if (this.queue && !this.queue.on) this.queue = null;
+      this.flash(m.msg || '오류가 발생했습니다');
+      this.render();
+    });
+    n.on('queue', m => {
+      if (this.app) return;
+      if (m.on) this.queue = Object.assign(this.queue || { since: Date.now() }, { on: true, n: m.n, size: m.size });
+      else this.queue = null;
+      if (this.screen === 'queue' && !this.queue) this.show('main');
+      else if (this.screen === 'queue') this.render();
+    });
     n.on('start', m => this.onStart(m));
     n.on('ticks', list => {
       if (this.app) this.app.pushTicks(list);
@@ -240,10 +467,12 @@ class Lobby {
       return;
     }
     this.startInfo = m;
+    this.queue = null;
+    clearInterval(this.queueTimer);
     this.net.resetTicks();
     this.lobbyCurtain(() => {
       this.closeLobby();
-      this.app = new App({ mode: 'mp', seed: m.seed, seats: m.seats, slot: m.slot, net: this.net });
+      this.app = new App({ mode: 'mp', seed: m.seed, seats: m.seats, slot: m.slot, net: this.net, ranked: !!m.ranked });
       window.app = this.app;
       if (this.buffer.length) {
         this.app.pushTicks(this.buffer);
@@ -302,7 +531,7 @@ class Lobby {
     this.room = null;
     this.creating = false;
     this.joinOpen = false;
-    this.show('main');
+    this.show('mode');
   }
 
   joinCode(code) {
@@ -358,14 +587,27 @@ class Lobby {
   render() {
     if (this.app) return;
     this.gameEl.dataset.lb = this.screen;
-    this.root.className = 'lb-' + this.screen;
+    this.root.className = 'lb-' + this.screen + ((this.screen === 'login' && this.loginTab !== 'login') ? ' lg-compact' : '');
     const keep = this.view.querySelector('.lb-join input');
     const keepVal = keep ? keep.value : '';
     const keepFocus = keep && document.activeElement === keep;
+    const authVals = {};
+    let authFocus = null;
+    for (const i of this.view.querySelectorAll('.lg-panel input')) {
+      authVals[i.name] = i.value;
+      if (document.activeElement === i) authFocus = i.name;
+    }
+    this.authVals = authVals;
+    this.authFocus = authFocus;
     this.view.innerHTML = '';
-    this.view.appendChild(this.backdrop());
-    if (this.screen === 'login') this.renderLogin();
+    if (['login', 'boot', 'main', 'mode', 'queue'].includes(this.screen)) {
+      if (!this.scene) this.scene = new FieldScene();
+      this.view.appendChild(this.scene.el);
+    } else this.view.appendChild(this.backdrop());
+    if (this.screen === 'login' || this.screen === 'boot') this.renderLogin();
     else if (this.screen === 'party') this.renderParty();
+    else if (this.screen === 'mode') this.renderMode();
+    else if (this.screen === 'queue') this.renderQueue();
     else this.renderMain();
     const inp = this.view.querySelector('.lb-join input');
     if (inp) {
@@ -387,39 +629,266 @@ class Lobby {
     return bg;
   }
 
+  logoEl(big) {
+    const logo = this.el('div', 'lg-logo' + (big ? ' big' : ''));
+    const top = this.el('div', 'lg-logo-top');
+    const ball = this.el('i', 'lg-ball');
+    top.appendChild(ball);
+    top.appendChild(this.el('span', null, 'POKÉMON'));
+    logo.appendChild(top);
+    logo.appendChild(this.el('div', 'lg-logo-main', 'TACTICS'));
+    logo.appendChild(this.el('div', 'lg-logo-sub', '포켓몬 오토배틀'));
+    return logo;
+  }
+
   renderLogin() {
-    const wrap = this.el('div', 'lb-center');
-    const logo = this.el('div', 'lb-logo');
-    logo.appendChild(this.el('div', 'lb-title', '포켓몬 오토배틀'));
-    logo.appendChild(this.el('div', 'lb-sub', '게스트로 시작하기'));
-    wrap.appendChild(logo);
-    const box = this.el('div', 'lb-box frame');
-    box.appendChild(this.el('div', 'lb-h', '닉네임'));
-    const inp = this.el('input', 'lb-input');
-    inp.maxLength = 12;
-    inp.placeholder = '2~12글자';
-    inp.value = this.name || '';
-    box.appendChild(inp);
-    const go = () => {
-      const n = this.cleanName(inp.value);
-      if (n.length < 2) {
-        this.flash('닉네임은 2글자 이상이어야 합니다');
+    this.view.appendChild(this.el('i', 'lg-tint'));
+    this.view.appendChild(this.el('div', 'lg-ver', 'pokemon-tft_39 · ' + (Net.available() ? this.statusLine() : '오프라인 (게스트만 가능)')));
+    this.view.appendChild(this.logoEl(true));
+    const panel = this.el('div', 'lg-panel');
+    if (this.screen === 'boot') {
+      panel.appendChild(this.el('div', 'lg-wait', '로그인 정보를 확인하는 중…'));
+      this.view.appendChild(panel);
+      return;
+    }
+    const tab = this.loginTab;
+    const vals = this.authVals || {};
+    const field = (name, ph, type, max) => {
+      const i = this.el('input', 'lg-input');
+      i.name = name;
+      i.placeholder = ph;
+      i.type = type || 'text';
+      i.maxLength = max || 16;
+      i.autocomplete = type === 'password' ? (tab === 'register' ? 'new-password' : 'current-password') : 'off';
+      i.value = vals[name] != null ? vals[name] : name === 'gname' ? this.name || '' : '';
+      i.disabled = this.busy;
+      panel.appendChild(i);
+      return i;
+    };
+    const get = () => {
+      const o = {};
+      for (const i of panel.querySelectorAll('input')) o[i.name] = i.value;
+      return o;
+    };
+    let main;
+    if (tab === 'register') {
+      panel.appendChild(this.el('div', 'lg-h', '회원가입'));
+      field('id', '아이디 (영어 소문자·숫자 4~16)', 'text', 16);
+      field('name', '닉네임 (2~12글자)', 'text', 12);
+      field('pw', '비밀번호 (6글자 이상)', 'password', 64);
+      field('pw2', '비밀번호 확인', 'password', 64);
+      main = () => this.submitAuth('register', get());
+      panel.appendChild(this.lgBtn(this.busy ? '가입하는 중…' : '가입하고 시작', 'gold', main));
+      panel.appendChild(this.lgBtn('로그인으로 돌아가기', 'ghost', () => this.setLoginTab('login')));
+    } else if (tab === 'guest') {
+      panel.appendChild(this.el('div', 'lg-h', '게스트로 시작'));
+      field('gname', '닉네임 (2~12글자)', 'text', 12);
+      main = () => this.startGuest(get().gname);
+      panel.appendChild(this.lgBtn('게스트로 시작', 'gold', main));
+      panel.appendChild(this.el('div', 'lg-note', '게스트는 일반 게임만 할 수 있고, 랭크와 전적은 저장되지 않습니다.'));
+      panel.appendChild(this.lgBtn('로그인으로 돌아가기', 'ghost', () => this.setLoginTab('login')));
+    } else {
+      field('id', '아이디', 'text', 16);
+      field('pw', '비밀번호', 'password', 64);
+      main = () => this.submitAuth('login', get());
+      panel.appendChild(this.lgBtn(this.busy ? '로그인하는 중…' : '로그인', 'gold', main));
+      const row = this.el('div', 'lg-row');
+      row.appendChild(this.lgBtn('게스트로그인', null, () => this.setLoginTab('guest')));
+      row.appendChild(this.lgBtn('회원가입', null, () => this.setLoginTab('register')));
+      panel.appendChild(row);
+    }
+    for (const i of panel.querySelectorAll('input')) {
+      i.addEventListener('keydown', e => {
+        if (e.key === 'Enter') main();
+      });
+    }
+    this.view.appendChild(panel);
+    this.view.appendChild(this.el('div', 'lg-brand', 'Pokémon © Nintendo, Creatures, GAME FREAK · 도트: PMD Sprite Repository (CC BY-NC 4.0) · 비영리 팬게임'));
+    setTimeout(() => {
+      const f = (this.authFocus && panel.querySelector('input[name="' + this.authFocus + '"]')) || panel.querySelector('input');
+      if (f && !this.busy) f.focus();
+    }, 0);
+  }
+
+  setLoginTab(t) {
+    this.loginTab = t;
+    this.authVals = {};
+    this.view.querySelectorAll('.lg-panel input').forEach(i => (i.value = ''));
+    this.render();
+  }
+
+  lgBtn(label, cls, fn) {
+    const b = this.el('button', 'lg-btn' + (cls ? ' ' + cls : ''), label);
+    b.disabled = this.busy;
+    b.addEventListener('click', fn);
+    return b;
+  }
+
+  statusLine() {
+    const s = this.net.status;
+    return s === 'open' ? '서버 연결됨' : s === 'connecting' ? '서버에 연결하는 중' : '서버 준비됨';
+  }
+
+  rankBadge(size) {
+    const box = this.el('div', 'lb-prank');
+    if (!this.account) {
+      box.innerHTML = iconSvg('ball', 14);
+      box.appendChild(this.el('span', null, '게스트'));
+      return box;
+    }
+    const r = this.account.rank;
+    const img = this.el('img', 'rank-ball');
+    img.src = rankBallSrc(r.tier);
+    img.style.width = img.style.height = (size || 18) + 'px';
+    box.appendChild(img);
+    box.appendChild(this.el('span', 'rk-t' + r.tier, rankLabel(r)));
+    return box;
+  }
+
+  renderMode() {
+    this.view.appendChild(this.el('i', 'md-dim'));
+    const top = this.el('div', 'lb-topl');
+    top.appendChild(this.btn('플레이', 'lb-back', () => this.show('main'), 'back', 20));
+    this.view.appendChild(top);
+    this.view.appendChild(this.topRight());
+    const wrap = this.el('div', 'md-wrap');
+    const card = (cls, title, sub, lines, fn, disabled, art) => {
+      const c = this.el('button', 'md-card ' + cls + (disabled ? ' off' : ''));
+      const a = this.el('div', 'md-art');
+      a.appendChild(art);
+      c.appendChild(a);
+      c.appendChild(this.el('div', 'md-t', title));
+      c.appendChild(this.el('div', 'md-s', sub));
+      const ul = this.el('div', 'md-lines');
+      for (const l of lines) ul.appendChild(this.el('div', null, l));
+      c.appendChild(ul);
+      if (disabled) c.dataset.tip = disabled;
+      c.addEventListener('click', () => (disabled ? this.flash(disabled) : fn()));
+      return c;
+    };
+    const normArt = this.el('div', 'md-balls');
+    for (const k of ['poke-ball', 'great-ball', 'poke-ball']) normArt.appendChild(Object.assign(this.el('img'), { src: 'img/aug/' + k + '.png' }));
+    wrap.appendChild(card('normal', '일반 게임', '친구와 파티 · 빈자리는 봇', ['방 코드로 친구 초대', '혼자서 봇 7명과도 가능', '랭크 점수 변화 없음'], () => this.enterParty(), null, normArt));
+    const rankArt = this.el('div', 'md-balls rank');
+    RANK_BALLS.forEach((k, i) => {
+      const im = Object.assign(this.el('img'), { src: 'img/aug/' + k + '.png' });
+      im.style.setProperty('--i', i);
+      rankArt.appendChild(im);
+    });
+    const size = (this.welcomeSize || 8);
+    const why = !Net.available() ? '랭크 게임은 서버에 접속했을 때만 됩니다' : !this.account ? '랭크 게임은 로그인한 계정만 할 수 있습니다' : null;
+    const lines = this.account ? ['내 등급: ' + rankLabel(this.account.rank), '실제 플레이어 ' + size + '명이 모이면 시작', '1등 +40 · 4등 +10 · 5등 -10 · 8등 -40 LP'] : ['몬스터볼 → 슈퍼볼 → 하이퍼볼 → 마스터볼', '단계마다 4 → 1, 100 LP마다 승급', '게스트는 할 수 없습니다'];
+    wrap.appendChild(card('ranked', '랭크 게임', '몬스터볼 · 슈퍼볼 · 하이퍼볼 · 마스터볼', lines, () => this.joinQueue(), why, rankArt));
+    this.view.appendChild(wrap);
+  }
+
+  joinQueue() {
+    if (!this.online()) {
+      this.flash('서버에 연결된 뒤에 할 수 있습니다');
+      return;
+    }
+    if (this.room) this.net.send({ t: 'leave' });
+    this.room = null;
+    this.queue = { on: false, n: 0, size: this.welcomeSize || 8, since: Date.now() };
+    this.net.send({ t: 'rankQueue' });
+    this.show('queue');
+    clearInterval(this.queueTimer);
+    this.queueTimer = setInterval(() => {
+      if (this.screen !== 'queue' || this.app) {
+        clearInterval(this.queueTimer);
         return;
       }
-      this.name = n;
-      this.store('ptft-name', n);
-      this.show('main');
-      if (Net.available()) this.net.connect(n);
-    };
-    inp.addEventListener('keydown', e => {
-      if (e.key === 'Enter') go();
+      const t = this.view.querySelector('.qu-time');
+      if (t && this.queue) t.textContent = this.queueClock();
+    }, 500);
+  }
+
+  cancelQueue() {
+    this.net.send({ t: 'rankCancel' });
+    this.queue = null;
+    clearInterval(this.queueTimer);
+    this.show('mode');
+  }
+
+  queueClock() {
+    const s = Math.floor((Date.now() - ((this.queue && this.queue.since) || Date.now())) / 1000);
+    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  }
+
+  renderQueue() {
+    this.view.appendChild(this.el('i', 'md-dim'));
+    const q = this.queue || { n: 0, size: 8 };
+    const box = this.el('div', 'qu-box frame');
+    const balls = this.el('div', 'qu-balls');
+    for (let i = 0; i < q.size; i++) {
+      const im = Object.assign(this.el('img', i < q.n ? 'on' : ''), { src: rankBallSrc(this.account ? this.account.rank.tier : 0) });
+      im.style.animationDelay = i * 0.12 + 's';
+      balls.appendChild(im);
+    }
+    box.appendChild(this.el('div', 'qu-t', '랭크 게임 찾는 중'));
+    box.appendChild(balls);
+    box.appendChild(this.el('div', 'qu-n', (q.on ? q.n : '…') + ' / ' + q.size + '명'));
+    box.appendChild(this.el('div', 'qu-time', this.queueClock()));
+    if (this.account) box.appendChild(this.rankBadge(20));
+    box.appendChild(this.btn('취소', 'qu-cancel', () => this.cancelQueue(), 'close', 16));
+    this.view.appendChild(box);
+  }
+
+  openRecord() {
+    const bg = this.el('div', 'lb-modal-bg');
+    bg.addEventListener('pointerdown', e => {
+      if (e.target === bg) this.closeSettings();
     });
-    box.appendChild(this.btn('게스트로 시작', 'gold', go, 'check'));
-    box.appendChild(this.el('div', 'lb-note', '닉네임은 이 브라우저에만 저장됩니다. 나중에 정식 로그인이 생기면 옮길 수 있게 할 예정입니다.'));
-    wrap.appendChild(box);
-    this.view.appendChild(wrap);
-    this.view.appendChild(this.el('div', 'lb-foot', 'Pokémon © Nintendo, Creatures, GAME FREAK · 도트: PMD Sprite Repository (CC BY-NC 4.0) · 비영리 팬게임'));
-    setTimeout(() => inp.focus(), 0);
+    const box = this.el('div', 'lb-modal frame rec-modal');
+    const head = this.el('div', 'lb-modal-h');
+    head.appendChild(this.el('span', null, '전적'));
+    const x = this.el('button', 'icon-btn small');
+    x.innerHTML = iconSvg('close', 16);
+    x.addEventListener('click', () => this.closeSettings());
+    head.appendChild(x);
+    box.appendChild(head);
+    if (!this.account) {
+      box.appendChild(this.el('div', 'lb-set-v', '게스트는 전적이 저장되지 않습니다. 회원가입하면 랭크 게임 전적이 쌓입니다.'));
+    } else {
+      const a = this.account;
+      const top = this.el('div', 'rec-top');
+      const img = this.el('img', 'rec-ball');
+      img.src = rankBallSrc(a.rank.tier);
+      top.appendChild(img);
+      const t = this.el('div', 'rec-tt');
+      t.appendChild(this.el('b', 'rk-t' + a.rank.tier, RANK_TIER_NAMES[a.rank.tier] + ' ' + a.rank.div));
+      t.appendChild(this.el('span', null, a.rank.lp + ' LP'));
+      const bar = this.el('div', 'rec-bar');
+      const fill = this.el('i');
+      fill.style.width = Math.min(100, a.rank.lp) + '%';
+      bar.appendChild(fill);
+      t.appendChild(bar);
+      top.appendChild(t);
+      box.appendChild(top);
+      const g = Math.max(1, a.games);
+      const stats = this.el('div', 'rec-stats');
+      for (const [l, v] of [['랭크 게임', a.games + '판'], ['1등', a.wins + '번 (' + Math.round((a.wins / g) * 100) + '%)'], ['순방 (4등 이내)', a.top4 + '번 (' + Math.round((a.top4 / g) * 100) + '%)']]) {
+        const r = this.el('div', 'rec-row');
+        r.appendChild(this.el('span', null, l));
+        r.appendChild(this.el('b', null, a.games ? v : '-'));
+        stats.appendChild(r);
+      }
+      box.appendChild(stats);
+      const tiers = this.el('div', 'rec-tiers');
+      RANK_TIER_NAMES.forEach((n, i) => {
+        const c = this.el('div', 'rec-tier' + (i === a.rank.tier ? ' on' : ''));
+        c.appendChild(Object.assign(this.el('img'), { src: rankBallSrc(i) }));
+        c.appendChild(this.el('span', null, n));
+        tiers.appendChild(c);
+      });
+      box.appendChild(tiers);
+      box.appendChild(this.el('div', 'lb-note', '등수별 LP: ' + RANK_DELTA_TABLE.map((d, i) => i + 1 + '등 ' + (d > 0 ? '+' : '') + d).join(' · ')));
+    }
+    bg.appendChild(box);
+    this.settingsOpen = true;
+    this.overlay.innerHTML = '';
+    this.overlay.appendChild(bg);
+    this.overlay.classList.add('show');
   }
 
   profileIcon(en, size, animate) {
@@ -444,10 +913,8 @@ class Lobby {
   }
 
   renderMain() {
-    const art = this.el('div', 'lb-main-art');
-    art.appendChild(this.el('i', 'lb-main-bg'));
-    this.view.appendChild(art);
-    const rec = this.btn('전적', 'lb-record', () => this.flash('전적은 준비 중입니다'), 'trophy', 18);
+    this.view.appendChild(this.logoEl(false));
+    const rec = this.btn('전적', 'lb-record', () => this.openRecord(), 'trophy', 18);
     this.view.appendChild(rec);
     const quick = this.el('div', 'lb-quick');
     quick.appendChild(this.quickBtn('map', '결투장', this.mapPick ? MAPS[this.mapPick].name.split(' · ')[0] : '무작위'));
@@ -457,10 +924,7 @@ class Lobby {
     prof.appendChild(this.profileIcon(this.icon, 92, true));
     const info = this.el('div', 'lb-pinfo');
     info.appendChild(this.el('div', 'lb-pname', this.name));
-    const rank = this.el('div', 'lb-prank');
-    rank.innerHTML = iconSvg('ball', 14);
-    rank.appendChild(this.el('span', null, '게스트'));
-    info.appendChild(rank);
+    info.appendChild(this.rankBadge(18));
     prof.appendChild(info);
     this.view.appendChild(prof);
     this.view.appendChild(this.topRight());
@@ -469,7 +933,7 @@ class Lobby {
     ic.innerHTML = iconSvg('ball', 34);
     play.appendChild(ic);
     play.appendChild(this.el('span', 'lb-play-t', '플레이'));
-    play.addEventListener('click', () => this.enterParty());
+    play.addEventListener('click', () => this.show('mode'));
     this.view.appendChild(play);
     this.view.appendChild(this.el('div', 'lb-foot', 'Pokémon © Nintendo, Creatures, GAME FREAK · 도트: PMD Sprite Repository (CC BY-NC 4.0) · 비영리 팬게임'));
   }
@@ -921,11 +1385,19 @@ class Lobby {
     const inp = this.el('input', 'lb-input lb-set-name');
     inp.maxLength = 12;
     inp.value = prevVal !== null ? prevVal : this.name;
-    const saveName = () => {
+    const saveName = async () => {
       const n = this.cleanName(inp.value);
       if (n.length < 2) {
         this.flash('닉네임은 2글자 이상이어야 합니다');
         return;
+      }
+      if (this.account) {
+        const r = await this.api('rename', { name: n });
+        if (r.error) {
+          this.flash(r.error);
+          return;
+        }
+        this.account = r.account;
       }
       this.name = n;
       this.store('ptft-name', n);
@@ -990,6 +1462,14 @@ class Lobby {
     }, 'dice'));
     sec3.appendChild(row3);
     box.appendChild(sec3);
+
+    const sec5 = this.el('div', 'lb-set');
+    sec5.appendChild(this.el('div', 'lb-set-l', '계정'));
+    const row5 = this.el('div', 'lb-row');
+    row5.appendChild(this.el('span', 'lb-set-v', this.account ? this.account.id + ' (' + rankLabel(this.account.rank) + ')' : '게스트'));
+    row5.appendChild(this.btn(this.account ? '로그아웃' : '로그인 화면으로', null, () => this.logout(false), 'back'));
+    sec5.appendChild(row5);
+    box.appendChild(sec5);
 
     const sec4 = this.el('div', 'lb-set');
     sec4.appendChild(this.el('div', 'lb-set-l', '서버'));

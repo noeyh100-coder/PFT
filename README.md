@@ -4,8 +4,10 @@
 
 ## 온라인 플레이
 
-- 처음 들어오면 닉네임(2~12글자)만 정하고 게스트로 시작합니다. 닉네임과 프로필 포켓몬은 그 브라우저에만 저장됩니다. 전략가는 접속할 때마다 새로 뽑힙니다.
-- **메인 화면**: 배경은 사용자가 준 도트 그림(`img/main/bg.png`, 135x75)을 화면에 꽉 차게 픽셀 그대로 키운 것입니다. 왼쪽 위에 프로필(포켓몬 아이콘·닉네임)과 그 아래 **전적** 버튼(아직 준비 중), 오른쪽 위에 배치 도구와 설정, 왼쪽 아래에 **결투장**·**전략가** 버튼, 오른쪽 아래에 **플레이** 버튼이 있습니다.
+- **로그인 화면**: **로그인**(아이디·비밀번호), **게스트로그인**(닉네임만), **회원가입**(아이디 영어 소문자·숫자·_ 4~16글자, 닉네임 2~12글자, 비밀번호 6글자 이상). 로그인은 30일 동안 유지되고(브라우저의 `ptft-auth`), 설정 창에서 로그아웃합니다. 게스트는 일반 게임만 할 수 있고 전적이 남지 않습니다. 프로필 포켓몬·전략가·결투장은 그 브라우저에 저장됩니다.
+- **메인 화면**: 배경은 도트 들판(`img/main/field.png` 320x180을 4배, 구름 `clouds.png`이 흐름, `img/main/gen_field.py`로 만듦) 위를 1세대 포켓몬 14마리가 돌아다닙니다(피카츄·이상해씨·파이리·꼬부기·이브이 등, 잠만보는 자고 구구·버터플은 날아다님. `FIELD_ACTORS`). 왼쪽 위에 프로필(포켓몬 아이콘·닉네임·랭크)과 **전적**(랭크·판수·1등·순방), 오른쪽 위에 배치 도구와 설정, 왼쪽 아래에 **결투장**·**전략가**, 오른쪽 아래에 **플레이**가 있습니다.
+- **플레이 → 게임 고르기**: **일반 게임**(아래 파티 화면, 빈자리는 봇)과 **랭크 게임**(로그인한 계정만). 랭크는 실제 플레이어 8명이 모이면 시작하고(대기 화면에 모인 인원·시간, 취소 가능), 봇이 없습니다. 끝난 순위로 LP가 바뀝니다: 1등 +40, 2등 +30, 3등 +20, 4등 +10, 5등 -10, 6등 -20, 7등 -30, 8등 -40.
+- **랭크 단계**: 몬스터볼 → 슈퍼볼 → 하이퍼볼 → 마스터볼, 각 단계 안에서 4 → 3 → 2 → 1. 100 LP마다 한 칸 오르고(0 LP 아래로는 안 떨어짐), 마스터볼 1부터는 LP가 계속 쌓입니다. 판정은 서버가 각 플레이어가 보낸 최종 순위 중 가장 많이 일치한 것으로 합니다.
 - **개인 설정(결투장·전략가)**: 왼쪽 탭(전략가·결투장), 가운데 목록(정렬: 기본·즐겨찾기 먼저·이름순, 돋보기로 이름 검색), 오른쪽 미리보기(하트 = 즐겨찾기, 장착). 칸을 누르면 미리보기, 두 번 누르거나 장착을 누르면 적용됩니다. 결투장은 내 필드 맵(무작위 또는 9개 지방, 미리보기는 `img/map/<id>.jpg`), 전략가는 무작위 또는 57명 중 하나(모자 쓴 트레이너·트레이너·어르신 트레이너로 묶음, `STRAT_GROUPS`)입니다. 고른 것은 이 브라우저에 저장되고(`ptft-map-pick`, `ptft-look-pick`) 온라인 파티에서도 그대로 쓰입니다(hello의 `look`·`map` → 서버 seats → `Game`).
 - **설정**: 닉네임 바꾸기, 프로필 포켓몬 고르기, 전략가 다시 뽑기(무작위로 되돌림, 고정은 개인 설정에서), 서버 연결 상태.
 - **파티 화면**: 플레이를 누르면 내 파티가 바로 만들어집니다. 왼쪽 큰 칸이 나, 오른쪽 7칸이 파티원이고 방장에게는 왕관이 붙습니다. 왼쪽 아래의 5글자 방 코드를 친구에게 알려 주면, 친구는 자기 파티 화면에서 **참여하기**를 눌러 코드를 넣고 들어옵니다.
@@ -33,6 +35,40 @@ npm start
 4. 배포가 끝나면 나오는 `https://….onrender.com` 주소를 친구들에게 공유합니다.
 
 무료 서버는 15분 동안 아무도 없으면 잠들고, 다음 사람이 들어올 때 깨어나는 데 1분쯤 걸립니다. 서버가 다시 시작되면 진행 중인 방은 사라집니다.
+
+### 계정 저장 (Supabase 무료 DB)
+
+Render 무료 서버는 다시 시작할 때 파일이 지워지므로, 계정·랭크는 Supabase(무료)에 저장합니다. 설정하지 않으면 서버 폴더의 `server/data/accounts.json`에 저장되며, 이때는 Render가 재시작하면 계정이 사라집니다.
+
+1. https://supabase.com 가입 → **New project** (Free).
+2. 왼쪽 **SQL Editor**에서 아래를 실행합니다.
+
+```sql
+create table ptft_accounts (
+  id text primary key,
+  name text not null unique,
+  salt text not null,
+  hash text not null,
+  lp integer not null default 0,
+  games integer not null default 0,
+  wins integer not null default 0,
+  top4 integer not null default 0,
+  created_at timestamptz not null default now()
+);
+alter table ptft_accounts enable row level security;
+```
+
+3. **Project Settings → API**에서 Project URL과 `service_role` 키를 복사합니다 (`service_role` 키는 절대 공개하지 마세요. 브라우저로는 가지 않고 서버만 씁니다).
+4. Render의 서비스 → **Environment**에 넣고 다시 배포합니다.
+
+| 이름 | 값 |
+|---|---|
+| `SUPABASE_URL` | `https://xxxx.supabase.co` |
+| `SUPABASE_SERVICE_KEY` | `service_role` 키 |
+| `SESSION_SECRET` (선택) | 아무 긴 문자열. 없으면 서비스 키로 만듭니다 |
+| `RANK_SIZE` (선택) | 랭크 시작 인원(기본 8, 시험용으로 2~8) |
+
+서버가 켜질 때 로그에 `accounts supabase`가 보이면 연결된 것입니다(`accounts file`이면 파일 저장). 비밀번호는 서버에서 scrypt로 바꿔 저장하므로 DB에도 원래 비밀번호는 남지 않습니다.
 
 
 ## 조작
@@ -106,7 +142,7 @@ sound/bgm/        배경음악 10곡 (encounter, planning1~6, carousel1~2, battl
 img/item/         아이템 아이콘 (PokeAPI 아이템 도트, 투명 여백을 잘라 정사각형으로 맞춤. 자석·조가비갑옷·불구슬플레이트는 사용자 그림). 새 그림을 넣을 때도 여백 없이 정사각형 PNG로 넣으면 칸을 꽉 채웁니다
 js/core/          rng.js(시드 난수), hex.js(육각 좌표)
 js/game/          게임 로직 (화면과 분리). 스킬은 skills.js(공용 도구·기존 스킬), skills2.js(_38 개편 스킬·기본 지속 효과 initPassive/basicPassive/deathPassive), 아이템 전투 효과는 itemfx.js, 에스퍼 효과(매직룸·미러코트·신통력·치유소원·봉인)는 esper.js, 증강의 골드·상점·라운드 효과는 augments.js, 증강의 전투 효과는 augfx.js, 메가스톤·Z크리스탈·다이버섯·테라스탈오브와 효과 판정(effMult)은 gimmick.js
-server/           server.js(파일 제공 + 방·행동 기록 중계 웹소켓 서버. index.html·css·js·img·fonts·sound 폴더를 내보냄)
+server/           server.js(파일 제공 + 방·행동 기록 중계 웹소켓 서버 + 랭크 대기열. index.html·css·js·img·fonts·sound 폴더를 내보냄), accounts.js(회원가입·로그인 API /api/register·login·me·rename, Supabase 또는 data/accounts.json 저장, 랭크 LP 계산 rankOf·rankDelta)
 js/ui/            taxi.js(아머까오택시 이동 연출, 펑펑 효과), evofx.js(2성·3성 진화 연출), net.js(서버 연결), lobby.js(로그인·메인·파티·설정), sound.js(효과음·울음소리·배경음악·음량), driver.js(시간 흐름·행동 적용, 혼자/온라인 공용), assets.js(그림·아이콘), sprites.js(도트 애니메이션), mapkit.js(맵 그리기 도구), maps.js(지방별 전장 9종), view.js(패널·카드), projection.js(2.5D 카메라·바닥), arena.js(결투장·전략가), planner.js(배치 도구), app.js(진행)
 ```
 
@@ -280,6 +316,13 @@ js/ui/            taxi.js(아머까오택시 이동 연출, 펑펑 효과), evof
 - 모으령 상자 아이콘: PokeAPI 모으령(상자폼) 도트를 닫힌 상자로 고친 것. 아머까오택시와 정면 몬스터볼·슈퍼볼 구체는 Claude가 그린 도트입니다.
 - 폰트: Galmuri (SIL Open Font License 1.1, `fonts/OFL.md`)
 - Pokémon © Nintendo, Creatures, GAME FREAK. 이 게임은 비공식 팬 게임입니다.
+
+## _39 변경 (로그인·메인 화면·랭크 게임)
+
+- 로그인 화면(TFT 첫 화면처럼 큰 로고 + 로그인 칸): 로그인 · 게스트로그인 · 회원가입. 계정은 서버(`server/accounts.js`)가 관리하고 Supabase 무료 DB에 저장합니다(설정 방법은 위 "계정 저장"). 게스트는 일반 게임만.
+- 메인 화면 배경을 새로 그렸습니다: 산·숲·연못·풀숲·흙길이 있는 도트 들판, 흐르는 구름, 돌아다니는 1세대 포켓몬 14마리. 로그인 화면은 같은 들판에 보라빛을 덮었습니다. 예전 `img/main/bg.png`는 지웠습니다.
+- 플레이 → 일반 게임 / 랭크 게임. 랭크는 몬스터볼·슈퍼볼·하이퍼볼·마스터볼 × 4~1단계, 100 LP마다 승급, 순위별 +40~-40 LP. 실제 플레이어 8명이 모여야 시작(`RANK_SIZE`), 결과 창에 LP 변화와 승급·강등을 보여 줍니다. 랭크 방은 끝나면 사라집니다(파티로 돌아가기 없음).
+- 메인의 **전적** 버튼: 등급·LP 막대·랭크 판수·1등·순방 비율. 설정 창에 계정(로그아웃) 칸. 계정 닉네임을 바꾸면 서버에도 바뀝니다(중복 불가).
 
 ## _38 변경 (2차: 기물 스킬 전면 개편)
 

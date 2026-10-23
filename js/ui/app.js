@@ -5,6 +5,7 @@ class App {
     const o = opts || { mode: 'solo' };
     this.mode = o.mode === 'mp' ? 'mp' : 'solo';
     this.net = o.net || null;
+    this.ranked = !!o.ranked;
     this.game = this.mode === 'mp'
       ? new Game({ seed: o.seed, seats: o.seats, localSlot: o.slot, realtime: true })
       : new Game({ humanName: o.name || '나', look: o.look, map: o.map, realtime: true });
@@ -2587,9 +2588,10 @@ class App {
     const ranked = g.players.slice().sort((a, b) => (a.placement || 99) - (b.placement || 99));
     for (const p of ranked) list.appendChild(View.el('span', 'chip', (p.placement ? p.placement + '등 ' : '생존 ') + p.name));
     box.appendChild(list);
+    if (this.ranked) box.appendChild(this.rankResultBox());
     const actions = View.el('div', 'modal-actions');
-    if (this.net && !this.replaying) this.net.send({ t: 'over' });
-    if (this.mode === 'mp') {
+    if (this.net && !this.replaying) this.net.send({ t: 'over', ranks: g.players.map(p => p.placement || 0) });
+    if (this.mode === 'mp' && !this.ranked) {
       const party = View.el('button', 'gold', '파티로 돌아가기');
       party.addEventListener('click', () => this.backToParty());
       actions.appendChild(party);
@@ -2616,11 +2618,36 @@ class App {
     const leave = View.el('button', null, '메인으로');
     leave.addEventListener('click', () => this.leaveToMain());
     actions.appendChild(watch);
-    actions.appendChild(party);
+    if (!this.ranked) actions.appendChild(party);
+    else box.appendChild(View.el('div', 'modal-sub', '랭크 점수는 게임이 모두 끝나면 반영됩니다'));
     actions.appendChild(leave);
     box.appendChild(actions);
     this.closeModal();
     this.openModal('out', box);
+  }
+
+  rankResultBox() {
+    const box = View.el('div', 'rank-result');
+    const fill = m => {
+      box.innerHTML = '';
+      const a = m.after;
+      const img = View.el('img', 'rank-ball');
+      img.src = rankBallSrc(a.tier);
+      box.appendChild(img);
+      const t = View.el('div', 'rank-res-t');
+      t.appendChild(View.el('b', null, rankLabel(a)));
+      const d = View.el('span', 'rank-delta ' + (m.delta >= 0 ? 'up' : 'down'), (m.delta >= 0 ? '+' : '') + m.delta + ' LP');
+      t.appendChild(d);
+      if (a.tier !== m.before.tier || a.div !== m.before.div) t.appendChild(View.el('span', 'rank-move', (a.total > m.before.total ? '승급! ' : '강등 · ') + rankLabel(m.before) + ' → ' + rankLabel(a)));
+      box.appendChild(t);
+    };
+    box.appendChild(View.el('span', 'rank-wait', '랭크 점수 계산 중…'));
+    if (this.rankRes) fill(this.rankRes);
+    else if (this.net) this.net.on('rankResult', m => {
+      this.rankRes = m;
+      fill(m);
+    });
+    return box;
   }
 
   leaveToMain() {
