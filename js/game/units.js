@@ -261,29 +261,23 @@ function adaptForm(def, form, mode) {
   return ADAPT_CACHE[key];
 }
 
-function itemRanks(items) {
-  const rk = { atk: 0, spa: 0, def: 0, spd: 0 };
+function itemStats(items) {
+  const out = { atk: 0, spa: 0, def: 0, spd: 0, as: 0, hp: 0 };
   for (const id of items || []) {
     const d = typeof itemDef === 'function' ? itemDef(id) : null;
-    const st = (d && d.stats) || {};
-    for (const k in rk) rk[k] += st[k] || 0;
+    for (const k in d && d.direct ? d.direct : {}) out[k] = (out[k] || 0) + d.direct[k];
   }
-  return rk;
+  return out;
 }
 
 function plannedView(inst) {
-  const rk = itemRanks(inst.items);
-  const m = n => {
-    const r = Math.max(-6, Math.min(6, n));
-    const k = CONFIG.combat.rankStep;
-    return r >= 0 ? 1 + k * r : 1 / (1 + k * -r);
-  };
+  const st = itemStats(inst.items);
   const f = inst.feast || {};
   return {
-    pa: BASE_STAT * m(rk.atk) * (1 + (f.atk || 0)),
-    sa: BASE_STAT * m(rk.spa) * (1 + (f.spa || 0)),
-    armor: BASE_STAT * m(rk.def) * (1 + (f.def || 0)),
-    mr: BASE_STAT * m(rk.spd) * (1 + (f.spd || 0))
+    pa: BASE_STAT * (1 + st.atk) * (1 + (f.atk || 0)),
+    sa: BASE_STAT * (1 + st.spa) * (1 + (f.spa || 0)),
+    armor: BASE_STAT + st.def,
+    mr: BASE_STAT + st.spd
   };
 }
 

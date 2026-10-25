@@ -505,18 +505,66 @@ const SKILL_HELPERS = {
     if (t && t.alive && n > 0) this.addChill(t, n, u.side);
   },
 
+  directStat(k) {
+    return { atk: 'pa', spa: 'sa', spe: 'as', def: 'armor', spd: 'mr' }[k] || null;
+  },
+
+  directValue(k, n) {
+    return ['atk', 'spa', 'spe'].includes(k) ? n * 0.15 : n * 20;
+  },
+
   debuff(u, t, k, n, dur, p) {
     if (!t || !t.alive || !n || (p != null && p < 1 && !this.chance(p))) return;
-    t.tmp.push({ k, n, until: this.time + dur * this.durMul(u) });
+    const direct = this.directStat(k);
+    if (direct) {
+      if (k === 'def' || k === 'spd') t.tmpFlat.push({ k: direct, n: -this.directValue(k, n), until: this.time + dur * this.durMul(u) });
+      else t.tmpPct.push({ k: direct, n: -this.directValue(k, n), until: this.time + dur * this.durMul(u) });
+    } else t.tmp.push({ k, n, until: this.time + dur * this.durMul(u) });
   },
 
   buff(u, k, n, dur) {
     if (!n) return;
-    u.tmp.push({ k, n, until: this.time + dur * this.durMul(u) });
+    const direct = this.directStat(k);
+    if (direct) {
+      if (k === 'def' || k === 'spd') u.tmpFlat.push({ k: direct, n: this.directValue(k, n), until: this.time + dur * this.durMul(u) });
+      else u.tmpPct.push({ k: direct, n: this.directValue(k, n), until: this.time + dur * this.durMul(u) });
+    } else u.tmp.push({ k, n, until: this.time + dur * this.durMul(u) });
+  },
+
+  buffPct(u, k, n, dur) {
+    if (!n) return;
+    u.tmpPct.push({ k, n, until: this.time + dur * this.durMul(u) });
+  },
+
+  debuffPct(u, t, k, n, dur, p) {
+    if (!t || !t.alive || !n || (p != null && p < 1 && !this.chance(p))) return;
+    t.tmpPct.push({ k, n: -n, until: this.time + dur * this.durMul(u) });
+  },
+
+  buffFlat(u, k, n, dur) {
+    if (!n) return;
+    u.tmpFlat.push({ k, n, until: this.time + dur * this.durMul(u) });
+  },
+
+  debuffFlat(u, t, k, n, dur, p) {
+    if (!t || !t.alive || !n || (p != null && p < 1 && !this.chance(p))) return;
+    t.tmpFlat.push({ k, n: -n, until: this.time + dur * this.durMul(u) });
+  },
+
+  permaPct(u, k, n) {
+    if (!n) return;
+    const pct = u.pct[k];
+    u.pct[k] = pct + n;
   },
 
   perma(u, k, n) {
-    u.rk[k] = Math.max(-6, Math.min(6, u.rk[k] + n));
+    const direct = this.directStat(k);
+    if (direct) {
+      if (k === 'def') u.flatArmor += this.directValue(k, n);
+      else if (k === 'spd') u.flatMr += this.directValue(k, n);
+      else u.pct[direct] += this.directValue(k, n);
+      u.maxHp = u.hp = Math.max(1, Math.round(u.base.hp * (1 + u.pct.hp) + u.flatHp));
+    } else u.rk[k] = Math.max(-6, Math.min(6, u.rk[k] + n));
   },
 
   shieldPct(u, pct, dur) {

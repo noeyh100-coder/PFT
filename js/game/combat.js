@@ -210,6 +210,8 @@ class CombatSim {
       deathC: c,
       rk: { atk: 0, spa: 0, def: 0, spd: 0, spe: 0, acc: 0, eva: 0, crit: 0 },
       tmp: [],
+      tmpPct: [],
+      tmpFlat: [],
       pct: { hp: 0, pa: 0, sa: 0, armor: 0, mr: 0, as: 0 },
       flatHp: 0,
       vamp: st.omnivamp || 0,
@@ -746,13 +748,25 @@ class CombatSim {
     return k === 'atk' ? 4.5 : k === 'def' ? 3 : k === 'as' ? 4 : k === 'move' ? 2 : k === 'cc' ? 0.34 : k === 'heal' ? 0.34 : 1;
   }
 
+  directPctSum(u, k) {
+    let n = 0;
+    for (const b of u.tmpPct) if (b.k === k && b.until > this.time) n += b.n;
+    return n;
+  }
+
+  directFlatSum(u, k) {
+    let n = 0;
+    for (const b of u.tmpFlat) if (b.k === k && b.until > this.time) n += b.n;
+    return n;
+  }
+
   atkView(u) {
-    return u.base.pa * (1 + u.pct.pa) * rankMult(this.rank(u, 'atk')) * this.otMult('atk');
+    return u.base.pa * (1 + u.pct.pa + this.directPctSum(u, 'pa')) * rankMult(this.rank(u, 'atk')) * this.otMult('atk');
   }
 
   spaView(u) {
     const extra = u.experiment ? Math.max(0, u.pct.pa) + Math.max(0, u.pct.as) : 0;
-    return u.base.sa * (1 + u.pct.sa + extra) * rankMult(this.rank(u, 'spa')) * this.otMult('atk');
+    return u.base.sa * (1 + u.pct.sa + extra + this.directPctSum(u, 'sa')) * rankMult(this.rank(u, 'spa')) * this.otMult('atk');
   }
 
   atkStat(u) {
@@ -771,13 +785,15 @@ class CombatSim {
     let r = this.rank(u, special ? 'spd' : 'def');
     if (ignoreUp && r > 0) r = 0;
     const pw = view ? 1 : u.pwD || 1;
-    const b = special ? u.base.mr * pw * (1 + u.pct.mr) + u.flatMr : u.base.armor * pw * (1 + u.pct.armor) + u.flatArmor;
+    const pct = special ? u.pct.mr + this.directPctSum(u, 'mr') : u.pct.armor + this.directPctSum(u, 'armor');
+    const flat = (special ? u.flatMr : u.flatArmor) + this.directFlatSum(u, special ? 'mr' : 'armor');
+    const b = special ? u.base.mr * pw * (1 + pct) + flat : u.base.armor * pw * (1 + pct) + flat;
     return b * rankMult(r) * this.otMult('def');
   }
 
   attackSpeed(u) {
     if (u.experiment) return 0.77 * this.otMult('as');
-    let a = u.base.as * (1 + u.pct.as + (u.hasteUntil > this.time ? 0.25 : 0)) * rankMult(this.rank(u, 'spe'));
+    let a = u.base.as * (1 + u.pct.as + this.directPctSum(u, 'as') + (u.hasteUntil > this.time ? 0.25 : 0)) * rankMult(this.rank(u, 'spe'));
     if (u.chalPer) a *= 1 + u.chal * u.chalPer;
     if (u.chill > 0 && u.chillUntil > this.time) a *= Math.max(0.1, 1 - u.chill * u.chillPer);
     if (u.paraUntil > this.time) a *= 0.8;
@@ -1982,6 +1998,8 @@ class CombatSim {
       this.cleanAcc = 0;
       for (const u of this.units) {
         if (u.tmp.length) u.tmp = u.tmp.filter(b => b.until > this.time);
+        if (u.tmpPct.length) u.tmpPct = u.tmpPct.filter(b => b.until > this.time);
+        if (u.tmpFlat.length) u.tmpFlat = u.tmpFlat.filter(b => b.until > this.time);
         if (u.reduces.length) u.reduces = u.reduces.filter(b => b.until > this.time);
       }
     }

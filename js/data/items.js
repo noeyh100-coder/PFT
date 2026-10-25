@@ -1,4 +1,14 @@
-const ITEM_STAT_LABEL = { atk: '공격', spa: '특수공격', def: '방어', spd: '특수방어', spe: '스피드', crit: '급소율', hp: '체력', pp: '시작 PP' };
+const ITEM_STAT_LABEL = { atk: '공격', spa: '특수공격', def: '방어', spd: '특수방어', spe: '공격 속도', crit: '급소율', hp: '체력', pp: '시작 PP' };
+const ITEM_DIRECT = {
+  'muscle-band': { atk: 0.1 },
+  'wise-glasses': { spa: 0.1 },
+  'protective-pads': { def: 20 },
+  'x-sp-def': { spd: 20 },
+  'leftovers': { hp: 150 },
+  'swift-wing': { as: 0.1 },
+  'razor-claw': { crit: 1 },
+  'leppa-berry': { pp: 15 }
+};
 
 const ITEM_COMPONENTS = [
   { id: 'muscle-band', name: '힘의머리띠', stats: { atk: 1 } },
@@ -40,7 +50,7 @@ const ITEM_COMPLETED = [
   { id: 'metronome', name: '메트로놈', from: ['razor-claw', 'leftovers'], desc: '같은 대상을 3초 공격할 때마다 주는 피해가 30%씩 증가합니다. 대상을 바꾸면 처음부터 다시 쌓입니다.' },
   { id: 'spell-tag', name: '저주의부적', from: ['razor-claw', 'swift-wing'], bonus: { atk: 1 }, desc: '피해를 입힌 적의 방어가 6초 동안 3랭크 내려갑니다. (겹치지 않음)' },
   { id: 'scope-lens', name: '초점렌즈', from: ['razor-claw', 'razor-claw'], desc: '기본 공격이 모두 급소에 맞습니다. 같은 줄 양옆 아군의 급소율이 1랭크 오릅니다.' },
-  { id: 'ether', name: 'PP에이드', from: ['leppa-berry', 'muscle-band'], desc: '기본 공격할 때 PP를 30 더 얻습니다.' },
+  { id: 'ether', name: 'PP에이드', from: ['leppa-berry', 'muscle-band'], desc: '기본 공격할 때 PP를 5 더 얻습니다.' },
   { id: 'soul-dew', name: '마음의물방울', from: ['leppa-berry', 'wise-glasses'], desc: '5초마다 특수공격이 18%씩 증가합니다.' },
   { id: 'soothe-bell', name: '평온의방울', from: ['leppa-berry', 'protective-pads'], desc: '공격에 맞을 때 PP를 20 더 얻습니다.' },
   { id: 'everstone', name: '변함없는돌', from: ['leppa-berry', 'x-sp-def'], unique: true, bonus: { hp: 350 }, desc: '진화하지 않습니다. 별은 오르지만 모습·스킬·타입은 그대로입니다. 돌을 빼면 전투를 한 번 치른 뒤 다음 라운드에 진화합니다.' },
@@ -92,7 +102,8 @@ const ITEM_DUPLICATORS = [
   { id: 'exp-l', name: '경험사탕L', icon: 'exp-candy-l', maxCost: 5, label: '챔피언 복제기', desc: '기물에게 쓰면 그 기물의 1성 복사본 하나를 대기석에 얻습니다.' }
 ];
 
-const ITEM_DICE = { id: 'loaded-dice', name: '두드리짱의 망치', icon: 'tinkaton-hammer', label: '시너지 상점', desc: '포켓몬에게 주면 소모되며, 상점 5칸이 그 포켓몬과 시너지(타입·직업)가 하나 이상 겹치는 포켓몬으로 바뀝니다. (무료, 현재 레벨의 상점 확률을 따름)' };
+const ITEM_DICE = { id: 'loaded-dice', name: '속임수주사위', icon: 'loaded-dice', label: '기물 복사', desc: '포켓몬에게 주면 소모되며, 상점에 같은 코스트의 포켓몬을 최대 5개 제시합니다.' };
+const ITEM_HAMMER = { id: 'tinkaton-hammer', name: '두드리짱의 망치', icon: 'tinkaton-hammer', label: '시너지 상점', desc: '포켓몬에게 주면 소모되며, 상점 5칸이 그 포켓몬과 시너지(타입·직업)가 하나 이상 겹치는 포켓몬으로 바뀝니다. (무료, 현재 레벨의 상점 확률을 따름)' };
 
 const ITEM_BOXES = [
   { id: 'poke-box', name: '작은 모으령 상자', icon: 'gimmi-small', box: 'component', desc: '클릭해서 열면 서로 다른 조합 아이템 4개 중 하나를 고릅니다.' },
@@ -129,23 +140,28 @@ const ITEM_TREASURES = [
 const ITEMS = (function () {
   const map = {};
   const recipe = {};
-  for (const c of ITEM_COMPONENTS) map[c.id] = Object.assign({ kind: 'component', desc: '' }, c);
+  for (const c of ITEM_COMPONENTS) map[c.id] = Object.assign({ kind: 'component', desc: '', direct: ITEM_DIRECT[c.id] || {} }, c, { stats: {} });
   for (const c of ITEM_COMPLETED) {
     const stats = {};
+    const direct = {};
     for (const part of c.from.concat([null])) {
       const src = part ? map[part].stats : c.bonus || {};
+      const directSrc = part ? map[part].direct : Object.fromEntries(Object.entries(c.bonus || {}).map(([k, v]) => [k === 'spd' ? 'spd' : k === 'def' ? 'def' : k === 'spe' ? 'as' : k, k === 'def' || k === 'spd' ? v * 20 : k === 'atk' || k === 'spa' || k === 'spe' ? v * 0.15 : v]));
       for (const k in src) stats[k] = (stats[k] || 0) + src[k];
+      for (const k in directSrc) direct[k] = (direct[k] || 0) + directSrc[k];
     }
-    map[c.id] = Object.assign({ kind: 'completed' }, c, { stats });
+    map[c.id] = Object.assign({ kind: 'completed' }, c, { stats, direct });
     recipe[c.from.slice().sort().join('+')] = c.id;
   }
   const radiants = [];
   for (const c of ITEM_COMPLETED) {
     const b = map[c.id];
     const stats = {};
+    const direct = {};
     for (const k in b.stats) stats[k] = b.stats[k] * 2;
+    for (const k in b.direct) direct[k] = b.direct[k] * 2;
     const id = 'radiant-' + c.id;
-    map[id] = Object.assign({}, b, { id, base: c.id, radiant: true, name: '찬란한 ' + c.name, icon: c.icon || c.id, stats, desc: '효과와 능력치가 두 배로 적용됩니다. (원래 효과: ' + c.desc + ')' });
+    map[id] = Object.assign({}, b, { id, base: c.id, radiant: true, name: '찬란한 ' + c.name, icon: c.icon || c.id, stats, direct, desc: '효과와 능력치가 두 배로 적용됩니다. (원래 효과: ' + c.desc + ')' });
     radiants.push(id);
   }
   map[ITEM_MAGNET.id] = Object.assign({ stats: {} }, ITEM_MAGNET);
@@ -155,7 +171,8 @@ const ITEMS = (function () {
   for (const g of ITEM_GIMMICKS) map[g.id] = Object.assign({ kind: 'completed', special: true, unique: true, stats: {} }, g);
   for (const c of ITEM_CANDIES) map[c.id] = Object.assign({ kind: 'consumable', candy: true, stats: {} }, c);
   for (const c of ITEM_DUPLICATORS) map[c.id] = Object.assign({ kind: 'consumable', dup: true, stats: {} }, c);
-  map[ITEM_DICE.id] = Object.assign({ kind: 'consumable', traitShop: true, stats: {} }, ITEM_DICE);
+  map[ITEM_DICE.id] = Object.assign({ kind: 'consumable', diceShop: true, stats: {} }, ITEM_DICE);
+  map[ITEM_HAMMER.id] = Object.assign({ kind: 'consumable', traitShop: true, stats: {} }, ITEM_HAMMER);
   for (const b of ITEM_BOXES) map[b.id] = Object.assign({ kind: 'consumable', stats: {} }, b);
   for (const t of ITEM_TREASURES) map[t.id] = Object.assign({ kind: 'treasure', stats: {} }, t);
   const tiers = [[], [], [], []];
@@ -219,12 +236,15 @@ function combineItems(a, b) {
 
 function itemStatText(id) {
   const d = itemDef(id);
-  if (!d || !d.stats) return '';
+  if (!d) return '';
+  const direct = d.direct || {};
   const parts = [];
-  for (const k of ['hp', 'atk', 'spa', 'def', 'spd', 'spe', 'crit', 'pp']) {
-    const v = d.stats[k];
+  for (const k of ['hp', 'atk', 'spa', 'def', 'spd', 'as', 'crit', 'pp']) {
+    const v = direct[k];
     if (!v) continue;
-    parts.push(ITEM_STAT_LABEL[k] + ' +' + v + (k === 'hp' || k === 'pp' ? '' : '랭크'));
+    const value = k === 'atk' || k === 'spa' || k === 'as' ? '+' + Math.round(v * 100) + '%' : '+' + v;
+    const label = k === 'as' ? '공격 속도' : ITEM_STAT_LABEL[k];
+    parts.push(label + ' ' + value);
   }
   return parts.join(', ');
 }

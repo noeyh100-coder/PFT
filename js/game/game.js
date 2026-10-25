@@ -984,6 +984,27 @@ class Game {
     return (def.branches || []).some(b => b.form.types.includes(t) || (b.traits || []).includes(t));
   }
 
+  useDiceShop(p, i, inst) {
+    const def = UNITS[inst.unitId];
+    if (!def) return { ok: false, reason: '' };
+    const cost = def.cost;
+    const match = d => d.cost === cost;
+    p.items.splice(i, 1);
+    for (let k = 0; k < p.shop.length; k++) {
+      if (p.shop[k]) this.pool.give(p.shop[k], 1);
+      p.shop[k] = null;
+    }
+    const locked = this.lockedVariants(p);
+    for (let k = 0; k < CONFIG.shopSize; k++) {
+      const id = this.rollShopUnit(p, locked, null, match);
+      if (id) this.pool.take(id, 1);
+      p.shop[k] = id;
+    }
+    this.notify(p, '속임수주사위: ' + formOf(def, inst.star, p, inst).name + '과(와) 같은 코스트의 포켓몬으로 상점을 채웠습니다', 'loot');
+    this.emit('update');
+    return { ok: true, reason: '' };
+  }
+
   useTraitShop(p, i, inst) {
     const def = UNITS[inst.unitId];
     const want = allTraitsOf(def, inst.star, p, inst).filter(t => !def.uniques.includes(t));
@@ -1029,6 +1050,7 @@ class Game {
     inst.items = inst.items || [];
     if (d.candy) return this.useCandy(p, i, inst, d);
     if (d.dup) return this.useDuplicator(p, i, inst, d);
+    if (d.diceShop) return this.useDiceShop(p, i, inst);
     if (d.traitShop) return this.useTraitShop(p, i, inst);
     if (d.reforge) return this.useReforge(p, i, inst, cu);
     if (d.lucky) return this.useLucky(p, i, inst);

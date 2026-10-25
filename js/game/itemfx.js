@@ -29,10 +29,10 @@ const ITEM_FX = {
   itemStatic(items, evolvable) {
     const it = itemCountMap(items);
     const n = id => it[id] || 0;
-    const S = { it, rk: { atk: 0, spa: 0, def: 0, spd: 0, spe: 0, crit: 0 }, hp: 0, pp: 0, pa: 0, sa: 0, hpPct: 0, vamp: 0, range: 0 };
+    const S = { it, rk: { atk: 0, spa: 0, def: 0, spd: 0, spe: 0, crit: 0 }, direct: { atk: 0, spa: 0, def: 0, spd: 0, as: 0, hp: 0, crit: 0, pp: 0 }, hp: 0, pp: 0, pa: 0, sa: 0, hpPct: 0, vamp: 0, range: 0 };
     for (const id of items) {
       const st = itemDef(id).stats || {};
-      for (const k of ITEM_RANK_KEYS) if (st[k]) S.rk[k] += st[k];
+      for (const k in itemDef(id).direct || {}) S.direct[k] += itemDef(id).direct[k];
       if (st.hp) S.hp += st.hp;
       if (st.pp) S.pp += st.pp;
     }
@@ -97,8 +97,12 @@ const ITEM_FX = {
       const f = (1 + 0.2 * B.evo) / (1 + 0.2 * A.evo);
       for (const k of ['hp', 'pa', 'sa', 'armor', 'mr']) u.base[k] = Math.round(u.base[k] * f);
     }
-    for (const k of ITEM_RANK_KEYS) u.rk[k] += B.rk[k] - A.rk[k];
-    u.flatHp += B.hp - A.hp;
+    u.flatHp += B.direct.hp - A.direct.hp;
+    u.flatArmor += B.direct.def - A.direct.def;
+    u.flatMr += B.direct.spd - A.direct.spd;
+    u.pct.pa += B.direct.atk - A.direct.atk;
+    u.pct.sa += B.direct.spa - A.direct.spa;
+    u.pct.as += B.direct.as - A.direct.as;
     u.pct.pa += B.pa - A.pa;
     u.pct.sa += B.sa - A.sa;
     u.pct.hp += B.hpPct - A.hpPct;
@@ -598,7 +602,7 @@ const ITEM_FX = {
   itemOnBasic(u, t, raw, dmg, crit) {
     const it = u.it;
     if (!it || !u.items.length) return;
-    if (it['ether']) this.gainPP(u, 30 * it['ether']);
+    if (it['ether']) this.gainPP(u, 5 * it['ether']);
     if (it['dragon-fang']) this.gainPP(u, (crit ? 60 : 30) * it['dragon-fang']);
     const blue = treasureCounts(it, 'blue-orb');
     if (treasureTop(blue)) this.gainPP(u, treasureSum(blue, TR_BLUE_BASIC));

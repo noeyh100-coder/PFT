@@ -995,7 +995,8 @@ class Arena {
           setTimeout(() => el.remove(), (ev.dur * 1000) / speed);
         }
       } else if (ev.type === 'smog') {
-        const el = this.cellFx(ev.r, ev.c, 'fx-smog', ev.radius * 2 + 1.3, (ev.dur * 1000) / speed);
+        const el = this.cellFx(ev.r, ev.c, 'fx-smog', ev.radius * 2 + 1.3, (ev.dur * 1000) / speed, this.unitLayer);
+        el.style.zIndex = '58';
         el.style.animationDuration = (ev.dur / speed) + 's';
       } else if (ev.type === 'vortexpop') {
         this.unitFx(ev.target, 'fx-vortex-pop', 600);
@@ -1239,7 +1240,7 @@ class Arena {
     return { x: p.x, y: p.y, w: Math.abs(b.x - a.x), h: Math.abs(d.y - t.y) };
   }
 
-  cellFx(r, c, cls, cells, ms) {
+  cellFx(r, c, cls, cells, ms, layer) {
     const box = this.cellBox(r, c, cells);
     const el = document.createElement('div');
     el.className = 'fx-cell ' + cls;
@@ -1247,7 +1248,7 @@ class Arena {
     el.style.top = box.y + 'px';
     el.style.width = box.w + 'px';
     el.style.height = box.h + 'px';
-    this.fx.appendChild(el);
+    (layer || this.fx).appendChild(el);
     if (ms) setTimeout(() => el.remove(), ms);
     return el;
   }
