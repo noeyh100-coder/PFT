@@ -567,7 +567,7 @@ class CombatSim {
     for (const u of units) {
       const def = u.unitId ? UNITS[u.unitId] : null;
       if (!def || !ADAPT[def.id] || u.ditto || u.creep || !u.form || !isAdaptBase(def, u.form)) continue;
-      const v = { pa: this.atkView(u), sa: this.spaView(u), armor: this.defense(u, false, false, true), mr: this.defense(u, true, false, true) };
+      const v = { pa: this.atkView(u), sa: this.spaStat(u), armor: this.defense(u, false, false, true), mr: this.defense(u, true, false, true) };
       u.adaptMode = adaptMode(def.id, v);
       const nf = adaptForm(def, u.form, u.adaptMode);
       if (nf !== u.form) this.reformUnit(u, def, nf);
@@ -584,7 +584,7 @@ class CombatSim {
   }
 
   topStat(u) {
-    const vals = { atk: this.atkView(u), spa: this.spaView(u), def: this.defense(u, false, false, true), spd: this.defense(u, true, false, true) };
+    const vals = { atk: this.atkView(u), spa: this.spaStat(u), def: this.defense(u, false, false, true), spd: this.defense(u, true, false, true) };
     const role = (u.stats && u.stats.role) || '';
     const tank = role.indexOf('탱커') >= 0;
     const pref = tank ? (u.special ? 'spd' : 'def') : u.special ? 'spa' : 'atk';
@@ -720,7 +720,7 @@ class CombatSim {
     for (const b of u.tmp) if (b.k === k && b.until > this.time) value += b.value;
     if ((k === 'def' || k === 'spd') && u.poisonUntil > this.time && this.tier(this.enemyOf(u.side), '독') >= 2) value -= 20;
     if (k === 'spe' && u.chalMax && u.chal >= u.chalMax) value += u.chalModifier;
-    if (u.kingN && (k === 'def' || k === 'spd')) value += 20 * u.kingN;
+    if (u.kingN && (k === 'def' || k === 'spd')) value += 10 * u.kingN;
     if (u.decoy && (k === 'def' || k === 'spd')) value += 20 * this.targetersOf(u);
     return value;
   }
@@ -732,12 +732,12 @@ class CombatSim {
 
   atkView(u) {
     const atkBonus = this.statModifier(u, 'atk');
-    return u.base.pa * (1 + u.pct.pa + (u.experiment ? Math.min(0, atkBonus) : atkBonus)) * this.otMult('atk');
+    return u.base.pa * Math.max(0, 1 + u.pct.pa + (u.experiment ? Math.min(0, atkBonus) : atkBonus)) * this.otMult('atk');
   }
 
   spaView(u) {
     const extra = u.experiment
-      ? Math.max(0, u.pct.pa) + Math.max(0, u.pct.as) + Math.max(0, this.statModifier(u, 'atk')) + Math.max(0, this.statModifier(u, 'spe')) + u.ppBonus * 0.15
+      ? Math.max(0, u.pct.pa) + Math.max(0, u.pct.as) + Math.max(0, this.statModifier(u, 'atk')) + Math.max(0, this.statModifier(u, 'spe')) + u.ppBonus * 0.015
       : 0;
     return (u.base.sa * (1 + u.pct.sa + extra) + this.statModifier(u, 'spa')) * this.otMult('atk');
   }
@@ -1026,10 +1026,10 @@ class CombatSim {
     }
     this.lastHit = true;
     u.lastMissed = false;
-    const critChance = skill ? (u.skillCritPa || 0) : this.critChance(u);
     const skillCritChance = u.special ? u.skillCritSa : u.skillCritPa;
-    const crit = this.rng.next() < (u.alwaysCrit && !skill ? 1 : Math.min(1, (skill ? skillCritChance : critChance) + (this.side[u.side].sunny && t.stormUntil > this.time ? 0.2 : 0)));
-    let raw = (skill ? this.offense(u) : this.atkStat(u)) * (skill ? cfg.skillMult * (1 + u.skillAmp) * (u.pwStar || 1) : 1) * (mult || 1);
+    const sunnyCrit = !skill && this.side[u.side].sunny && t.stormUntil > this.time ? 0.2 : 0;
+    const crit = this.rng.next() < (u.alwaysCrit && !skill ? 1 : Math.min(1, (skill ? skillCritChance : this.critChance(u)) + sunnyCrit));
+    let raw = (skill ? this.offense(u) : this.atkStat(u)) * (skill ? cfg.skillMult * (1 + u.skillAmp) * (u.special ? u.pwStar || 1 : 1) : 1) * (mult || 1);
     if (crit) raw *= cfg.critMult + (u.critDmg || 0);
     if (skill && u.waterSkillAmp) raw *= 1 + u.waterSkillAmp;
     const o = { special: u.special, crit, kind: skill ? 'skill' : 'basic' };
@@ -1134,7 +1134,7 @@ class CombatSim {
     const refund = u.ppRefund + u.waterRefund;
     if (refund > 0 && u.alive) u.mana = Math.min(u.maxMana, u.mana + used * refund);
     if (u.it['max-ether'] && u.alive) u.mana = Math.min(u.maxMana, u.mana + 10 * u.it['max-ether']);
-    if (u.items.length && u.alive) this.itemAfterCast(u);
+    if (u.items.length && u.alive) this.itemAfterCast(u, used);
     if (u.fairyHeal) {
       const a = this.lowestRatioAlly(u.side);
       if (a) this.heal(a, a.maxHp * u.fairyHeal * used * (1 + u.fairyBonus), u);
@@ -1244,7 +1244,10 @@ class CombatSim {
     const vamp = src ? src.vamp + this.orbVamp(src) + this.augVamp(src, t) : 0;
     if (src && src.alive && vamp > 0 && real > 0 && src.side !== t.side) this.heal(src, real * vamp, src);
     if (src && src.side !== t.side && src.it && (o.kind === 'basic' || o.kind === 'skill')) this.redOrbCount(src);
-    if (isHit && src && src.side !== t.side) this.gainPP(t, Math.min(PP_RULE.hitCap, raw * PP_RULE.hitRaw + dmg * PP_RULE.hitReal));
+    if (isHit && src && src.side !== t.side) {
+      const pp = Math.min(PP_RULE.hitCap, raw * PP_RULE.hitRaw + dmg * PP_RULE.hitReal);
+      this.gainPP(t, pp * (t.it && t.it['soothe-bell'] ? 2 * t.it['soothe-bell'] : 1));
+    }
     if (isHit && src && src.side !== t.side) this.itemAfterHit(src, t, o, total);
     if (isHit && src && src.side !== t.side) {
       if (src.chillOn) this.addChill(t, 1, src.side);
@@ -1323,7 +1326,7 @@ class CombatSim {
       }
       remaining *= 1 - 0.1 * up;
     }
-    return 1 - Math.max(0, remaining);
+    return Math.min(0.8, 1 - Math.max(0, remaining));
   }
 
   kill(t, kind) {
@@ -1627,7 +1630,7 @@ class CombatSim {
     for (const e of this.aliveOf(this.enemyOf(u.side))) {
       if (e.hidden || Hex.dist(r, c, e.r, e.c) > radius) continue;
       const crit = this.rng.next() < (u.special ? u.skillCritSa : u.skillCritPa);
-      this.dealDamage(u, e, this.offense(u) * mult * (1 + u.skillAmp) * (u.pwStar || 1) * this.skillBoostOf(u) * (crit ? cfg.critMult + (u.critDmg || 0) : 1), { special: u.special, crit, kind: 'skill' });
+      this.dealDamage(u, e, this.offense(u) * mult * (1 + u.skillAmp) * (u.special ? u.pwStar || 1 : 1) * this.skillBoostOf(u) * (crit ? cfg.critMult + (u.critDmg || 0) : 1), { special: u.special, crit, kind: 'skill' });
       if (stun && e.alive) this.stun(e, stun, u.side, 'airborne');
     }
   }

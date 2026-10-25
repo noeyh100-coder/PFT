@@ -214,7 +214,6 @@ const View = {
     if (id === 'soul-dew') return u.dewPct || 0;
     if (id === 'choice-scarf') return u.scarfPct || 0;
     if (id === 'assault-vest') return u.vestRanks || 0;
-    if (id === 'metronome') return u.metroTarget != null ? 30 * u.it.metronome * Math.floor((time - u.metroSince) / 3) : 0;
     if (id === 'absorb-bulb') return u.bulbPct || 0;
     if (/^griseous-orb-/.test(id)) return u.grisStacks || 0;
     if (id === 'red-orb-3') return u.redAs || 0;
@@ -605,24 +604,43 @@ const View = {
       text.appendChild(name);
       const steps = this.el('div', 'trait-steps');
       const td = TRAIT_DATA.map[t.id];
+      const variant = t.id === '에스퍼' && owner && owner.espVariant ? ESPER_VARIANTS[owner.espVariant] : null;
+      const stepText = variant ? variant.steps : td && td.steps;
+      const tierLabel = n => td && td.countLabel === '짝' ? n + '짝' : td && td.countLabel === '가격 종류' ? n + '종류' : n + '마리';
+      const setRankTip = (el, label, index) => {
+        const effect = stepText && stepText[index];
+        if (effect) el.dataset.tip = label + ' 달성 효과\n' + effect;
+      };
       if (t.kind === 'unique') {
         const st = hooks && hooks.stack ? hooks.stack(t.id) : '';
         if (st) steps.appendChild(this.el('span', 'stack', st));
       } else if (td && td.mode === 'bug') {
         if (t.active) {
-          steps.appendChild(this.el('span', t.tier === 1 ? 'cur' : 'got', 3));
+          const threshold = this.el('span', t.tier === 1 ? 'cur' : 'got', 3);
+          setRankTip(threshold, '3마리', 0);
+          steps.appendChild(threshold);
           steps.appendChild(this.el('i', null, '›'));
-          steps.appendChild(this.el('span', t.tier > 1 ? 'cur' : null, '3성 ' + (t.star3 || 0) + '/5'));
-        } else steps.textContent = t.count + ' / 3';
-      } else if (t.active && t.tiers.length > 1) {
+          const stars = this.el('span', t.tier > 1 ? 'cur' : null, '3성 ' + (t.star3 || 0) + '/5');
+          setRankTip(stars, '3성 벌레 ' + Math.min(5, (t.star3 || 0) + 1) + '마리', Math.min(5, (t.star3 || 0) + 1));
+          steps.appendChild(stars);
+        } else {
+          steps.textContent = t.count + ' / 3';
+          setRankTip(steps, '3마리', 0);
+        }
+      } else if (t.tiers.length > 1) {
         t.tiers.forEach((n, i) => {
           if (i) steps.appendChild(this.el('i', null, '›'));
-          steps.appendChild(this.el('span', i + 1 === t.tier ? 'cur' : i < t.tier ? 'got' : null, n));
+          const rank = this.el('span', i + 1 === t.tier ? 'cur' : i < t.tier ? 'got' : null, n);
+          setRankTip(rank, tierLabel(n), i);
+          steps.appendChild(rank);
         });
       } else if (t.active) {
-        steps.appendChild(this.el('span', 'cur', t.tiers[0]));
+        const rank = this.el('span', 'cur', t.tiers[0]);
+        setRankTip(rank, tierLabel(t.tiers[0]), 0);
+        steps.appendChild(rank);
       } else {
         steps.textContent = t.count + ' / ' + t.need;
+        setRankTip(steps, tierLabel(t.need), 0);
       }
       text.appendChild(steps);
       row.appendChild(text);
@@ -733,6 +751,30 @@ const View = {
     role.appendChild(this.el('span', null, form.role || roleOf(form, computeStats(form, def.cost, 1, 1))));
     if (note) role.appendChild(this.el('span', 'ut-note', note));
     info.appendChild(role);
+    const statTable = this.el('table', 'ut-stats');
+    const statHead = this.el('thead');
+    const statHeader = this.el('tr');
+    statHeader.appendChild(this.el('th', null, '능력치'));
+    for (let star = 1; star <= 3; star++) statHeader.appendChild(this.el('th', null, star + '성'));
+    statHead.appendChild(statHeader);
+    statTable.appendChild(statHead);
+    const statBody = this.el('tbody');
+    const starStats = [1, 2, 3].map(star => computeStats(form, def.cost, star, def.unlockOnly ? UNLOCK_STAT_BONUS : 1, { boost: def.boost }));
+    const statRows = [
+      ['체력', stats => stats.hp],
+      ['PP', stats => stats.maxMana],
+      ['물리공격', stats => stats.pa],
+      ['방어/특수방어', stats => stats.armor + '/' + stats.mr],
+      ['공격속도', stats => stats.as]
+    ];
+    for (const [label, value] of statRows) {
+      const row = this.el('tr');
+      row.appendChild(this.el('th', null, label));
+      for (const stats of starStats) row.appendChild(this.el('td', null, value(stats)));
+      statBody.appendChild(row);
+    }
+    statTable.appendChild(statBody);
+    info.appendChild(statTable);
     const tr = [];
     for (const x of form.types.concat(br && br.traits ? br.traits : def.traits, def.uniques)) if (!tr.includes(x)) tr.push(x);
     const traits = this.el('div', 'ut-traits');
@@ -915,7 +957,7 @@ const View = {
       const steps = this.el('div', 'tt-steps');
       (td.stepLabels || td.tiers).forEach((n, i) => {
         const row = this.el('div', 'tt-step' + (i + 1 === tier ? ' on' : i + 1 < tier ? ' got' : ''));
-        const label = td.stepLabels ? n : td.countLabel === '짝' ? n + '짝' : td.countLabel === '가격 종류' ? n + '종류' : n;
+        const label = td.stepLabels ? n : td.countLabel === '짝' ? n + '짝' : td.countLabel === '가격 종류' ? n + '종류' : n + '마리';
         row.appendChild(this.el('span', 'tt-n', '(' + label + ')'));
         row.appendChild(this.el('span', null, stepText[i] || ''));
         steps.appendChild(row);
@@ -1068,9 +1110,11 @@ const View = {
     const s = t.stats;
     const b = t.base || s;
     const pct = v => (v < 0.1 && v > 0 ? (v * 100).toFixed(1) : Math.round(v * 100)) + '%';
+    const statPct = v => Math.round(v) + '%';
+    const extraSpecialAttack = b.sa > 0 ? (s.sa / b.sa - 1) * 100 : 0;
     return [
-      ['pa', '물리공격력', s.pa, b.pa, v => Math.round(v)],
-      ['sa', '특수공격력', s.sa, b.sa, v => Math.round(v)],
+      ['pa', '물리공격력', s.pa, b.pa, statPct],
+      ['sa', '추가 특수공격', extraSpecialAttack, 0, statPct],
       ['armor', '물리방어력', s.armor, b.armor, v => Math.round(v)],
       ['mr', '특수방어력', s.mr, b.mr, v => Math.round(v)],
       ['as', '공격속도 (초당 기본 공격 횟수)', s.as, b.as, v => v.toFixed(2)],

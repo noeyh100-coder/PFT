@@ -684,6 +684,7 @@ button:disabled {
 }
 
 #bench-layer,
+#fx-underlay-layer,
 #unit-layer,
 #orb-layer,
 #carousel-layer,
@@ -7035,6 +7036,36 @@ button.gold {
 
 .ut-role {
   margin-top: 4px;
+}
+
+.ut-stats {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-size: 10px;
+  text-align: center;
+  background: rgba(10, 11, 18, 0.42);
+}
+
+.ut-stats th,
+.ut-stats td {
+  padding: 3px 4px;
+  border: 1px solid #343858;
+  white-space: nowrap;
+}
+
+.ut-stats thead th,
+.ut-stats tbody th {
+  color: var(--muted);
+  font-weight: normal;
+}
+
+.ut-stats tbody th {
+  text-align: left;
+}
+
+.ut-stats td {
+  color: #fffbe8;
 }
 
 #unit-tip .ut-traits {

@@ -164,7 +164,7 @@ js/ui/            taxi.js(아머까오택시 이동 연출, 펑펑 효과), evof
 | 전리품 구 색깔 확률 | `orbs` |
 | 회전초밥 시간·속도 | `carousel` |
 | 회전초밥 크기 (전략가 자리 원 반지름, 자리 크기, 모래판 크기) | `js/ui/projection.js`의 `CAROUSEL` |
-| 능력치 표 | `js/game/units.js`의 `BASE_STAT`(20), `COST_HP`, `COST_ATK`(주 공격 배율 × 20), `ROLE_DEF`(숨은 방어 배율 × 20), `ROLE_AS`, `STAR_HP`, `STAR_SKILL`(별 등급 스킬 배율), `UNLOCK_STAT_BONUS`. 전투에서는 `pwP`·`pwS`(공격·특공 배율), `pwD`(방어 배율), `pwStar`(스킬 배율)로 쓰이고, 야생 포켓몬은 `legacy`로 예전 수치를 씁니다 |
+| 능력치 표 | `js/game/units.js`의 코스트·역할별 `COST_STATS`, `COST_ATK`, `STAR_HP`·`STAR_ATK`·`STAR_SKILL`, `UNLOCK_STAT_BONUS`. 전투에서는 `pwP`·`pwS`(공격·특공 배율), `pwD`(방어 배율), `pwStar`(스킬 배율)로 쓰이고, 야생 포켓몬은 `legacy` 공식으로 계산합니다 |
 | 크립 강도, 크립 라운드 준비 시간, 원정 전투 대기 시간 | `pveScale`(0.8), `planningTime.pve`(10초), `preCombat`(5초) |
 | 연장전 시작, 전투 제한 시간 | `combat.overtimeAt`(30초), `combat.timeLimit`(45초). 연장전 배율은 `js/game/combat.js`의 `otMult` |
 | 경기장 기울기·크기 | `js/ui/projection.js`의 `pitch`(기울기), `height`(원근 강도), `nearWidth`(크기) |
@@ -175,7 +175,7 @@ js/ui/            taxi.js(아머까오택시 이동 연출, 펑펑 효과), evof
 | 후딘 진화 조건 (윤겔라가 재운 시간) | `unlock`의 `hypnosisSeconds` (60초). 윤겔라 최면 시간은 `js/game/skills.js`의 `SKILL_P` 윤겔라 `sleep` (1.5초) |
 | 기물별 스킬 수치 | `js/game/skills.js`·`js/game/skills2.js`의 `SKILL_P` (`이름·스킬` 키가 `이름` 키보다 먼저). 설명은 `js/data/skilltext.js` |
 | 스킬 배율, 급소 확률, 랭크 배율, 명중 보너스 | `js/data/config.js`의 `combat` (`skillMult`, `critTable`, `critMult`, `rankStep`, `hitBonus`) |
-| 기물별 최대 PP | `js/data/pp.js`의 `PP_UNIT`(계열별)·`PP_FORM`(단계·스킬별), 마나 규칙 `PP_RULE`(기본 공격 10, 피격 공식, 마나 락 1초). 표에 없는 기물은 예전 값 × 2.5 |
+| 기물별 최대 PP | `js/data/pp.js`의 `PP_UNIT`(계열별)·`PP_FORM`(단계·스킬별), 마나 규칙 `PP_RULE`(기본 공격 10, 피격 공식, 마나 락 1초). 개별 PP가 없는 기물은 역할별 기본값(탱커 90, 전사 70, 마법사 60)을 씁니다 |
 | 아이템 이름·조합·능력치·설명 | `js/data/items.js` (`bonus`는 완성 아이템에만 붙는 추가 능력치) |
 | 아이템 효과 수치 | `js/game/itemfx.js` (장착 효과 `itemStatic`/`swapItems`, 시간 효과 `tickItems`, 피해 배율 `itemDamageMult`, 맞았을 때 `itemAfterHit`, 기본 공격 때 `itemOnBasic`). 채굴 보물 수치는 파일 맨 위의 `TR_` 표 |
 | 아이템 보상 개수 | `js/game/game.js`의 `pveItems` |
@@ -200,7 +200,7 @@ js/ui/            taxi.js(아머까오택시 이동 연출, 펑펑 효과), evof
 
 - 주 공격 배율: 위 표의 수치 ÷ 20 (1코 2.5배 … 5코 4.5배). 물리 계열은 공격, 특수 계열은 특수공격 쪽이 주 배율이고, 다른 쪽은 그 절반입니다. 기본 공격과 스킬 피해 모두 이 배율을 씁니다.
 - 숨은 방어 배율: 탱커 2배, 전사 1.5배, 마법사 1배 (예전 방어 40 / 30 / 20과 같은 피해 감소). 공격 속도(초당 기본 공격 횟수): 탱커 0.6, 전사 0.7, 마법사 0.8.
-- 별 등급이 오르면 **체력(1 / 1.8 / 3.24배)과 스킬 배율(1 / 2 / 3.5배)만** 강해집니다. 기본 공격·방어·공격 속도는 별 등급으로 바뀌지 않습니다. 그래서 같은 조건의 PvP 평균 전투 시간이 약 22초에서 약 24초로 늘었습니다.
+- 별 등급이 오르면 체력은 1 / 1.8 / 3.24배, 공격력은 1 / 1.5 / 2.25배가 됩니다. 물리 공격 기반 스킬에는 공격력의 별 배율을 한 번 적용하고, 특수 스킬에는 스킬 배율 1 / 2 / 3.5를 적용합니다. 방어력과 공격 속도는 별 등급으로 바뀌지 않습니다.
 - 해금 기물은 모든 수치가 1.25배입니다. 망나뇽은 체력과 공격이 추가로 1.2배입니다.
 - 야생 포켓몬도 같은 공식에 라운드 배율과 0.8배를 곱합니다.
 - 피해는 `피해 × 100 / (100 + 방어)`이고, 피해증폭만큼 늘고 내구력만큼 줄어듭니다.

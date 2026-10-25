@@ -1,4 +1,4 @@
-const ITEM_STAT_LABEL = { atk: '공격력', spa: '주문력', def: '방어력', spd: '마법 저항력', spe: '공격 속도', crit: '급소 확률', hp: '체력', pp: '시작 마나' };
+const ITEM_STAT_LABEL = { atk: '물리공격', spa: '특수공격', def: '물리방어', spd: '특수방어', spe: '공격 속도', crit: '급소 확률', hp: '체력', pp: '시작 마나' };
 const ITEM_STAT_FORMAT = { atk: 'percent', spa: 'flat', def: 'flat', spd: 'flat', spe: 'percent', crit: 'percentagePoints', hp: 'flat', pp: 'flat' };
 
 const ITEM_COMPONENTS = [
@@ -13,42 +13,42 @@ const ITEM_COMPONENTS = [
 ];
 
 const ITEM_COMPLETED = [
-  { id: 'choice-band', name: '구애머리띠', from: ['muscle-band', 'muscle-band'], desc: '공격이 30% 증가합니다.' },
-  { id: 'expert-belt', name: '달인의띠', from: ['wise-glasses', 'muscle-band'], desc: '효과가 굉장한 상대에게 주는 최종 피해가 60%, 그 밖의 상대에게는 10% 증가합니다.' },
-  { id: 'choice-specs', name: '구애안경', from: ['wise-glasses', 'wise-glasses'], desc: '특수공격이 25% 증가합니다.' },
-  { id: 'covert-cloak', name: '은밀망토', from: ['protective-pads', 'muscle-band'], unique: true, desc: '체력이 처음으로 40% 이하가 되면 2초 동안 대상으로 지정되지 않고, 잃은 체력의 60%를 회복합니다.' },
-  { id: 'eviolite', name: '진화의휘석', from: ['protective-pads', 'wise-glasses'], unique: true, desc: '아직 진화할 수 있는 포켓몬이면 체력·공격·특수공격·방어·특수방어가 1.2배가 됩니다.' },
-  { id: 'rocky-helmet', name: '울퉁불퉁맷', from: ['protective-pads', 'protective-pads'], bonus: { def: 60 }, desc: '방어력이 60 증가하고, 기본 공격에 맞으면 받은 피해의 50%를 공격한 적에게 돌려줍니다.' },
-  { id: 'shell-bell', name: '조개껍질방울', from: ['x-sp-def', 'muscle-band'], desc: '모든 피해 흡혈 40%.' },
-  { id: 'full-incense', name: '만복향로', from: ['x-sp-def', 'wise-glasses'], desc: '2칸 안의 적의 마법 저항력을 20, 공격 속도를 15% 낮춥니다.' },
-  { id: 'kings-rock', name: '왕의징표석', from: ['x-sp-def', 'protective-pads'], bonus: { hp: 150 }, desc: '2칸 안의 적 1명마다 방어력과 마법 저항력이 20 증가합니다(최대 4명). 기본 공격 때 10% 확률로 적을 1.5초 동안 풀죽음(기절) 상태로 만듭니다.' },
-  { id: 'assault-vest', name: '돌격조끼', from: ['x-sp-def', 'x-sp-def'], bonus: { spd: 60, hp: 200 }, desc: '마법 저항력이 60 증가하고, 10초마다 공격력이 15%, 주문력이 15 증가합니다.' },
-  { id: 'weakness-policy', name: '약점보험', from: ['leftovers', 'muscle-band'], desc: '효과가 굉장한 공격을 처음 맞으면 최대 체력 30%의 보호막을 얻고 공격·특수공격이 30% 증가합니다.' },
-  { id: 'black-sludge', name: '검은오물', from: ['leftovers', 'wise-glasses'], desc: '피해를 입힌 적의 회복량이 33% 줄고 화상을 입습니다.' },
-  { id: 'flame-orb', name: '불구슬플레이트', from: ['leftovers', 'protective-pads'], desc: '바로 옆 칸의 적의 회복량이 33% 줄고 3초 동안 화상을 입습니다.' },
-  { id: 'lax-incense', name: '무사태평향로', from: ['leftovers', 'x-sp-def'], desc: '2칸 안의 적의 방어력을 20, 명중률을 10%p 낮춥니다.' },
-  { id: 'big-root', name: '큰뿌리', from: ['leftovers', 'leftovers'], desc: '최대 체력이 20% 증가합니다.' },
-  { id: 'black-belt', name: '검은띠', from: ['swift-wing', 'muscle-band'], desc: '최대 체력이 1300 이상인 적에게 주는 피해가 45% 증가합니다.' },
-  { id: 'choice-scarf', name: '구애스카프', from: ['swift-wing', 'wise-glasses'], desc: '기본 공격할 때마다 공격 속도가 2%씩 오릅니다.' },
-  { id: 'booster-energy', name: '부스트에너지', from: ['swift-wing', 'protective-pads'], desc: '기본 공격을 맞히거나 기본 공격·스킬에 맞을 때마다 공격력이 3%씩 오릅니다(최대 25회). 최대 중첩 시 방어력과 마법 저항력이 40 증가합니다.' },
-  { id: 'silver-wing', name: '은빛날개', from: ['swift-wing', 'x-sp-def'], desc: '기본 공격할 때 주변 적 2명에게 투사체를 더 날려 기본 공격 피해의 30%를 입힙니다.' },
-  { id: 'focus-sash', name: '기합의띠', from: ['swift-wing', 'leftovers'], unique: true, desc: '처음으로 쓰러질 피해를 받으면 쓰러지지 않고 2초 동안 체력 1로 버티며, 공격·특수공격이 20% 증가합니다.' },
-  { id: 'zoom-lens', name: '망원렌즈', from: ['swift-wing', 'swift-wing'], bonus: { spe: 0.15 }, desc: '사거리가 1칸 늘고 공격 속도가 15% 증가합니다.' },
-  { id: 'punching-glove', name: '펀치글러브', from: ['razor-claw', 'muscle-band'], bonus: { atk: 0.3 }, desc: '공격력이 30% 증가하고 물리 스킬의 급소 확률이 10%p 증가합니다.' },
-  { id: 'black-glasses', name: '검은안경', from: ['razor-claw', 'wise-glasses'], bonus: { spa: 15 }, desc: '주문력이 15 증가하고 특수 스킬의 급소 확률이 10%p 증가합니다.' },
-  { id: 'shell-armor', name: '조가비갑옷', from: ['razor-claw', 'protective-pads'], desc: '급소에 맞지 않고, 받는 피해가 15% 줄어듭니다.' },
-  { id: 'mental-herb', name: '멘탈허브', from: ['razor-claw', 'x-sp-def'], unique: true, desc: '전투 시작 후 18초 동안 군중 제어 효과에 걸리지 않고, 그동안 받는 피해가 25% 줄어듭니다.' },
-  { id: 'metronome', name: '메트로놈', from: ['razor-claw', 'leftovers'], desc: '같은 대상을 3초 공격할 때마다 주는 피해가 30%씩 증가합니다. 대상을 바꾸면 처음부터 다시 쌓입니다.' },
-  { id: 'spell-tag', name: '저주의부적', from: ['razor-claw', 'swift-wing'], bonus: { atk: 0.15 }, desc: '공격력이 15% 증가합니다. 피해를 입힌 적의 방어력이 6초 동안 60 감소합니다. (겹치지 않음)' },
-  { id: 'scope-lens', name: '초점렌즈', from: ['razor-claw', 'razor-claw'], desc: '기본 공격이 모두 급소에 맞습니다. 같은 줄 양옆 아군의 급소 확률이 10%p 증가합니다.' },
-  { id: 'ether', name: 'PP에이드', from: ['leppa-berry', 'muscle-band'], desc: '기본 공격할 때 PP를 30 더 얻습니다.' },
-  { id: 'soul-dew', name: '마음의물방울', from: ['leppa-berry', 'wise-glasses'], desc: '5초마다 특수공격이 18%씩 증가합니다.' },
-  { id: 'soothe-bell', name: '평온의방울', from: ['leppa-berry', 'protective-pads'], desc: '공격에 맞을 때 PP를 20 더 얻습니다.' },
-  { id: 'everstone', name: '변함없는돌', from: ['leppa-berry', 'x-sp-def'], unique: true, bonus: { hp: 350 }, desc: '진화하지 않습니다. 별은 오르지만 모습·스킬·타입은 그대로입니다. 돌을 빼면 전투를 한 번 치른 뒤 다음 라운드에 진화합니다.' },
-  { id: 'super-potion', name: '좋은상처약', from: ['leppa-berry', 'leftovers'], desc: '매초 최대 체력의 1.5%를 회복하고, 바로 옆 칸의 아군도 매초 이 기물의 최대 체력의 1%만큼 회복시킵니다.' },
-  { id: 'twisted-spoon', name: '휘어진스푼', from: ['leppa-berry', 'swift-wing'], bonus: { spa: 15 }, desc: '주문력이 15 증가합니다. 피해를 입힌 적의 마법 저항력이 6초 동안 60 감소합니다. (겹치지 않음)' },
-  { id: 'dragon-fang', name: '용의이빨', from: ['leppa-berry', 'razor-claw'], desc: '기본 공격할 때 PP를 30 더 얻고, 급소에 맞히면 30을 더 얻습니다.' },
-  { id: 'max-ether', name: 'PP맥스', from: ['leppa-berry', 'leppa-berry'], desc: '시작 PP가 30이고, 스킬을 쓴 뒤 PP를 10 얻습니다.' }
+  { id: 'choice-band', name: '구애머리띠', from: ['muscle-band', 'muscle-band'], bonus: { atk: 0.35 } },
+  { id: 'super-potion', name: '좋은상처약', from: ['muscle-band', 'wise-glasses'], bonus: { atk: 0.05, spa: 5 }, extraStats: [{ label: '모든 피해 흡혈', value: 20, unit: '%', prefix: '' }], desc: '입힌 피해량의 25%만큼 체력 비율이 가장 낮은 아군을 회복시킵니다.' },
+  { id: 'covert-cloak', name: '은밀망토', from: ['muscle-band', 'protective-pads'], unique: true, bonus: { atk: 0.05, spa: 15 }, extraStats: [{ label: '물리 피해 감소', value: 25, unit: '%', prefix: '' }], desc: '체력이 60% 이하로 떨어지면 잠시 대상으로 지정되지 않고 해로운 효과를 제거한 뒤 공격 속도 15%를 얻습니다.' },
+  { id: 'shell-bell', name: '조개껍질방울', from: ['muscle-band', 'x-sp-def'], bonus: { atk: 0.05, spa: 15 }, extraStats: [{ label: '모든 피해 흡혈', value: 40, unit: '%', prefix: '' }], desc: '전투당 1회, 체력이 40% 이하가 되면 5초 동안 최대 체력의 25% 보호막을 획득합니다.' },
+  { id: 'weakness-policy', name: '약점보험', from: ['muscle-band', 'leftovers'], bonus: { atk: 0.05 }, desc: '전투당 한 번, 효과가 굉장한 공격을 맞거나 체력이 60% 이하가 되면 최대 체력의 30% 보호막과 공격력 30% 증가를 얻습니다.' },
+  { id: 'black-belt', name: '검은띠', from: ['muscle-band', 'swift-wing'], bonus: { atk: 0.1, spa: 20 }, desc: '체력이 1750 이상인 적에게 피해를 주면 준 피해의 15%만큼 회복합니다.' },
+  { id: 'punching-glove', name: '펀치글러브', from: ['muscle-band', 'razor-claw'], bonus: { atk: 0.25 }, desc: '물리 스킬에 급소가 적용되고 급소 피해량이 10% 증가합니다.' },
+  { id: 'ether', name: 'PP에이드', from: ['muscle-band', 'leppa-berry'], bonus: { atk: 0.05 }, desc: '기본 공격 시 PP를 5 추가로 얻습니다.' },
+  { id: 'choice-specs', name: '구애안경', from: ['wise-glasses', 'wise-glasses'], bonus: { spa: 35 } },
+  { id: 'eviolite', name: '진화의휘석', from: ['wise-glasses', 'protective-pads'], unique: true, bonus: { spa: 10 }, desc: '가장 높은 공격 능력치가 20% 증가하며, 진화하지 않은 경우 40% 증가합니다.' },
+  { id: 'full-incense', name: '만복향로', from: ['wise-glasses', 'x-sp-def'], desc: '2칸 안 적의 특수방어를 30% 낮춥니다. 해당 적이 스킬을 사용하면 사용한 마나의 160%만큼 마법 피해를 입힙니다.' },
+  { id: 'black-sludge', name: '검은오물', from: ['wise-glasses', 'leftovers'], bonus: { spa: 5 }, desc: '스킬 및 기본 공격 시 10초 동안 적에게 화상과 치유량 33% 감소를 적용합니다.' },
+  { id: 'choice-scarf', name: '구애스카프', from: ['wise-glasses', 'swift-wing'], desc: '기본 공격 시 스피드 4% 획득.' },
+  { id: 'black-glasses', name: '검은안경', from: ['wise-glasses', 'razor-claw'], bonus: { spa: 25, crit: 0.1 }, desc: '특수 스킬에 급소 적용 가능, 이미 스킬 급소가 가능한 경우 급소 피해량 10% 증가.' },
+  { id: 'soul-dew', name: '마음의물방울', from: ['wise-glasses', 'leppa-berry'], bonus: { spa: 10 }, desc: '전투 시작 후 5초마다 주문력이 30% 증가합니다.' },
+  { id: 'rocky-helmet', name: '울퉁불퉁맷', from: ['protective-pads', 'protective-pads'], bonus: { def: 15, hp: 100 }, desc: '기본 공격 피해를 8% 감소시키고, 기본 공격을 받으면 인접한 적들에게 특수 피해를 입힙니다(쿨타임 2초).' },
+  { id: 'kings-rock', name: '왕의징표석', from: ['protective-pads', 'x-sp-def'], bonus: { def: 5, spd: 5 }, desc: '자신을 공격하는 적 하나당 물리방어 및 특수방어 10 증가. 기본 공격 시 10% 확률로 적을 1.5초 풀죽입니다.' },
+  { id: 'flame-orb', name: '불구슬플레이트', from: ['protective-pads', 'leftovers'], desc: '2초마다 2칸 안의 적 하나에게 10초 화상 및 치유량 33% 감소를 적용합니다(중복 불가).' },
+  { id: 'booster-energy', name: '부스트에너지', from: ['protective-pads', 'swift-wing'], bonus: { def: -20 }, extraStats: [{ label: '특수방어', value: 20, unit: '', prefix: '+' }], desc: '피격당하거나 기본공격, 스킬 및 자신이 적중한 기본공격/특수공격 스킬 피해량 2%씩 증가(최대 25번). 최대 중첩 시 방어/특수방어 20 획득.' },
+  { id: 'shell-armor', name: '조가비갑옷', from: ['protective-pads', 'razor-claw'], bonus: { def: 5, hp: 150, crit: 0.1 }, desc: '받는 급소 피해가 30% 감소하고 자신을 공격한 적의 급소 확률을 3초 동안 20% 감소시킵니다(중복 불가).' },
+  { id: 'soothe-bell', name: '평온의방울', from: ['protective-pads', 'leppa-berry'], bonus: { def: 5 }, desc: '피격될 때 얻는 PP가 2배가 됩니다.' },
+  { id: 'assault-vest', name: '돌격조끼', from: ['x-sp-def', 'x-sp-def'], bonus: { spd: 15, hp: 100 }, desc: '기본 공격 피해 8% 감소. 기본 공격을 하면 인접한 적에게 특수 피해를 입힙니다(쿨타임 2초).' },
+  { id: 'lax-incense', name: '무사태평향로', from: ['x-sp-def', 'leftovers'], desc: '2칸 안 적의 물리방어 30% 감소. 전투 시작 후 15초 동안 물리방어/특수방어 25 획득.' },
+  { id: 'mental-herb', name: '멘탈허브', from: ['x-sp-def', 'razor-claw'], unique: true, bonus: { spe: 0.2, crit: 0.1 }, desc: '전투 시작 후 18초 동안 군중제어 면역, 면역 동안 2초마다 공격속도 3% 획득.' },
+  { id: 'full-restore', name: '만병통치제', icon: 'full-restore', from: ['x-sp-def', 'leppa-berry'], unique: true, desc: '장착 유닛과 주변 1칸 아군의 특수공격 25%, PP 10 획득 및 7초마다 해로운 효과를 제거합니다.' },
+  { id: 'big-root', name: '큰뿌리', from: ['leftovers', 'leftovers'], bonus: { hp: 500 }, desc: '최대 체력의 30%에 해당하는 추가 체력을 얻습니다.' },
+  { id: 'focus-sash', name: '기합의띠', from: ['leftovers', 'swift-wing'], unique: true, desc: '체력이 1만이 되면 사망하지 않고 공격력을 30% 얻고 5초 동안 체력을 1로 유지합니다.' },
+  { id: 'expert-belt', name: '달인의띠', from: ['leftovers', 'razor-claw'], bonus: { crit: 0.1 }, desc: '적 타입의 효과가 굉장할 때 해당 공격당 피해증폭 3% 획득.' },
+  { id: 'rescue-hood', name: '레스큐후드', icon: 'rescue-hood', from: ['leftovers', 'leppa-berry'], unique: true, desc: '5초마다 1칸 내 아군의 체력을 회복시키고, 범위 공격을 받는 피해를 8% 감소시킵니다.' },
+  { id: 'silver-wing', name: '은빛날개', from: ['swift-wing', 'x-sp-def'], desc: '기본 공격 시 대상 주변 적에게 추가 투사체를 발사해 기본 공격력의 60% 피해를 입힙니다.' },
+  { id: 'zoom-lens', name: '망원렌즈', from: ['swift-wing', 'swift-wing'], bonus: { spe: 0.2 }, extraStats: [{ label: '사거리', value: 1, unit: ' 증가', prefix: '+' }] },
+  { id: 'spell-tag', name: '저주의부적', from: ['swift-wing', 'razor-claw'], bonus: { atk: 0.1, crit: 0.1 }, desc: '물리 피해를 입히면 3초 동안 적의 물리방어 30% 감소(중첩 불가).' },
+  { id: 'twisted-spoon', name: '휘어진스푼', from: ['swift-wing', 'leppa-berry'], bonus: { spa: 10 }, desc: '특수 피해를 입히면 3초 동안 적의 특수방어 30% 감소(중복 불가).' },
+  { id: 'scope-lens', name: '초점렌즈', from: ['razor-claw', 'razor-claw'], bonus: { crit: 0.2 }, desc: '피해가 무조건 급소에 맞으며, 가로로 인접한 아군 2명의 급소율 +20% 및 공격속도 +10%.' },
+  { id: 'everstone', name: '변함없는돌', from: ['razor-claw', 'leppa-berry'], unique: true, bonus: { crit: 0.1 }, desc: '장착 기물은 별 레벨이 올라가도 진화하지 않습니다. 모든 능력치 5% 증가, 최종 진화 상태가 아닐 시 10% 증가.' },
+  { id: 'max-ether', name: 'PP맥스', from: ['leppa-berry', 'leppa-berry'], desc: '스킬 사용 시 PP 10 획득.' }
 ];
 
 const ITEM_MAGNET = { id: 'magnet', name: '자석', kind: 'consumable', magnet: true, desc: '아이템을 가진 기물에게 쓰면 그 기물의 아이템을 모두 빼서 아이템 칸으로 돌려줍니다.' };
@@ -78,9 +78,9 @@ const MEGA_FORMS = {
 };
 
 const REC_ITEMS = {
-  phys: ['choice-band', 'expert-belt', 'black-belt', 'punching-glove', 'metronome', 'scope-lens', 'spell-tag', 'shell-bell', 'silver-wing', 'covert-cloak', 'focus-sash', 'dragon-fang'],
-  spec: ['choice-specs', 'expert-belt', 'black-glasses', 'soul-dew', 'twisted-spoon', 'max-ether', 'ether', 'choice-scarf', 'black-sludge', 'zoom-lens', 'dragon-fang'],
-  tank: ['rocky-helmet', 'assault-vest', 'kings-rock', 'big-root', 'super-potion', 'flame-orb', 'full-incense', 'lax-incense', 'shell-armor', 'mental-herb', 'booster-energy', 'soothe-bell', 'weakness-policy']
+  phys: ['choice-band', 'expert-belt', 'black-belt', 'punching-glove', 'scope-lens', 'spell-tag', 'shell-bell', 'silver-wing', 'covert-cloak', 'focus-sash', 'super-potion'],
+  spec: ['choice-specs', 'expert-belt', 'black-glasses', 'soul-dew', 'twisted-spoon', 'max-ether', 'ether', 'choice-scarf', 'black-sludge', 'zoom-lens', 'full-restore'],
+  tank: ['rocky-helmet', 'assault-vest', 'kings-rock', 'big-root', 'super-potion', 'flame-orb', 'full-incense', 'lax-incense', 'shell-armor', 'mental-herb', 'booster-energy', 'soothe-bell', 'weakness-policy', 'rescue-hood']
 };
 
 const ITEM_CANDIES = [
@@ -137,6 +137,7 @@ const ITEMS = (function () {
       const src = part ? map[part].stats : c.bonus || {};
       for (const k in src) stats[k] = (stats[k] || 0) + src[k];
     }
+    if (c.from.includes('leppa-berry')) stats.pp = 15;
     map[c.id] = Object.assign({ kind: 'completed' }, c, { stats });
     recipe[c.from.slice().sort().join('+')] = c.id;
   }
@@ -146,7 +147,7 @@ const ITEMS = (function () {
     const stats = {};
     for (const k in b.stats) stats[k] = b.stats[k] * 2;
     const id = 'radiant-' + c.id;
-    map[id] = Object.assign({}, b, { id, base: c.id, radiant: true, name: '찬란한 ' + c.name, icon: c.icon || c.id, stats, desc: '효과와 능력치가 두 배로 적용됩니다. (원래 효과: ' + c.desc + ')' });
+    map[id] = Object.assign({}, b, { id, base: c.id, radiant: true, name: '찬란한 ' + c.name, icon: c.icon || c.id, stats, desc: '효과와 능력치가 두 배로 적용됩니다.' + (c.desc ? ' (원래 효과: ' + c.desc + ')' : '') });
     radiants.push(id);
   }
   map[ITEM_MAGNET.id] = Object.assign({ stats: {} }, ITEM_MAGNET);
@@ -228,6 +229,10 @@ function itemStatText(id) {
     const fmt = ITEM_STAT_FORMAT[k];
     const amount = fmt === 'percent' ? Math.round(v * 100) + '%' : fmt === 'percentagePoints' ? Math.round(v * 100) + '%p' : v;
     parts.push(ITEM_STAT_LABEL[k] + ' +' + amount);
+  }
+  for (const stat of d.extraStats || []) {
+    const value = stat.value * (d.radiant ? 2 : 1);
+    parts.push(stat.label + ' ' + (stat.prefix == null ? '+' : stat.prefix) + value + (stat.unit || ''));
   }
   return parts.join(', ');
 }

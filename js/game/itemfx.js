@@ -36,20 +36,24 @@ const ITEM_FX = {
       if (st.hp) S.hp += st.hp;
       if (st.pp) S.pp += st.pp;
     }
-    S.evo = evolvable ? n('eviolite') : 0;
-    S.pa = 0.3 * n('choice-band');
-    S.sa = 0.25 * n('choice-specs');
-    S.vamp = 0.4 * n('shell-bell');
-    S.hpPct = 0.2 * n('big-root');
+    S.evo = n('eviolite');
+    S.evoPct = n('eviolite') * (evolvable ? 0.4 : 0.2);
+    S.everstonePct = n('everstone') * (evolvable ? 0.1 : 0.05);
+    S.pa = 0;
+    S.sa = 0;
+    S.vamp = 0.4 * n('shell-bell') + 0.2 * n('super-potion');
+    S.hpPct = 0.3 * n('big-root');
     S.range = n('zoom-lens');
     S.herb = n('mental-herb');
     S.critPa = 0.1 * n('punching-glove');
     S.critSa = 0.1 * n('black-glasses');
     S.alwaysCrit = n('scope-lens') > 0;
-    S.critGuard = n('shell-armor');
+    S.critGuard = 0;
+    S.critDmgGuard = 0.3 * n('shell-armor');
     S.cloak = n('covert-cloak');
     S.sash = n('focus-sash');
     S.wp = n('weakness-policy');
+    S.critDamage = 0.1 * n('punching-glove') + 0.1 * n('black-glasses') + 0.2 * n('scope-lens');
     S.aura = ITEM_AURA.some(id => n(id));
     S.shield = treasureTop(treasureCounts(it, 'rusted-shield')) > 0;
     S.life = treasureTop(treasureCounts(it, 'life-orb'));
@@ -60,9 +64,10 @@ const ITEM_FX = {
     u.items = [];
     u.it = {};
     u.itemPP = 0;
-    u.itemTick = { regen: 0, dew: 0, vest: 0, aura: 0, bulb: 0, shield: 0 };
+    u.itemTick = { regen: 0, dew: 0, vest: 0, aura: 0, bulb: 0, shield: 0, hood: 0, fullRestore: 0 };
     u.boostStacks = 0;
     u.kingN = 0;
+    u.kingAttackers = new Set();
     u.dewPct = 0;
     u.scarfPct = 0;
     u.vestAtkBonus = 0;
@@ -85,6 +90,13 @@ const ITEM_FX = {
     u.wpFired = false;
     u.sashFired = false;
     u.herbUntil = 0;
+    u.rockyCd = 0;
+    u.vestCd = 0;
+    u.shellBellReady = false;
+    u.flameAt = 0;
+    u.laxBonusApplied = false;
+    u.expertAmp = 0;
+    u.sashUntil = 0;
     const list = (spec.items || []).filter(id => typeof itemDef === 'function' && itemDef(id) && !isConsumable(id));
     this.swapItems(u, list, !!spec.evolvable, false);
     u.itemPP = this.itemStatic(list, !!spec.evolvable).pp;
@@ -94,21 +106,32 @@ const ITEM_FX = {
     const A = this.itemStatic(u.items, evolvable);
     const B = this.itemStatic(items, evolvable);
     const hpBefore = u.base.hp * (1 + u.pct.hp) + u.flatHp;
-    if (A.evo !== B.evo) {
-      const f = (1 + 0.2 * B.evo) / (1 + 0.2 * A.evo);
-      for (const k of ['hp', 'pa', 'sa', 'armor', 'mr']) u.base[k] = Math.round(u.base[k] * f);
+    if (A.evoPct !== B.evoPct) {
+      const key = u.base.pa >= u.base.sa ? 'pa' : 'sa';
+      const f = (1 + B.evoPct) / (1 + A.evoPct);
+      u.base[key] = Math.round(u.base[key] * f);
     }
+    const everstonePct = B.everstonePct - A.everstonePct;
+    u.pct.pa += everstonePct;
+    u.pct.sa += everstonePct;
+    u.pct.hp += everstonePct;
+    u.pct.as += everstonePct;
+    u.flatArmor += u.base.armor * everstonePct;
+    u.flatMr += u.base.mr * everstonePct;
+    addStatModifier(u, 'crit', everstonePct / STAT_MODIFIER_PER_POINT.crit);
     u.pct.pa += B.stats.atk - A.stats.atk;
     u.pct.sa += (B.stats.spa - A.stats.spa) / 100;
     u.flatArmor += B.stats.def - A.stats.def;
     u.flatMr += B.stats.spd - A.stats.spd;
     u.pct.as += B.stats.spe - A.stats.spe;
-    u.statMods.crit += B.stats.crit - A.stats.crit;
+    addStatModifier(u, 'crit', (B.stats.crit - A.stats.crit) / STAT_MODIFIER_PER_POINT.crit);
     u.flatHp += B.hp - A.hp;
     u.pct.pa += B.pa - A.pa;
     u.pct.sa += B.sa - A.sa;
     u.pct.hp += B.hpPct - A.hpPct;
     u.vamp += B.vamp - A.vamp;
+    u.critDmg += B.critDamage - A.critDamage;
+    u.critDmgGuard = B.critDmgGuard;
     if (B.range !== A.range) {
       u.range += B.range - A.range;
       u.ranged = u.range > 1;
@@ -130,6 +153,7 @@ const ITEM_FX = {
     u.cloakK = B.cloak;
     u.sashK = B.sash;
     u.wpK = B.wp;
+    u.shellBellReady = B.it['shell-bell'] > 0;
     if (B.shield && !A.shield) {
       u.trShieldReady = true;
       u.itemTick.shield = 0;
@@ -176,24 +200,28 @@ const ITEM_FX = {
       u.pct.as -= u.scarfPct / 100;
       u.scarfPct = 0;
     }
+    if (gone('expert-belt') && u.expertAmp) {
+      u.amp -= u.expertAmp;
+      u.expertAmp = 0;
+    }
     if (gone('booster-energy') && u.boostStacks) {
-      u.pct.pa -= u.boostGain || 0;
-      u.pct.sa -= u.boostGain || 0;
+      u.amp -= u.boostGain || 0;
       u.flatArmor -= u.boostDef || 0;
       u.flatMr -= u.boostDef || 0;
       u.boostStacks = 0;
       u.boostGain = 0;
       u.boostDef = 0;
     }
-    if (gone('kings-rock')) u.kingN = 0;
+    if (gone('kings-rock')) {
+      u.kingN = 0;
+      u.kingAttackers.clear();
+    }
     if (gone('weakness-policy') && u.wpFired) {
       u.pct.pa -= u.wpGain || 0.3;
-      u.pct.sa -= u.wpGain || 0.3;
       u.wpFired = false;
     }
     if (gone('focus-sash') && u.sashFired) {
-      u.pct.pa -= u.sashGain || 0.2;
-      u.pct.sa -= u.sashGain || 0.2;
+      u.pct.pa -= u.sashGain || 0;
       u.sashFired = false;
     }
     if (gone('red-orb-3') && u.redAs) {
@@ -217,10 +245,19 @@ const ITEM_FX = {
 
   itemsInitSide(side) {
     for (const u of this.units) {
-      if (u.side !== side || !u.it || !u.it['scope-lens']) continue;
+      if (u.side !== side || !u.it) continue;
+      if (u.it['full-restore']) {
+        for (const a of this.units) {
+          if (a.side !== side || Hex.dist(a.r, a.c, u.r, u.c) > 1) continue;
+          a.pct.sa += 0.25 * u.it['full-restore'];
+          this.gainPP(a, 10 * u.it['full-restore']);
+        }
+      }
+      if (!u.it['scope-lens']) continue;
       for (const a of this.units) {
         if (a === u || a.side !== side || a.r !== u.r || Math.abs(a.c - u.c) !== 1) continue;
-        a.statMods.crit += 0.1 * u.it['scope-lens'];
+        addStatModifier(a, 'crit', 2 * u.it['scope-lens']);
+        a.pct.as += 0.1 * u.it['scope-lens'];
       }
     }
   },
@@ -249,13 +286,12 @@ const ITEM_FX = {
     if (u.boostStacks >= 25) return;
     const k = (u.it && u.it['booster-energy']) || 1;
     u.boostStacks += 1;
-    u.pct.pa += 0.03 * k;
-    u.pct.sa += 0.03 * k;
-    u.boostGain = (u.boostGain || 0) + 0.03 * k;
+    u.amp += 0.02 * k;
+    u.boostGain = (u.boostGain || 0) + 0.02 * k;
     if (u.boostStacks === 25) {
-      u.flatArmor += 40 * k;
-      u.flatMr += 40 * k;
-      u.boostDef = 40 * k;
+      u.flatArmor += 20 * k;
+      u.flatMr += 20 * k;
+      u.boostDef = 20 * k;
       this.emit({ type: 'buff', target: u.uid, kind: 'boost' });
     }
   },
@@ -263,36 +299,51 @@ const ITEM_FX = {
   tickItems(u, dt) {
     const it = u.it;
     const T = u.itemTick;
-    if (it['super-potion']) {
-      T.regen += dt;
-      while (T.regen >= 1) {
-        T.regen -= 1;
-        this.heal(u, u.maxHp * 0.015 * it['super-potion'], u);
-        for (const a of this.aliveOf(u.side)) {
-          if (a === u || Hex.dist(a.r, a.c, u.r, u.c) !== 1) continue;
-          this.heal(a, u.maxHp * 0.01 * it['super-potion'], u);
-        }
-      }
-    }
     if (it['soul-dew']) {
       T.dew += dt;
       while (T.dew >= 5) {
         T.dew -= 5;
-        u.pct.sa += 0.18 * it['soul-dew'];
-        u.dewPct += 18 * it['soul-dew'];
+        u.pct.sa += 0.3 * it['soul-dew'];
+        u.dewPct += 30 * it['soul-dew'];
         this.emit({ type: 'buff', target: u.uid, kind: 'dew' });
       }
     }
-    if (it['assault-vest']) {
-      T.vest += dt;
-      while (T.vest >= 10) {
-        T.vest -= 10;
-        const bonus = 0.15 * it['assault-vest'];
-        u.pct.pa += bonus;
-        u.pct.sa += bonus;
-        u.vestAtkBonus += bonus;
-        u.vestApBonus += bonus;
+    if (it['mental-herb'] && this.time < 18) {
+      T.herb = (T.herb || 0) + dt;
+      while (T.herb >= 2 && this.time < 18) {
+        T.herb -= 2;
+        u.pct.as += 0.03 * it['mental-herb'];
       }
+    }
+    if (u.sashFired && u.sashUntil <= this.time && u.sashGain) {
+      u.pct.pa -= u.sashGain;
+      u.sashGain = 0;
+    }
+    if (it['full-restore']) {
+      T.fullRestore += dt;
+      while (T.fullRestore >= 7) {
+        T.fullRestore -= 7;
+        for (const a of this.aliveOf(u.side)) {
+          if (Hex.dist(a.r, a.c, u.r, u.c) > 1) continue;
+          this.cleanse(a);
+          this.emit({ type: 'buff', target: a.uid, kind: 'cleanse' });
+        }
+      }
+    }
+    if (it['rescue-hood']) {
+      T.hood += dt;
+      while (T.hood >= 5) {
+        T.hood -= 5;
+        const ally = this.aliveOf(u.side)
+          .filter(a => Hex.dist(a.r, a.c, u.r, u.c) <= 1)
+          .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp || a.uid - b.uid)[0];
+        if (ally) this.heal(ally, ally.maxHp * 0.15 * it['rescue-hood'], u);
+      }
+    }
+    if (it['lax-incense'] && !u.laxBonusApplied) {
+      u.laxBonusApplied = true;
+      u.tmp.push({ k: 'def', value: statModifierDelta('def', 25 * it['lax-incense']), until: 15 });
+      u.tmp.push({ k: 'spd', value: statModifierDelta('spd', 25 * it['lax-incense']), until: 15 });
     }
     if (it['absorb-bulb']) {
       T.bulb += dt;
@@ -309,11 +360,6 @@ const ITEM_FX = {
         this.treasureShield(u, treasureSum(treasureCounts(it, 'rusted-shield'), TR_SHIELD_EVERY));
       }
     }
-    if (it['kings-rock']) {
-      let c = 0;
-      for (const o of this.units) if (o.alive && o.side !== u.side && Hex.dist(u.r, u.c, o.r, o.c) <= 2) c++;
-      u.kingN = Math.min(4, c) * it['kings-rock'];
-    }
     if (u.hasAura) {
       T.aura += dt;
       if (T.aura >= 0.5) {
@@ -323,16 +369,15 @@ const ITEM_FX = {
           const d = Hex.dist(u.r, u.c, o.r, o.c);
           if (d > 2) continue;
           if (it['full-incense']) {
-            this.tagDebuff(o, 'spd', -it['full-incense'], 0.7, 'fullinc');
-            this.tagDebuff(o, 'spe', -it['full-incense'], 0.7, 'fullinc');
+            this.tagDebuff(o, 'spd', -30 * it['full-incense'], 0.7, 'fullinc');
           }
           if (it['lax-incense']) {
-            this.tagDebuff(o, 'def', -it['lax-incense'], 0.7, 'laxinc');
-            this.tagDebuff(o, 'acc', -it['lax-incense'], 0.7, 'laxinc');
+            this.tagDebuff(o, 'def', -30 * it['lax-incense'], 0.7, 'laxinc');
           }
-          if (it['flame-orb'] && d <= 1) {
-            this.antiHealOn(o, Math.min(0.9, 0.33 * it['flame-orb']), 0.7);
-            this.itemBurn(o, u, 3);
+          if (it['flame-orb'] && d <= 2 && this.time >= u.flameAt) {
+            u.flameAt = this.time + 2;
+            this.antiHealOn(o, Math.min(0.9, 0.33 * it['flame-orb']), 10);
+            this.itemBurn(o, u, 10);
           }
         }
       }
@@ -410,6 +455,16 @@ const ITEM_FX = {
   itemAfterDamage(src, t, o, isHit) {
     if (!t.alive) return;
     const it = t.it;
+    if (isHit && src && src.side !== t.side && it['kings-rock']) {
+      t.kingAttackers.add(src.uid);
+      t.kingN = t.kingAttackers.size * it['kings-rock'];
+    }
+    if (t.shellBellReady && t.hp <= t.maxHp * 0.4) {
+      t.shellBellReady = false;
+      const amount = t.maxHp * 0.25 * it['shell-bell'];
+      this.addShield(t, amount);
+      t.shieldTimed.push({ amt: amount, until: this.time + 5 });
+    }
     if (t.trShieldReady && t.hp <= t.maxHp * 0.5) {
       t.trShieldReady = false;
       t.trShieldOn = true;
@@ -521,17 +576,23 @@ const ITEM_FX = {
     }
   },
 
-  itemAfterCast(u) {
+  itemAfterCast(u, usedMana) {
+    for (const source of this.units) {
+      if (!source.alive || source.side === u.side || !source.it || !source.it['full-incense']) continue;
+      if (Hex.dist(source.r, source.c, u.r, u.c) > 2) continue;
+      this.dealDamage(source, u, usedMana * 1.6 * source.it['full-incense'], { special: true, kind: 'incense' });
+    }
     const n = treasureCounts(u.it, 'blue-orb');
-    if (!treasureTop(n)) return;
-    u.mana = Math.min(u.maxMana, u.mana + treasureSum(n, TR_BLUE_CAST));
-    const sa = treasureSum(n, TR_BLUE_SA);
-    u.pct.sa += sa;
-    u.blueSa += Math.round(sa * 100);
-    if (n[3]) {
-      const before = u.maxMana;
-      u.maxMana = Math.max(20, u.maxMana - 5 * n[3]);
-      u.blueMana += before - u.maxMana;
+    if (treasureTop(n)) {
+      u.mana = Math.min(u.maxMana, u.mana + treasureSum(n, TR_BLUE_CAST));
+      const sa = treasureSum(n, TR_BLUE_SA);
+      u.pct.sa += sa;
+      u.blueSa += Math.round(sa * 100);
+      if (n[3]) {
+        const before = u.maxMana;
+        u.maxMana = Math.max(20, u.maxMana - 5 * n[3]);
+        u.blueMana += before - u.maxMana;
+      }
     }
   },
 
@@ -539,89 +600,105 @@ const ITEM_FX = {
     let m = 1;
     const it = src.it;
     if (it) {
-      if (it['expert-belt']) m *= 1 + (this.effMult(src, t) > 1 ? 0.6 : 0.1) * it['expert-belt'];
-      if (it['black-belt'] && t.maxHp >= 1300) m *= 1 + 0.45 * it['black-belt'];
-      if (it['metronome']) {
-        const tg = src.target ? src.target.uid : t.uid;
-        if (src.metroTarget !== tg) {
-          src.metroTarget = tg;
-          src.metroSince = this.time;
-        }
-        m *= 1 + 0.3 * it['metronome'] * Math.floor((this.time - src.metroSince) / 3);
-      }
     }
-    if (t.critGuard) m *= Math.max(0.1, 1 - 0.15 * t.critGuard);
-    if (t.herbGuard && t.ccImmuneUntil > this.time) m *= Math.max(0.1, 1 - 0.25 * t.herbGuard);
+    if (t.it && t.it['covert-cloak'] && !o.special) m *= 0.75;
+    if (t.it && (t.it['rocky-helmet'] || t.it['assault-vest']) && o.kind === 'basic') m *= 0.92;
+    if (t.it && t.it['rescue-hood'] && o.aoe) m *= 0.92;
+    if (t.critDmgGuard && o.crit) {
+      const critMultiplier = CONFIG.combat.critMult + (src && src.critDmg || 0);
+      m *= (1 + (critMultiplier - 1) * (1 - t.critDmgGuard)) / critMultiplier;
+    }
     return m;
   },
 
   itemAfterHit(src, t, o, total) {
     const si = src.it;
     if (si) {
-      if (si['black-sludge']) {
-        this.antiHealOn(t, Math.min(0.9, 0.33 * si['black-sludge']), 4);
-        this.itemBurn(t, src, 3);
+      if (si['expert-belt'] && this.effMult(src, t) > 1) {
+        const gain = 0.03 * si['expert-belt'];
+        src.amp += gain;
+        src.expertAmp += gain;
       }
-      if (si['spell-tag']) this.tagDebuff(t, 'def', -3 * si['spell-tag'], 6, 'spelltag');
-      if (si['twisted-spoon']) this.tagDebuff(t, 'spd', -3 * si['twisted-spoon'], 6, 'spoon');
+      if (si['booster-energy']) this.boostStack(src);
+      if (si['super-potion'] && total > 0) {
+        const ally = this.lowestRatioAlly(src.side);
+        if (ally) this.heal(ally, total * 0.25 * si['super-potion'], src);
+      }
+      if (si['black-sludge']) {
+        this.antiHealOn(t, Math.min(0.9, 0.33 * si['black-sludge']), 10);
+        this.itemBurn(t, src, 10);
+      }
+      if (si['spell-tag']) this.tagDebuff(t, 'def', -30 * si['spell-tag'], 3, 'spelltag');
+      if (si['twisted-spoon']) this.tagDebuff(t, 'spd', -30 * si['twisted-spoon'], 3, 'spoon');
     }
     const ti = t.it;
     if (!ti) return;
-    if (ti['soothe-bell']) this.gainPP(t, 20 * ti['soothe-bell']);
     if (ti['booster-energy']) this.boostStack(t);
-    if (ti['weakness-policy'] && t.wpReady && this.effMult(src, t) > 1) {
+    if (ti['weakness-policy'] && t.wpReady && (t.hp <= t.maxHp * 0.6 || this.effMult(src, t) > 1)) {
       const k = t.wpK || 1;
       t.wpReady = false;
       t.wpFired = true;
       t.wpGain = 0.3 * k;
       this.addShield(t, t.maxHp * 0.3 * k);
       t.pct.pa += t.wpGain;
-      t.pct.sa += t.wpGain;
       this.emit({ type: 'buff', target: t.uid, kind: 'policy' });
     }
-    if (ti['rocky-helmet'] && o.kind === 'basic' && src.alive && total > 0) this.dealDamage(t, src, total * 0.5 * ti['rocky-helmet'] * (1 + this.augHelmet(t)), { trueDmg: true, kind: 'reflect' });
+    if (ti['rocky-helmet'] && o.kind === 'basic' && src.alive && total > 0 && this.time >= t.rockyCd) {
+      t.rockyCd = this.time + 2;
+      for (const target of this.units) {
+        if (target.side === t.side || !target.alive || Hex.dist(t.r, t.c, target.r, target.c) > 1) continue;
+        this.dealDamage(t, target, t.maxHp * 0.08, { special: true, kind: 'rocky' });
+      }
+    }
   },
 
   itemCloak(t) {
-    if (!t.cloakReady || !t.alive || t.hp > t.maxHp * 0.4) return;
+    if (!t.cloakReady || !t.alive || t.hp > t.maxHp * 0.6) return;
     const k = t.cloakK || 1;
     t.cloakReady = false;
     t.hidden = true;
     t.untargetUntil = this.time + 2 * k;
     this.emit({ type: 'hide', uid: t.uid, on: true });
     this.emit({ type: 'buff', target: t.uid, kind: 'cloak' });
-    this.heal(t, (t.maxHp - t.hp) * Math.min(1, 0.6 * k), t);
+    this.cleanse(t);
+    t.pct.as += 0.15 * k;
   },
 
   sashFire(t) {
     const k = t.sashK || 1;
     t.sashReady = false;
     t.sashFired = true;
-    t.endureUntil = this.time + 2 * k;
-    t.sashGain = 0.2 * k;
+    t.endureUntil = this.time + 5 * k;
+    t.sashUntil = t.endureUntil;
+    t.sashGain = 0.3 * k;
     t.pct.pa += t.sashGain;
-    t.pct.sa += t.sashGain;
     this.emit({ type: 'buff', target: t.uid, kind: 'sash' });
   },
 
   itemOnBasic(u, t, raw, dmg, crit) {
     const it = u.it;
     if (!it || !u.items.length) return;
-    if (it['ether']) this.gainPP(u, 30 * it['ether']);
-    if (it['dragon-fang']) this.gainPP(u, (crit ? 60 : 30) * it['dragon-fang']);
+    if (it['ether']) this.gainPP(u, 5 * it['ether']);
     const blue = treasureCounts(it, 'blue-orb');
     if (treasureTop(blue)) this.gainPP(u, treasureSum(blue, TR_BLUE_BASIC));
     if (it['choice-scarf']) {
-      u.pct.as += 0.02 * it['choice-scarf'];
-      u.scarfPct += 2 * it['choice-scarf'];
+      u.pct.as += 0.04 * it['choice-scarf'];
+      u.scarfPct += 4 * it['choice-scarf'];
     }
-    if (it['booster-energy'] && dmg > 0) this.boostStack(u);
+    if (it['black-belt'] && t.maxHp >= 1750 && dmg > 0) this.heal(u, dmg * 0.15 * it['black-belt'], u);
     if (it['kings-rock'] && t.alive && this.rng.next() < 0.1 * it['kings-rock']) this.stun(t, 1.5, u.side, 'flinch');
+    if (it['assault-vest'] && t.alive && this.time >= u.vestCd) {
+      u.vestCd = this.time + 2;
+      for (const o of this.units) {
+        if (!this.canTarget(u, o) || Hex.dist(t.r, t.c, o.r, o.c) > 1) continue;
+        this.dealDamage(u, o, this.atkStat(u) * 0.1, { special: true, kind: 'vest' });
+      }
+    }
     if (it['silver-wing']) {
       const others = this.units.filter(o => o !== t && this.canTarget(u, o)).sort((a, b) => Hex.dist(u.r, u.c, a.r, a.c) - Hex.dist(u.r, u.c, b.r, b.c) || a.uid - b.uid).slice(0, 2 * it['silver-wing']);
       for (const o of others) {
         this.emit({ type: 'attack', uid: u.uid, target: o.uid, ranged: true, special: u.special });
-        this.dealDamage(u, o, raw * 0.3, { special: u.special, kind: 'proj' });
+        this.dealDamage(u, o, raw * 0.6, { special: u.special, kind: 'proj' });
       }
     }
   }

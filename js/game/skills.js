@@ -454,12 +454,13 @@ const SKILL_HELPERS = {
     }
     const special = opt.special != null ? opt.special : u.special;
     const roll = this.rng.next();
-    const crit = roll < Math.min(1, special ? u.skillCritSa : u.skillCritPa);
-    let raw = opt.raw != null ? opt.raw : this.offense(u) * mult * (u.pwStar || 1);
+    const skillCritChance = special ? u.skillCritSa || 0 : u.skillCritPa || 0;
+    const crit = roll < Math.min(1, skillCritChance + (opt.crit || 0));
+    let raw = opt.raw != null ? opt.raw : this.offense(u) * mult * (u.special ? u.pwStar || 1 : 1);
     raw *= (1 + u.skillAmp) * this.skillScale;
     if (crit) raw *= cfg.critMult + (u.critDmg || 0);
     if (u.waterSkillAmp) raw *= 1 + u.waterSkillAmp;
-    const dmg = this.dealDamage(u, t, raw, { special, crit, kind: 'skill', ignoreShield: opt.ignoreShield, armor: opt.armor, ignoreUp: opt.ignoreUp });
+    const dmg = this.dealDamage(u, t, raw, { special, crit, kind: 'skill', aoe: opt.aoe, ignoreShield: opt.ignoreShield, armor: opt.armor, ignoreUp: opt.ignoreUp });
     u.lastMissed = false;
     if (t === this.skillTarget && dmg > 0) this.lastHit = true;
     if (opt.burst !== false) this.emit({ type: 'hitfx', target: t.uid, kind: u.skillType });
@@ -470,7 +471,8 @@ const SKILL_HELPERS = {
 
   hitAll(u, list, mult, o) {
     let total = 0;
-    for (const t of list) total += this.hit(u, t, mult, o);
+    const opt = Object.assign({}, o, { aoe: true });
+    for (const t of list) total += this.hit(u, t, mult, opt);
     return total;
   },
 

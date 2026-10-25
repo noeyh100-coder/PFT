@@ -29,7 +29,7 @@ const GIMMICK_FX = {
     const had = !!(a && a['mega-stone']);
     const has = !!(b && b['mega-stone']);
     if (has && !had) {
-      const key = this.atkView(u) >= this.spaView(u) ? 'atk' : 'spa';
+      const key = this.atkView(u) >= this.spaStat(u) ? 'atk' : 'spa';
       u.megaKey = key;
       addStatModifier(u, key, GIMMICK.megaBonus);
       u.pct.as += GIMMICK.megaAs;

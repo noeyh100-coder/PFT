@@ -65,7 +65,6 @@ const COST_STATS = {
     special: { hp: { warrior: 1100, mage: 1000, tank: 1150 }, atk: { warrior: 55, mage: 55, tank: 65 }, def: { warrior: 60, mage: 35, tank: 60 }, as: { warrior: 0.8, mage: 0.75, tank: 0.6 } }
   }
 };
-const BASE_STAT = 20;
 const BASE_AP = 100;
 const STAR_SKILL = [1, 2, 3.5];
 const CRIT_CHANCE = 0.25;
@@ -79,7 +78,10 @@ function statModifierDelta(key, amount) {
 
 function addStatModifier(unit, key, amount) {
   if (unit && unit.statMods && Object.prototype.hasOwnProperty.call(unit.statMods, key)) {
-    unit.statMods[key] += statModifierDelta(key, amount);
+    const perPoint = STAT_MODIFIER_PER_POINT[key];
+    if (!perPoint) return;
+    const points = unit.statMods[key] / perPoint + amount;
+    unit.statMods[key] = Math.max(-6, Math.min(6, points)) * perPoint;
   }
 }
 
@@ -157,9 +159,9 @@ function formRole(form, range) {
 
 const PP_ROLE = { 탱커: 90, 전사: 70, 마법사: 60 };
 
-function ppFor(cost, role) {
+function ppFor(cost, role, form) {
   const kind = (role || '').split(' ')[1] || '전사';
-  const max = PP_ROLE[kind] || PP_ROLE.전사;
+  const max = form && Number.isFinite(form.pp) ? form.pp : PP_ROLE[kind] || PP_ROLE.전사;
   const start = kind === '탱커' && cost >= 3 ? Math.round(max * 0.15) : 0;
   return { max, start };
 }
@@ -175,13 +177,13 @@ function computeStats(form, cost, star, bonus, opts) {
   const k = bonus || 1;
   const boost = o.boost || {};
   const range = o.range || form.range || (special ? CONFIG.combat.rangedRange : 1);
-  const pp = ppFor(c, role);
+  const pp = ppFor(c, role, form);
   let pa, sa, dfn, pwP, pwS, pwD, pwStar;
   if (o.legacy) {
     const atk = COST_ATK[c - 1] * STAR_ATK[star - 1] * k;
     const main = Math.round(atk * (boost.pa || 1));
     const off = Math.round(atk * 0.5 * (boost.pa || 1));
-    pa = Math.round(classStats.atk[roleKey] * STAR_ATK[star - 1] * k * (boost.pa || 1));
+    pa = Math.round(atk * (boost.pa || 1));
     sa = special ? main : off;
     dfn = classStats.def[roleKey];
     pwD = 1;
@@ -260,7 +262,6 @@ const ADAPT = {
   }
 };
 
-const ADAPT_STAT = { atk: 'atk', spa: 'spa', dmg: null, tank: null, eq: null };
 const ADAPT_CACHE = {};
 
 function adaptMode(defId, v) {
@@ -301,13 +302,15 @@ function itemStatBonuses(items) {
 }
 
 function plannedView(inst) {
+  const def = UNITS[inst.unitId];
+  const form = formOf(def, inst.star, null, inst);
+  const stats = applyFeast(computeStats(form, def.cost, inst.star, def.unlockOnly ? UNLOCK_STAT_BONUS : 1, { boost: def.boost }), inst.feast);
   const mods = itemStatBonuses(inst.items);
-  const f = inst.feast || {};
   return {
-    pa: BASE_STAT * (1 + mods.atk) * (1 + (f.atk || 0)),
-    sa: BASE_AP + mods.spa,
-    armor: BASE_STAT + mods.def,
-    mr: BASE_STAT + mods.spd
+    pa: stats.pa * (1 + mods.atk),
+    sa: stats.sa * (1 + mods.spa / 100) * stats.pwS,
+    armor: stats.armor + mods.def,
+    mr: stats.mr + mods.spd
   };
 }
 
