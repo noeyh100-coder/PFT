@@ -1,4 +1,4 @@
-const ITEM_RANK_KEYS = ['atk', 'spa', 'def', 'spd', 'spe', 'crit'];
+const ITEM_STAT_KEYS = ['atk', 'spa', 'def', 'spd', 'spe', 'crit'];
 const ITEM_AURA = ['full-incense', 'lax-incense', 'flame-orb'];
 const TR_SWORD_THR = [0, 0.1, 0.12, 0.15];
 const TR_SWORD_BONUS = [0, 0, 0.1, 0.15];
@@ -29,10 +29,10 @@ const ITEM_FX = {
   itemStatic(items, evolvable) {
     const it = itemCountMap(items);
     const n = id => it[id] || 0;
-    const S = { it, rk: { atk: 0, spa: 0, def: 0, spd: 0, spe: 0, crit: 0 }, direct: { atk: 0, spa: 0, def: 0, spd: 0, as: 0, hp: 0, crit: 0, pp: 0 }, hp: 0, pp: 0, pa: 0, sa: 0, hpPct: 0, vamp: 0, range: 0 };
+    const S = { it, stats: { atk: 0, spa: 0, def: 0, spd: 0, spe: 0, crit: 0 }, hp: 0, pp: 0, pa: 0, sa: 0, hpPct: 0, vamp: 0, range: 0 };
     for (const id of items) {
       const st = itemDef(id).stats || {};
-      for (const k in itemDef(id).direct || {}) S.direct[k] += itemDef(id).direct[k];
+      for (const k of ITEM_STAT_KEYS) if (st[k]) S.stats[k] += st[k];
       if (st.hp) S.hp += st.hp;
       if (st.pp) S.pp += st.pp;
     }
@@ -43,8 +43,8 @@ const ITEM_FX = {
     S.hpPct = 0.2 * n('big-root');
     S.range = n('zoom-lens');
     S.herb = n('mental-herb');
-    S.critPa = n('punching-glove');
-    S.critSa = n('black-glasses');
+    S.critPa = 0.1 * n('punching-glove');
+    S.critSa = 0.1 * n('black-glasses');
     S.alwaysCrit = n('scope-lens') > 0;
     S.critGuard = n('shell-armor');
     S.cloak = n('covert-cloak');
@@ -65,7 +65,8 @@ const ITEM_FX = {
     u.kingN = 0;
     u.dewPct = 0;
     u.scarfPct = 0;
-    u.vestRanks = 0;
+    u.vestAtkBonus = 0;
+    u.vestApBonus = 0;
     u.bulbPct = 0;
     u.trShieldReady = false;
     u.trShieldOn = false;
@@ -97,12 +98,13 @@ const ITEM_FX = {
       const f = (1 + 0.2 * B.evo) / (1 + 0.2 * A.evo);
       for (const k of ['hp', 'pa', 'sa', 'armor', 'mr']) u.base[k] = Math.round(u.base[k] * f);
     }
-    u.flatHp += B.direct.hp - A.direct.hp;
-    u.flatArmor += B.direct.def - A.direct.def;
-    u.flatMr += B.direct.spd - A.direct.spd;
-    u.pct.pa += B.direct.atk - A.direct.atk;
-    u.pct.sa += B.direct.spa - A.direct.spa;
-    u.pct.as += B.direct.as - A.direct.as;
+    u.pct.pa += B.stats.atk - A.stats.atk;
+    u.pct.sa += (B.stats.spa - A.stats.spa) / 100;
+    u.flatArmor += B.stats.def - A.stats.def;
+    u.flatMr += B.stats.spd - A.stats.spd;
+    u.pct.as += B.stats.spe - A.stats.spe;
+    u.statMods.crit += B.stats.crit - A.stats.crit;
+    u.flatHp += B.hp - A.hp;
     u.pct.pa += B.pa - A.pa;
     u.pct.sa += B.sa - A.sa;
     u.pct.hp += B.hpPct - A.hpPct;
@@ -160,10 +162,11 @@ const ITEM_FX = {
       u.pct.sa -= u.dewPct / 100;
       u.dewPct = 0;
     }
-    if (gone('assault-vest') && u.vestRanks) {
-      u.rk.atk -= u.vestRanks;
-      u.rk.spa -= u.vestRanks;
-      u.vestRanks = 0;
+    if (gone('assault-vest') && (u.vestAtkBonus || u.vestApBonus)) {
+      u.pct.pa -= u.vestAtkBonus;
+      u.pct.sa -= u.vestApBonus;
+      u.vestAtkBonus = 0;
+      u.vestApBonus = 0;
     }
     if (gone('absorb-bulb') && u.bulbPct) {
       u.amp -= u.bulbPct / 100;
@@ -176,8 +179,8 @@ const ITEM_FX = {
     if (gone('booster-energy') && u.boostStacks) {
       u.pct.pa -= u.boostGain || 0;
       u.pct.sa -= u.boostGain || 0;
-      u.rk.def -= u.boostDef || 0;
-      u.rk.spd -= u.boostDef || 0;
+      u.flatArmor -= u.boostDef || 0;
+      u.flatMr -= u.boostDef || 0;
       u.boostStacks = 0;
       u.boostGain = 0;
       u.boostDef = 0;
@@ -217,7 +220,7 @@ const ITEM_FX = {
       if (u.side !== side || !u.it || !u.it['scope-lens']) continue;
       for (const a of this.units) {
         if (a === u || a.side !== side || a.r !== u.r || Math.abs(a.c - u.c) !== 1) continue;
-        a.rk.crit += u.it['scope-lens'];
+        a.statMods.crit += 0.1 * u.it['scope-lens'];
       }
     }
   },
@@ -226,7 +229,7 @@ const ITEM_FX = {
     const until = this.time + dur;
     const e = t.tmp.find(b => b.tag === tag && b.k === k);
     if (e) e.until = Math.max(e.until, until);
-    else t.tmp.push({ k, n, until, tag });
+    else t.tmp.push({ k, value: statModifierDelta(k, n), until, tag });
   },
 
   antiHealOn(t, v, dur) {
@@ -250,9 +253,9 @@ const ITEM_FX = {
     u.pct.sa += 0.03 * k;
     u.boostGain = (u.boostGain || 0) + 0.03 * k;
     if (u.boostStacks === 25) {
-      u.rk.def += 2 * k;
-      u.rk.spd += 2 * k;
-      u.boostDef = 2 * k;
+      u.flatArmor += 40 * k;
+      u.flatMr += 40 * k;
+      u.boostDef = 40 * k;
       this.emit({ type: 'buff', target: u.uid, kind: 'boost' });
     }
   },
@@ -284,9 +287,11 @@ const ITEM_FX = {
       T.vest += dt;
       while (T.vest >= 10) {
         T.vest -= 10;
-        u.rk.atk += it['assault-vest'];
-        u.rk.spa += it['assault-vest'];
-        u.vestRanks += it['assault-vest'];
+        const bonus = 0.15 * it['assault-vest'];
+        u.pct.pa += bonus;
+        u.pct.sa += bonus;
+        u.vestAtkBonus += bonus;
+        u.vestApBonus += bonus;
       }
     }
     if (it['absorb-bulb']) {
@@ -602,7 +607,7 @@ const ITEM_FX = {
   itemOnBasic(u, t, raw, dmg, crit) {
     const it = u.it;
     if (!it || !u.items.length) return;
-    if (it['ether']) this.gainPP(u, 5 * it['ether']);
+    if (it['ether']) this.gainPP(u, 30 * it['ether']);
     if (it['dragon-fang']) this.gainPP(u, (crit ? 60 : 30) * it['dragon-fang']);
     const blue = treasureCounts(it, 'blue-orb');
     if (treasureTop(blue)) this.gainPP(u, treasureSum(blue, TR_BLUE_BASIC));

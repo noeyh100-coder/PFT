@@ -312,13 +312,13 @@ const SKILL_HELPERS = {
     if (has('독')) this.addPoison(o, u, 4 * k, true);
     if (has('땅')) {
       const n = -Math.round(1 * k);
-      o.tmp.push({ k: 'def', n, until: this.time + 6 });
-      o.tmp.push({ k: 'spd', n, until: this.time + 6 });
+      o.tmp.push({ k: 'def', value: statModifierDelta('def', n), until: this.time + 6 });
+      o.tmp.push({ k: 'spd', value: statModifierDelta('spd', n), until: this.time + 6 });
     }
     if (has('에스퍼')) this.addConfuse(o, 3 * k);
     if (has('악')) {
-      o.tmp.push({ k: 'atk', n: -1, until: this.time + 99 });
-      o.tmp.push({ k: 'spa', n: -1, until: this.time + 99 });
+      o.tmp.push({ k: 'atk', value: statModifierDelta('atk', -1), until: this.time + 99 });
+      o.tmp.push({ k: 'spa', value: statModifierDelta('spa', -1), until: this.time + 99 });
       u.darkAcc += 0.3 * k;
       while (u.darkAcc >= 1) {
         u.darkAcc -= 1;
@@ -443,25 +443,21 @@ const SKILL_HELPERS = {
     const opt = o || {};
     if (!t || !t.alive || t.hidden || this.effMult(u, t) <= 0) return 0;
     const cfg = CONFIG.combat;
-    const diff = this.rank(u, 'acc') + (opt.acc || 0) - this.rank(t, 'eva');
-    if (!opt.sure && diff < 0) {
-      const chance = 6 / (6 - Math.max(-6, diff));
-      if (this.rng.next() >= chance) {
+    const accuracy = Math.max(0, Math.min(1, 1 + this.statModifier(u, 'acc') + statModifierDelta('acc', opt.acc || 0) - this.statModifier(t, 'eva')));
+    if (!opt.sure && accuracy < 1) {
+      if (this.rng.next() >= accuracy) {
         this.emit({ type: 'miss', target: t.uid });
         u.lastMissed = true;
         this.skillMissed = true;
         return 0;
       }
     }
-    const table = cfg.critTable;
     const special = opt.special != null ? opt.special : u.special;
-    const cr = Math.max(0, Math.min(table.length - 1, this.rank(u, 'crit') + (opt.crit || 0) + ((special ? u.skillCritSa : u.skillCritPa) || 0)));
     const roll = this.rng.next();
-    const crit = roll < table[cr];
+    const crit = roll < Math.min(1, special ? u.skillCritSa : u.skillCritPa);
     let raw = opt.raw != null ? opt.raw : this.offense(u) * mult * (u.pwStar || 1);
     raw *= (1 + u.skillAmp) * this.skillScale;
     if (crit) raw *= cfg.critMult + (u.critDmg || 0);
-    if (diff > 0) raw *= 1 + cfg.hitBonus;
     if (u.waterSkillAmp) raw *= 1 + u.waterSkillAmp;
     const dmg = this.dealDamage(u, t, raw, { special, crit, kind: 'skill', ignoreShield: opt.ignoreShield, armor: opt.armor, ignoreUp: opt.ignoreUp });
     u.lastMissed = false;
@@ -505,66 +501,18 @@ const SKILL_HELPERS = {
     if (t && t.alive && n > 0) this.addChill(t, n, u.side);
   },
 
-  directStat(k) {
-    return { atk: 'pa', spa: 'sa', spe: 'as', def: 'armor', spd: 'mr' }[k] || null;
-  },
-
-  directValue(k, n) {
-    return ['atk', 'spa', 'spe'].includes(k) ? n * 0.15 : n * 20;
-  },
-
   debuff(u, t, k, n, dur, p) {
     if (!t || !t.alive || !n || (p != null && p < 1 && !this.chance(p))) return;
-    const direct = this.directStat(k);
-    if (direct) {
-      if (k === 'def' || k === 'spd') t.tmpFlat.push({ k: direct, n: -this.directValue(k, n), until: this.time + dur * this.durMul(u) });
-      else t.tmpPct.push({ k: direct, n: -this.directValue(k, n), until: this.time + dur * this.durMul(u) });
-    } else t.tmp.push({ k, n, until: this.time + dur * this.durMul(u) });
+    t.tmp.push({ k, value: statModifierDelta(k, n), until: this.time + dur * this.durMul(u) });
   },
 
   buff(u, k, n, dur) {
     if (!n) return;
-    const direct = this.directStat(k);
-    if (direct) {
-      if (k === 'def' || k === 'spd') u.tmpFlat.push({ k: direct, n: this.directValue(k, n), until: this.time + dur * this.durMul(u) });
-      else u.tmpPct.push({ k: direct, n: this.directValue(k, n), until: this.time + dur * this.durMul(u) });
-    } else u.tmp.push({ k, n, until: this.time + dur * this.durMul(u) });
-  },
-
-  buffPct(u, k, n, dur) {
-    if (!n) return;
-    u.tmpPct.push({ k, n, until: this.time + dur * this.durMul(u) });
-  },
-
-  debuffPct(u, t, k, n, dur, p) {
-    if (!t || !t.alive || !n || (p != null && p < 1 && !this.chance(p))) return;
-    t.tmpPct.push({ k, n: -n, until: this.time + dur * this.durMul(u) });
-  },
-
-  buffFlat(u, k, n, dur) {
-    if (!n) return;
-    u.tmpFlat.push({ k, n, until: this.time + dur * this.durMul(u) });
-  },
-
-  debuffFlat(u, t, k, n, dur, p) {
-    if (!t || !t.alive || !n || (p != null && p < 1 && !this.chance(p))) return;
-    t.tmpFlat.push({ k, n: -n, until: this.time + dur * this.durMul(u) });
-  },
-
-  permaPct(u, k, n) {
-    if (!n) return;
-    const pct = u.pct[k];
-    u.pct[k] = pct + n;
+    u.tmp.push({ k, value: statModifierDelta(k, n), until: this.time + dur * this.durMul(u) });
   },
 
   perma(u, k, n) {
-    const direct = this.directStat(k);
-    if (direct) {
-      if (k === 'def') u.flatArmor += this.directValue(k, n);
-      else if (k === 'spd') u.flatMr += this.directValue(k, n);
-      else u.pct[direct] += this.directValue(k, n);
-      u.maxHp = u.hp = Math.max(1, Math.round(u.base.hp * (1 + u.pct.hp) + u.flatHp));
-    } else u.rk[k] = Math.max(-6, Math.min(6, u.rk[k] + n));
+    addStatModifier(u, k, n);
   },
 
   shieldPct(u, pct, dur) {
@@ -1118,7 +1066,7 @@ const SKILLS = {
     S.hitAll(u, S.ring(u, t.r, t.c, 1), P.m, { onHit: o => S.debuff(u, o, 'spd', -2, 4) });
   },
   '힘흡수'(S, u, t, P) {
-    const cands = S.foesOf(u).filter(o => S.rank(o, 'atk') >= 0).sort(strongerFirst);
+    const cands = S.foesOf(u).filter(o => S.statModifier(o, 'atk') >= 0).sort(strongerFirst);
     const tg = cands[0] || t;
     S.perma(tg, 'atk', -1);
     S.emit({ type: 'hitfx', target: tg.uid, kind: '풀' });
@@ -1146,7 +1094,7 @@ const SKILLS = {
     if (tg.alive) S.strike(u, tg, false);
   },
   '로킥'(S, u, t, P) {
-    const mul = S.rank(t, 'spe') < 0 ? 1.5 : 1;
+    const mul = S.statModifier(t, 'spe') < 0 ? 1.5 : 1;
     S.hit(u, t, P.m * mul, { onHit: o => S.debuff(u, o, 'spe', -2, 4) });
   },
   '힘껏펀치'(S, u, t, P) {
@@ -1294,7 +1242,7 @@ const SKILLS = {
     S.ringFx(u, u.r, u.c, 2);
     S.hitAll(u, S.ring(u, u.r, u.c, 2), P.m, {
       onHit: o => {
-        if (['atk', 'spa', 'def', 'spd', 'spe'].some(k => S.rank(o, k) > 0)) S.status(u, o, 'confuse', 2);
+        if (['atk', 'spa', 'def', 'spd', 'spe'].some(k => S.statModifier(o, k) > 0)) S.status(u, o, 'confuse', 2);
       }
     });
   },
@@ -1348,7 +1296,7 @@ const SKILLS = {
     let best = null;
     let bestSum = 0;
     for (const o of S.foesOf(u)) {
-      const sum = ['atk', 'spa', 'def', 'spd', 'spe', 'acc', 'eva', 'crit'].reduce((s, k) => s + Math.max(0, S.rank(o, k)), 0);
+      const sum = ['atk', 'spa', 'def', 'spd', 'spe', 'acc', 'eva', 'crit'].reduce((s, k) => s + Math.max(0, S.statModifier(o, k) / STAT_MODIFIER_PER_POINT[k]), 0);
       if (sum > bestSum) {
         best = o;
         bestSum = sum;
@@ -1356,7 +1304,7 @@ const SKILLS = {
     }
     if (best) {
       for (const k of ['atk', 'spa', 'def', 'spd', 'spe', 'acc', 'eva', 'crit']) {
-        const n = Math.max(0, S.rank(best, k));
+        const n = Math.max(0, S.statModifier(best, k) / STAT_MODIFIER_PER_POINT[k]);
         if (n) S.perma(u, k, n);
       }
       S.emit({ type: 'retype', uid: u.uid, kind: 'suggest', value: best.name });

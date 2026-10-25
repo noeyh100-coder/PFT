@@ -8,7 +8,7 @@ const AUG_ROLLS = { sweetcandy: 18, tradehub: 16, rerollday: 10, newera1: 2, new
 const AUG_FATE = { prismfate1: [3, 3], prismfate2: [3, 7], goldfate1: [2, 3], goldfate2: [2, 6], silverfate1: [1, 2], silverfate2: [1, 4] };
 const AUG_ITEMS = {
   deadlyband: ['choice-band'], deadlyspecs: ['choice-specs'], yoshhelp: ['leftovers', 'leftovers', 'leftovers', 'leftovers'], gardhelp: ['wise-glasses', 'wise-glasses', 'wise-glasses', 'wise-glasses'],
-  harihelp: ['muscle-band', 'muscle-band', 'muscle-band', 'muscle-band'], sweetcandy: ['exp-l'], shellup: ['shell-bell'], custom: ['lucky-box', 'magnet'], bigbag: ['tinkaton-hammer'],
+  harihelp: ['muscle-band', 'muscle-band', 'muscle-band', 'muscle-band'], sweetcandy: ['exp-l'], shellup: ['shell-bell'], custom: ['lucky-box', 'magnet'], bigbag: ['loaded-dice'],
   radiantrelic: ['radiant-box', 'magnet'], doublekill: ['choice-scarf'], polymath: ['wise-glasses', 'protective-pads'], cavity1: ['exp-m', 'exp-m'], cavity2: ['exp-m', 'exp-m'],
   cavity3: ['exp-m', 'exp-m'], wootears: ['leppa-berry'], kindling: ['flame-orb'], heartup: ['soul-dew'], crownweight: ['kings-rock'], bumpy: ['rocky-helmet'], bigfriend: ['leftovers'],
   gimmiuse: ['poke-box'], smallcandy: ['exp-m'], cataclysm: ['magnet', 'magnet'], optimize: ['golden-magnet']
@@ -70,7 +70,7 @@ const AUG_GAME = {
 
   augCandidates(p, tier, round, exclude) {
     const lab = AUG_ROUNDS[round];
-    return AUGMENTS.filter(d => d.tier === tier && d.rounds.includes(lab) && !this.augOwnedBlock(p, d.id) && !(p.augSeen || []).includes(d.id) && !(exclude || []).includes(d.id)).map(d => d.id);
+    return AUGMENTS.filter(d => d.tier === tier && d.rounds.includes(lab) && !this.augOwnedBlock(p, d.id) && !(exclude || []).includes(d.id)).map(d => d.id);
   },
 
   makeAugOffer(p, tier, round) {
@@ -80,7 +80,7 @@ const AUG_GAME = {
     const rd = round != null && round >= 0 ? round : this.augPoolRound();
     let pool = this.augCandidates(p, t, rd, []);
     if (pool.length < 3) {
-      const extra = AUGMENTS.filter(d => d.tier === t && !pool.includes(d.id) && !this.augOwnedBlock(p, d.id) && !(p.augSeen || []).includes(d.id)).map(d => d.id);
+      const extra = AUGMENTS.filter(d => d.tier === t && !pool.includes(d.id) && !this.augOwnedBlock(p, d.id)).map(d => d.id);
       pool = pool.concat(this.pickDistinct(extra, 3 - pool.length));
     }
     const ids = this.pickDistinct(pool, 3);
@@ -88,8 +88,6 @@ const AUG_GAME = {
       p.augOffer = null;
       return;
     }
-    p.augSeen = p.augSeen || [];
-    p.augSeen.push(...ids.filter(id => !p.augSeen.includes(id)));
     const left = 1 + (this.encounter === '먹고자' ? 2 : 0);
     p.augOffer = { tier: t, round: rd, choices: ids.map(id => ({ id })), rerolls: ids.map(() => left) };
   },
@@ -111,10 +109,7 @@ const AUG_GAME = {
     if (!(o.rerolls[n] > 0)) return { ok: false, reason: '이 증강은 더 새로고침할 수 없습니다' };
     const pool = this.augCandidates(p, o.tier, o.round != null ? o.round : this.augPoolRound(), o.choices.map(c => c.id));
     if (!pool.length) return { ok: false, reason: '바꿀 수 있는 증강이 없습니다' };
-    const id = pool[this.rng.int(pool.length)];
-    o.choices[n] = { id };
-    p.augSeen = p.augSeen || [];
-    if (!p.augSeen.includes(id)) p.augSeen.push(id);
+    o.choices[n] = { id: pool[this.rng.int(pool.length)] };
     o.rerolls[n] -= 1;
     this.emit('update');
     return { ok: true, reason: '' };
@@ -270,8 +265,8 @@ const AUG_GAME = {
       this.augFate(p, AUG_FATE[id][0]);
     }
     if (id === 'optimize') {
-      p.items = p.items.map(x => (x === 'magnet' ? 'tinkaton-hammer' : x));
-      for (const o of p.orbs || []) if (o.item === 'magnet') o.item = 'tinkaton-hammer';
+      p.items = p.items.map(x => (x === 'magnet' ? 'loaded-dice' : x));
+      for (const o of p.orbs || []) if (o.item === 'magnet') o.item = 'loaded-dice';
     }
     for (const it of AUG_ITEMS[id] || []) this.augItem(p, it);
     if (AUG_COMPS[id]) this.augComps(p, AUG_COMPS[id]);

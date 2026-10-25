@@ -469,26 +469,24 @@ const View = {
     if (!list.length) return out;
     const counts = itemCountMap(list);
     const n = id => counts[id] || 0;
-    const rk = { atk: 0, spa: 0, def: 0, spd: 0, spe: 0, crit: 0 };
+    const bonus = { atk: 0, spa: 0, def: 0, spd: 0, spe: 0, crit: 0 };
     let hp = 0;
     let pp = 0;
     for (const id of list) {
       const st = itemDef(id).stats || {};
-      for (const k in rk) rk[k] += st[k] || 0;
+      for (const k in bonus) bonus[k] += st[k] || 0;
       hp += st.hp || 0;
       pp += st.pp || 0;
     }
     const evo = evolvable ? 1 + 0.2 * n('eviolite') : 1;
-    const mult = k => rankMult(Math.max(-6, Math.min(6, k)));
     out.hp = Math.round(stats.hp * evo * (1 + 0.2 * n('big-root')) + hp);
-    out.pa = Math.round(stats.pa * evo * (1 + 0.3 * n('choice-band')) * mult(rk.atk));
-    out.sa = Math.round(stats.sa * evo * (1 + 0.25 * n('choice-specs')) * mult(rk.spa));
-    out.armor = Math.round(stats.armor * evo * mult(rk.def));
-    out.mr = Math.round(stats.mr * evo * mult(rk.spd));
-    out.as = Math.round(stats.as * mult(rk.spe) * 100) / 100;
-    out.basic = out.special ? out.sa : out.pa;
-    const table = CONFIG.combat.critTable;
-    out.crit = table[Math.max(0, Math.min(table.length - 1, rk.crit))];
+    out.pa = Math.round(stats.pa * evo * (1 + 0.3 * n('choice-band') + bonus.atk));
+    out.sa = Math.round((stats.sa * evo * (1 + 0.25 * n('choice-specs') + bonus.spa / 100)));
+    out.armor = Math.round(stats.armor * evo + bonus.def);
+    out.mr = Math.round(stats.mr * evo + bonus.spd);
+    out.as = Math.round(Math.min(5, stats.as * (1 + bonus.spe)) * 100) / 100;
+    out.basic = out.pa;
+    out.crit = Math.max(0, Math.min(1, stats.crit + bonus.crit));
     out.omnivamp = (stats.omnivamp || 0) + 0.4 * n('shell-bell');
     out.range = stats.range + n('zoom-lens');
     out.startMana = Math.min(stats.maxMana, (stats.startMana || 0) + pp);
@@ -682,8 +680,8 @@ const View = {
   unlockHow(id) {
     const u = CONFIG.unlock;
     const m = {
-      '투구': '암나이트 2성 이상을 필드에 두고 전투 ' + u.kabutoBattles + '번 참여',
-      '프테라': '투구 2성 이상을 필드에 두고 전투 ' + u.aerodactylBattles + '번 참여',
+      '투구': '암나이트 2성 이상을 필드에 두고 연속 ' + u.kabutoWins + '번 승리',
+      '프테라': '투구 2성 이상을 필드에 두고 연속 ' + u.aerodactylLosses + '번 패배',
       '신뇽': '미뇽 2성 이상으로 ' + u.dratiniWins + '번 승리하면 진화',
       '망나뇽': '신뇽 2성 이상으로 ' + u.dragonairWins + '번 승리하면 진화',
       '야도란': '야돈 뒤 칸에 셀러를 두고 전투 시작 (셀러를 소모하고, 둘 중 낮은 별로 진화)',
@@ -1210,8 +1208,8 @@ const View = {
       ['야돈', '야도킹', '야돈 앞 칸에 셀러 (낮은 별로)'],
       ['가라르 야돈', '가라르 야도란', '가라르 야돈 뒤 칸에 셀러 (낮은 별로)'],
       ['가라르 야돈', '가라르 야도킹', '가라르 야돈 앞 칸에 셀러 (낮은 별로)'],
-      ['암나이트', '투구', '해금: 2성으로 전투 참여 ' + u.kabutoBattles + '번'],
-      ['투구', '프테라', '해금: 2성으로 전투 참여 ' + u.aerodactylBattles + '번'],
+      ['암나이트', '투구', '해금: 2성으로 연속 승리 ' + u.kabutoWins + '번'],
+      ['투구', '프테라', '해금: 2성으로 연속 패배 ' + u.aerodactylLosses + '번'],
       ['뮤', '뮤츠', '해금: 유전자 ' + u.geneStack]
     ];
   },

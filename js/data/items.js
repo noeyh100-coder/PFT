@@ -1,23 +1,14 @@
-const ITEM_STAT_LABEL = { atk: '공격', spa: '특수공격', def: '방어', spd: '특수방어', spe: '공격 속도', crit: '급소율', hp: '체력', pp: '시작 PP' };
-const ITEM_DIRECT = {
-  'muscle-band': { atk: 0.1 },
-  'wise-glasses': { spa: 0.1 },
-  'protective-pads': { def: 20 },
-  'x-sp-def': { spd: 20 },
-  'leftovers': { hp: 150 },
-  'swift-wing': { as: 0.1 },
-  'razor-claw': { crit: 1 },
-  'leppa-berry': { pp: 15 }
-};
+const ITEM_STAT_LABEL = { atk: '공격력', spa: '주문력', def: '방어력', spd: '마법 저항력', spe: '공격 속도', crit: '급소 확률', hp: '체력', pp: '시작 마나' };
+const ITEM_STAT_FORMAT = { atk: 'percent', spa: 'flat', def: 'flat', spd: 'flat', spe: 'percent', crit: 'percentagePoints', hp: 'flat', pp: 'flat' };
 
 const ITEM_COMPONENTS = [
-  { id: 'muscle-band', name: '힘의머리띠', stats: { atk: 1 } },
-  { id: 'wise-glasses', name: '박식안경', stats: { spa: 1 } },
-  { id: 'protective-pads', name: '방호패드', stats: { def: 1 } },
-  { id: 'x-sp-def', name: '스페셜가드', stats: { spd: 1 } },
+  { id: 'muscle-band', name: '힘의머리띠', stats: { atk: 0.1 } },
+  { id: 'wise-glasses', name: '박식안경', stats: { spa: 10 } },
+  { id: 'protective-pads', name: '방호패드', stats: { def: 20 } },
+  { id: 'x-sp-def', name: '스페셜가드', stats: { spd: 20 } },
   { id: 'leftovers', name: '먹다남은음식', stats: { hp: 150 } },
-  { id: 'swift-wing', name: '순발력깃털', stats: { spe: 1 } },
-  { id: 'razor-claw', name: '예리한손톱', stats: { crit: 1 } },
+  { id: 'swift-wing', name: '순발력깃털', stats: { spe: 0.1 } },
+  { id: 'razor-claw', name: '예리한손톱', stats: { crit: 0.1 } },
   { id: 'leppa-berry', name: '과사열매', stats: { pp: 15 } }
 ];
 
@@ -27,35 +18,35 @@ const ITEM_COMPLETED = [
   { id: 'choice-specs', name: '구애안경', from: ['wise-glasses', 'wise-glasses'], desc: '특수공격이 25% 증가합니다.' },
   { id: 'covert-cloak', name: '은밀망토', from: ['protective-pads', 'muscle-band'], unique: true, desc: '체력이 처음으로 40% 이하가 되면 2초 동안 대상으로 지정되지 않고, 잃은 체력의 60%를 회복합니다.' },
   { id: 'eviolite', name: '진화의휘석', from: ['protective-pads', 'wise-glasses'], unique: true, desc: '아직 진화할 수 있는 포켓몬이면 체력·공격·특수공격·방어·특수방어가 1.2배가 됩니다.' },
-  { id: 'rocky-helmet', name: '울퉁불퉁맷', from: ['protective-pads', 'protective-pads'], bonus: { def: 3 }, desc: '방어가 크게 오르고, 기본 공격에 맞으면 받은 피해의 50%를 공격한 적에게 돌려줍니다.' },
+  { id: 'rocky-helmet', name: '울퉁불퉁맷', from: ['protective-pads', 'protective-pads'], bonus: { def: 60 }, desc: '방어력이 60 증가하고, 기본 공격에 맞으면 받은 피해의 50%를 공격한 적에게 돌려줍니다.' },
   { id: 'shell-bell', name: '조개껍질방울', from: ['x-sp-def', 'muscle-band'], desc: '모든 피해 흡혈 40%.' },
-  { id: 'full-incense', name: '만복향로', from: ['x-sp-def', 'wise-glasses'], desc: '2칸 안의 적의 특수방어와 스피드가 1랭크 내려갑니다.' },
-  { id: 'kings-rock', name: '왕의징표석', from: ['x-sp-def', 'protective-pads'], bonus: { hp: 150 }, desc: '2칸 안의 적 1명마다 방어·특수방어가 1랭크씩 오릅니다(최대 4). 기본 공격 때 10% 확률로 적을 1.5초 동안 풀죽음(기절) 상태로 만듭니다.' },
-  { id: 'assault-vest', name: '돌격조끼', from: ['x-sp-def', 'x-sp-def'], bonus: { spd: 3, hp: 200 }, desc: '특수방어가 크게 오르고, 10초마다 공격·특수공격이 1랭크씩 오릅니다.' },
+  { id: 'full-incense', name: '만복향로', from: ['x-sp-def', 'wise-glasses'], desc: '2칸 안의 적의 마법 저항력을 20, 공격 속도를 15% 낮춥니다.' },
+  { id: 'kings-rock', name: '왕의징표석', from: ['x-sp-def', 'protective-pads'], bonus: { hp: 150 }, desc: '2칸 안의 적 1명마다 방어력과 마법 저항력이 20 증가합니다(최대 4명). 기본 공격 때 10% 확률로 적을 1.5초 동안 풀죽음(기절) 상태로 만듭니다.' },
+  { id: 'assault-vest', name: '돌격조끼', from: ['x-sp-def', 'x-sp-def'], bonus: { spd: 60, hp: 200 }, desc: '마법 저항력이 60 증가하고, 10초마다 공격력이 15%, 주문력이 15 증가합니다.' },
   { id: 'weakness-policy', name: '약점보험', from: ['leftovers', 'muscle-band'], desc: '효과가 굉장한 공격을 처음 맞으면 최대 체력 30%의 보호막을 얻고 공격·특수공격이 30% 증가합니다.' },
   { id: 'black-sludge', name: '검은오물', from: ['leftovers', 'wise-glasses'], desc: '피해를 입힌 적의 회복량이 33% 줄고 화상을 입습니다.' },
   { id: 'flame-orb', name: '불구슬플레이트', from: ['leftovers', 'protective-pads'], desc: '바로 옆 칸의 적의 회복량이 33% 줄고 3초 동안 화상을 입습니다.' },
-  { id: 'lax-incense', name: '무사태평향로', from: ['leftovers', 'x-sp-def'], desc: '2칸 안의 적의 방어와 명중률이 1랭크 내려갑니다.' },
+  { id: 'lax-incense', name: '무사태평향로', from: ['leftovers', 'x-sp-def'], desc: '2칸 안의 적의 방어력을 20, 명중률을 10%p 낮춥니다.' },
   { id: 'big-root', name: '큰뿌리', from: ['leftovers', 'leftovers'], desc: '최대 체력이 20% 증가합니다.' },
   { id: 'black-belt', name: '검은띠', from: ['swift-wing', 'muscle-band'], desc: '최대 체력이 1300 이상인 적에게 주는 피해가 45% 증가합니다.' },
   { id: 'choice-scarf', name: '구애스카프', from: ['swift-wing', 'wise-glasses'], desc: '기본 공격할 때마다 공격 속도가 2%씩 오릅니다.' },
-  { id: 'booster-energy', name: '부스트에너지', from: ['swift-wing', 'protective-pads'], desc: '기본 공격을 맞히거나 기본 공격·스킬에 맞을 때마다 공격·특수공격이 3%씩 오릅니다(최대 25번). 최대로 쌓이면 방어·특수방어가 2랭크 오릅니다.' },
+  { id: 'booster-energy', name: '부스트에너지', from: ['swift-wing', 'protective-pads'], desc: '기본 공격을 맞히거나 기본 공격·스킬에 맞을 때마다 공격력이 3%씩 오릅니다(최대 25회). 최대 중첩 시 방어력과 마법 저항력이 40 증가합니다.' },
   { id: 'silver-wing', name: '은빛날개', from: ['swift-wing', 'x-sp-def'], desc: '기본 공격할 때 주변 적 2명에게 투사체를 더 날려 기본 공격 피해의 30%를 입힙니다.' },
   { id: 'focus-sash', name: '기합의띠', from: ['swift-wing', 'leftovers'], unique: true, desc: '처음으로 쓰러질 피해를 받으면 쓰러지지 않고 2초 동안 체력 1로 버티며, 공격·특수공격이 20% 증가합니다.' },
-  { id: 'zoom-lens', name: '망원렌즈', from: ['swift-wing', 'swift-wing'], bonus: { spe: 1 }, desc: '사거리가 1칸 늘고 스피드가 크게 오릅니다.' },
-  { id: 'punching-glove', name: '펀치글러브', from: ['razor-claw', 'muscle-band'], bonus: { atk: 2 }, desc: '물리 스킬의 급소율이 1랭크 더 오릅니다.' },
-  { id: 'black-glasses', name: '검은안경', from: ['razor-claw', 'wise-glasses'], bonus: { spa: 1 }, desc: '특수 스킬의 급소율이 1랭크 더 오릅니다.' },
+  { id: 'zoom-lens', name: '망원렌즈', from: ['swift-wing', 'swift-wing'], bonus: { spe: 0.15 }, desc: '사거리가 1칸 늘고 공격 속도가 15% 증가합니다.' },
+  { id: 'punching-glove', name: '펀치글러브', from: ['razor-claw', 'muscle-band'], bonus: { atk: 0.3 }, desc: '공격력이 30% 증가하고 물리 스킬의 급소 확률이 10%p 증가합니다.' },
+  { id: 'black-glasses', name: '검은안경', from: ['razor-claw', 'wise-glasses'], bonus: { spa: 15 }, desc: '주문력이 15 증가하고 특수 스킬의 급소 확률이 10%p 증가합니다.' },
   { id: 'shell-armor', name: '조가비갑옷', from: ['razor-claw', 'protective-pads'], desc: '급소에 맞지 않고, 받는 피해가 15% 줄어듭니다.' },
   { id: 'mental-herb', name: '멘탈허브', from: ['razor-claw', 'x-sp-def'], unique: true, desc: '전투 시작 후 18초 동안 군중 제어 효과에 걸리지 않고, 그동안 받는 피해가 25% 줄어듭니다.' },
   { id: 'metronome', name: '메트로놈', from: ['razor-claw', 'leftovers'], desc: '같은 대상을 3초 공격할 때마다 주는 피해가 30%씩 증가합니다. 대상을 바꾸면 처음부터 다시 쌓입니다.' },
-  { id: 'spell-tag', name: '저주의부적', from: ['razor-claw', 'swift-wing'], bonus: { atk: 1 }, desc: '피해를 입힌 적의 방어가 6초 동안 3랭크 내려갑니다. (겹치지 않음)' },
-  { id: 'scope-lens', name: '초점렌즈', from: ['razor-claw', 'razor-claw'], desc: '기본 공격이 모두 급소에 맞습니다. 같은 줄 양옆 아군의 급소율이 1랭크 오릅니다.' },
-  { id: 'ether', name: 'PP에이드', from: ['leppa-berry', 'muscle-band'], desc: '기본 공격할 때 PP를 5 더 얻습니다.' },
+  { id: 'spell-tag', name: '저주의부적', from: ['razor-claw', 'swift-wing'], bonus: { atk: 0.15 }, desc: '공격력이 15% 증가합니다. 피해를 입힌 적의 방어력이 6초 동안 60 감소합니다. (겹치지 않음)' },
+  { id: 'scope-lens', name: '초점렌즈', from: ['razor-claw', 'razor-claw'], desc: '기본 공격이 모두 급소에 맞습니다. 같은 줄 양옆 아군의 급소 확률이 10%p 증가합니다.' },
+  { id: 'ether', name: 'PP에이드', from: ['leppa-berry', 'muscle-band'], desc: '기본 공격할 때 PP를 30 더 얻습니다.' },
   { id: 'soul-dew', name: '마음의물방울', from: ['leppa-berry', 'wise-glasses'], desc: '5초마다 특수공격이 18%씩 증가합니다.' },
   { id: 'soothe-bell', name: '평온의방울', from: ['leppa-berry', 'protective-pads'], desc: '공격에 맞을 때 PP를 20 더 얻습니다.' },
   { id: 'everstone', name: '변함없는돌', from: ['leppa-berry', 'x-sp-def'], unique: true, bonus: { hp: 350 }, desc: '진화하지 않습니다. 별은 오르지만 모습·스킬·타입은 그대로입니다. 돌을 빼면 전투를 한 번 치른 뒤 다음 라운드에 진화합니다.' },
   { id: 'super-potion', name: '좋은상처약', from: ['leppa-berry', 'leftovers'], desc: '매초 최대 체력의 1.5%를 회복하고, 바로 옆 칸의 아군도 매초 이 기물의 최대 체력의 1%만큼 회복시킵니다.' },
-  { id: 'twisted-spoon', name: '휘어진스푼', from: ['leppa-berry', 'swift-wing'], bonus: { spa: 1 }, desc: '피해를 입힌 적의 특수방어가 6초 동안 3랭크 내려갑니다. (겹치지 않음)' },
+  { id: 'twisted-spoon', name: '휘어진스푼', from: ['leppa-berry', 'swift-wing'], bonus: { spa: 15 }, desc: '주문력이 15 증가합니다. 피해를 입힌 적의 마법 저항력이 6초 동안 60 감소합니다. (겹치지 않음)' },
   { id: 'dragon-fang', name: '용의이빨', from: ['leppa-berry', 'razor-claw'], desc: '기본 공격할 때 PP를 30 더 얻고, 급소에 맞히면 30을 더 얻습니다.' },
   { id: 'max-ether', name: 'PP맥스', from: ['leppa-berry', 'leppa-berry'], desc: '시작 PP가 30이고, 스킬을 쓴 뒤 PP를 10 얻습니다.' }
 ];
@@ -69,7 +60,7 @@ const ITEM_LUCKY_BOX = { id: 'lucky-box', name: '행운의 아이템 상자', ic
 const ITEM_GLOVES = { id: 'thiefs-gloves', name: '도적의 장갑', icon: 'thiefs-gloves', kind: 'completed', special: true, gloves: true, unique: true, desc: '아이템 3칸을 모두 차지합니다. 라운드마다 무작위 완성 아이템 2개를 새로 끼고 싸웁니다.' };
 
 const ITEM_GIMMICKS = [
-  { id: 'mega-stone', name: '메가스톤', icon: 'mega-stone', gimmick: 'mega', desc: '장착한 포켓몬이 메가진화합니다. 공격·특수공격 중 높은 쪽이 2랭크, 공격 속도가 30% 오르고 최대 PP가 30% 줄어듭니다. 메가진화 모습이 없는 포켓몬은 무지갯빛 테두리가 일렁입니다.' },
+  { id: 'mega-stone', name: '메가스톤', icon: 'mega-stone', gimmick: 'mega', desc: '장착한 포켓몬이 메가진화합니다. 공격력·주문력 중 높은 쪽이 30% 증가하고 공격 속도가 30% 증가하며, 최대 마나가 30% 감소합니다. 메가진화 모습이 없는 포켓몬은 무지갯빛 테두리가 일렁입니다.' },
   { id: 'z-crystal', name: 'Z크리스탈', icon: 'z-crystal', gimmick: 'z', desc: '전투마다 첫 스킬이 Z기술로 바뀌어 피해와 효과가 2배가 됩니다.' },
   { id: 'max-mushrooms', name: '다이버섯', icon: 'max-mushrooms', gimmick: 'dmax', desc: '전투가 시작되면 다이맥스합니다. 스킬을 3번 쓸 때까지 최대 체력이 1.5배가 되고, 스킬이 다이맥스 기술로 바뀌어 피해와 효과가 1.5배가 됩니다.' },
   { id: 'tera-orb', name: '테라스탈오브', icon: 'tera-orb', gimmick: 'tera', desc: '장착한 포켓몬이 테라스탈합니다. 받는 모든 공격은 효과가 별로(피해 5/6배), 주는 모든 공격은 효과가 굉장함(피해 1.2배) 판정을 받습니다.' }
@@ -102,8 +93,7 @@ const ITEM_DUPLICATORS = [
   { id: 'exp-l', name: '경험사탕L', icon: 'exp-candy-l', maxCost: 5, label: '챔피언 복제기', desc: '기물에게 쓰면 그 기물의 1성 복사본 하나를 대기석에 얻습니다.' }
 ];
 
-const ITEM_DICE = { id: 'loaded-dice', name: '속임수주사위', icon: 'loaded-dice', label: '기물 복사', desc: '포켓몬에게 주면 소모되며, 상점에 같은 코스트의 포켓몬을 최대 5개 제시합니다.' };
-const ITEM_HAMMER = { id: 'tinkaton-hammer', name: '두드리짱의 망치', icon: 'tinkaton-hammer', label: '시너지 상점', desc: '포켓몬에게 주면 소모되며, 상점 5칸이 그 포켓몬과 시너지(타입·직업)가 하나 이상 겹치는 포켓몬으로 바뀝니다. (무료, 현재 레벨의 상점 확률을 따름)' };
+const ITEM_DICE = { id: 'loaded-dice', name: '두드리짱의 망치', icon: 'tinkaton-hammer', label: '시너지 상점', desc: '포켓몬에게 주면 소모되며, 상점 5칸이 그 포켓몬과 시너지(타입·직업)가 하나 이상 겹치는 포켓몬으로 바뀝니다. (무료, 현재 레벨의 상점 확률을 따름)' };
 
 const ITEM_BOXES = [
   { id: 'poke-box', name: '작은 모으령 상자', icon: 'gimmi-small', box: 'component', desc: '클릭해서 열면 서로 다른 조합 아이템 4개 중 하나를 고릅니다.' },
@@ -140,28 +130,23 @@ const ITEM_TREASURES = [
 const ITEMS = (function () {
   const map = {};
   const recipe = {};
-  for (const c of ITEM_COMPONENTS) map[c.id] = Object.assign({ kind: 'component', desc: '', direct: ITEM_DIRECT[c.id] || {} }, c, { stats: {} });
+  for (const c of ITEM_COMPONENTS) map[c.id] = Object.assign({ kind: 'component', desc: '' }, c);
   for (const c of ITEM_COMPLETED) {
     const stats = {};
-    const direct = {};
     for (const part of c.from.concat([null])) {
       const src = part ? map[part].stats : c.bonus || {};
-      const directSrc = part ? map[part].direct : Object.fromEntries(Object.entries(c.bonus || {}).map(([k, v]) => [k === 'spd' ? 'spd' : k === 'def' ? 'def' : k === 'spe' ? 'as' : k, k === 'def' || k === 'spd' ? v * 20 : k === 'atk' || k === 'spa' || k === 'spe' ? v * 0.15 : v]));
       for (const k in src) stats[k] = (stats[k] || 0) + src[k];
-      for (const k in directSrc) direct[k] = (direct[k] || 0) + directSrc[k];
     }
-    map[c.id] = Object.assign({ kind: 'completed' }, c, { stats, direct });
+    map[c.id] = Object.assign({ kind: 'completed' }, c, { stats });
     recipe[c.from.slice().sort().join('+')] = c.id;
   }
   const radiants = [];
   for (const c of ITEM_COMPLETED) {
     const b = map[c.id];
     const stats = {};
-    const direct = {};
     for (const k in b.stats) stats[k] = b.stats[k] * 2;
-    for (const k in b.direct) direct[k] = b.direct[k] * 2;
     const id = 'radiant-' + c.id;
-    map[id] = Object.assign({}, b, { id, base: c.id, radiant: true, name: '찬란한 ' + c.name, icon: c.icon || c.id, stats, direct, desc: '효과와 능력치가 두 배로 적용됩니다. (원래 효과: ' + c.desc + ')' });
+    map[id] = Object.assign({}, b, { id, base: c.id, radiant: true, name: '찬란한 ' + c.name, icon: c.icon || c.id, stats, desc: '효과와 능력치가 두 배로 적용됩니다. (원래 효과: ' + c.desc + ')' });
     radiants.push(id);
   }
   map[ITEM_MAGNET.id] = Object.assign({ stats: {} }, ITEM_MAGNET);
@@ -171,8 +156,7 @@ const ITEMS = (function () {
   for (const g of ITEM_GIMMICKS) map[g.id] = Object.assign({ kind: 'completed', special: true, unique: true, stats: {} }, g);
   for (const c of ITEM_CANDIES) map[c.id] = Object.assign({ kind: 'consumable', candy: true, stats: {} }, c);
   for (const c of ITEM_DUPLICATORS) map[c.id] = Object.assign({ kind: 'consumable', dup: true, stats: {} }, c);
-  map[ITEM_DICE.id] = Object.assign({ kind: 'consumable', diceShop: true, stats: {} }, ITEM_DICE);
-  map[ITEM_HAMMER.id] = Object.assign({ kind: 'consumable', traitShop: true, stats: {} }, ITEM_HAMMER);
+  map[ITEM_DICE.id] = Object.assign({ kind: 'consumable', traitShop: true, stats: {} }, ITEM_DICE);
   for (const b of ITEM_BOXES) map[b.id] = Object.assign({ kind: 'consumable', stats: {} }, b);
   for (const t of ITEM_TREASURES) map[t.id] = Object.assign({ kind: 'treasure', stats: {} }, t);
   const tiers = [[], [], [], []];
@@ -236,15 +220,14 @@ function combineItems(a, b) {
 
 function itemStatText(id) {
   const d = itemDef(id);
-  if (!d) return '';
-  const direct = d.direct || {};
+  if (!d || !d.stats) return '';
   const parts = [];
-  for (const k of ['hp', 'atk', 'spa', 'def', 'spd', 'as', 'crit', 'pp']) {
-    const v = direct[k];
+  for (const k of ['hp', 'atk', 'spa', 'def', 'spd', 'spe', 'crit', 'pp']) {
+    const v = d.stats[k];
     if (!v) continue;
-    const value = k === 'atk' || k === 'spa' || k === 'as' ? '+' + Math.round(v * 100) + '%' : '+' + v;
-    const label = k === 'as' ? '공격 속도' : ITEM_STAT_LABEL[k];
-    parts.push(label + ' ' + value);
+    const fmt = ITEM_STAT_FORMAT[k];
+    const amount = fmt === 'percent' ? Math.round(v * 100) + '%' : fmt === 'percentagePoints' ? Math.round(v * 100) + '%p' : v;
+    parts.push(ITEM_STAT_LABEL[k] + ' +' + amount);
   }
   return parts.join(', ');
 }

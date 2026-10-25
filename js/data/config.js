@@ -51,10 +51,8 @@ const CONFIG = {
     ppPerAttack: 10,
     ppPerHit: 1,
     skillMult: 1.5,
-    critMult: 1.5,
-    critTable: [0.0417, 0.125, 0.5, 1],
-    rankStep: 0.15,
-    hitBonus: 0.1,
+    critChance: 0.25,
+    critMult: 1.4,
     rangedRange: 3
   },
   unlock: {
@@ -62,7 +60,7 @@ const CONFIG = {
     dratiniWins: 3,
     dragonairWins: 3,
     gastlyTakedowns: 20,
-    hypnosisSeconds: 40,
+    hypnosisSeconds: 60,
     healStack: 14000,
     geneStack: 100,
     mewTypes: 5,
@@ -71,8 +69,8 @@ const CONFIG = {
     burnDamage: 10000,
     downloadStage1: 200,
     downloadStage2: 600,
-    kabutoBattles: 3,
-    aerodactylBattles: 3
+    kabutoWins: 3,
+    aerodactylLosses: 3
   },
   mine: {
     base: 20,
@@ -140,7 +138,7 @@ const CONFIG = {
     4: { gray: 0.35, blue: 0.45, gold: 0.2 },
     5: { gray: 0.3, blue: 0.45, gold: 0.25 }
   },
-  carousel: { firstRelease: 5, releaseGap: 5, lastWindow: 7, ringRadius: 84, spin: 0.22, pickRadius: 24, moveSpeed: 85 },
+  carousel: { firstRelease: 3, releaseGap: 5, lastWindow: 7, ringRadius: 84, spin: 0.22, pickRadius: 24, moveSpeed: 85 },
   strategists: ['TrAA', 'TrAB', 'TrAC', 'TrAD', 'TrAE', 'TrAF', 'TrAG', 'TrAH', 'TrAI', 'TrAJ', 'TrAK', 'TrAL', 'TrAM', 'TrAN', 'TrAO', 'TrAP', 'TrAQ', 'TrAR', 'TrAS', 'TrAT', 'TrAU', 'TrAV', 'TrAW', 'TrAX', 'TrAY', 'TrAZ', 'TrBA', 'TrBB', 'TrBC', 'TrBD', 'TrBE', 'TrBF', 'TrBG', 'TrBH', 'TrBI', 'TrBJ', 'TrBK', 'TrBL', 'TrBM', 'TrBN', 'TrBO', 'TrBP', 'TrBQ', 'TrBR', 'TrBS', 'TrBT', 'TrBU', 'TrBV', 'TrBW', 'TrBX', 'TrBY', 'TrBZ', 'TrCA', 'TrCB', 'TrCC', 'TrCD', 'TrCE'],
   maps: ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova', 'kalos', 'alola', 'galar', 'paldea'],
   botNames: ['반바지 꼬마', '등산가', '아가씨', '이과계 남자', '낚시꾼', '괴인', '엘리트 트레이너']

@@ -2680,7 +2680,7 @@ class App {
       '낙뢰 적중 ' + Math.floor(c.bolt) + ' / ' + u.electricBolts + ' (썬더)',
       '화상 피해 ' + Math.floor(c.burn) + ' / ' + u.burnDamage + ' (파이어)',
       '서로 다른 얼음 포켓몬 별 합계 ' + u.iceStarTotal + ' 이상으로 전투 시작 (프리져)',
-      '암나이트 전투 참여 ' + h.kabutoBattles + ' / ' + u.kabutoBattles + ' (투구) · 투구 전투 참여 ' + h.aerodactylBattles + ' / ' + u.aerodactylBattles + ' (프테라)',
+      '화석 연승 ' + h.fossilWins + ' / ' + u.kabutoWins + ' (투구) · 연패 ' + h.fossilLosses + ' / ' + u.aerodactylLosses + ' (프테라)',
       '용의 비늘 ' + h.dragonScales + ' · 에스퍼 효과 ' + this.game.espVariant,
       '리전폼: ' + (this.game.isRegional() ? '켜짐' : '꺼짐'),
       '해금: ' + (h.unlockedShop.size ? Array.from(h.unlockedShop).join(', ') : '없음'),

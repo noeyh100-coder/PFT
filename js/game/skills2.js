@@ -10,7 +10,7 @@ Object.assign(SKILL_P, {
   '마그마번·회오리불꽃': { k: 0.35, dur: 10, buff: 1 },
   '모래두지·웅크리기': { red: 0.2, dur: 2, def: 1 },
   '고지·웅크리기': { red: 0.3, dur: 2, def: 1 },
-  '뽀뽀라·악마의키스': { sleep: 1, heal: 0.15 },
+  '뽀뽀라·악마의키스': { sleep: 2, heal: 0.3 },
   '루주라·악마의키스': { sleep: 2, heal: 0.35 },
   '쏘드라': { m: [2.1, 2.3, 2.6] },
   '시드라': { m: [2.3, 2.5, 2.8] },
@@ -23,7 +23,7 @@ Object.assign(SKILL_P, {
   '뿔충이·마지막일침': { m: 1.5 },
   '딱충이·마지막일침': { m: 1.65 },
   '파오리·바둥바둥': { min: 1.5, max: 4.0 },
-  '야돈·하품': { heal: 0.3, stacks: 2, sleep: 2 },
+  '야돈·하품': { heal: 0.6, stacks: 2, sleep: 2 },
   '잉어킹·튀어오르기': { m: 1.6, shield: 0.5, splash: 0.5 },
   '크랩': { m: 2.0, splash: 0 },
   '킹크랩': { m: 2.4, splash: 0 },
@@ -265,7 +265,7 @@ const SKILLS2 = {
     const list = [t].concat(S.foesOf(u).filter(o => o !== t).sort((a, b) => Hex.dist(a.r, a.c, t.r, t.c) - Hex.dist(b.r, b.c, t.r, t.c) || a.uid - b.uid).slice(0, 2));
     S.hitAll(u, list, P.m, {
       onHit: o => {
-        if (['atk', 'spa', 'def', 'spd', 'spe'].some(k => S.rank(o, k) > 0)) S.status(u, o, 'confuse', 2);
+        if (['atk', 'spa', 'def', 'spd', 'spe'].some(k => S.statModifier(o, k) > 0)) S.status(u, o, 'confuse', 2);
       }
     });
   },
@@ -326,7 +326,7 @@ const SKILLS2 = {
     let bestSum = 0;
     for (const o of S.units) {
       if (o === u || !o.alive) continue;
-      const sum = ['atk', 'spa', 'def', 'spd', 'spe', 'acc', 'eva', 'crit'].reduce((s, k) => s + Math.max(0, S.rank(o, k)), 0);
+      const sum = ['atk', 'spa', 'def', 'spd', 'spe', 'acc', 'eva', 'crit'].reduce((s, k) => s + Math.max(0, S.statModifier(o, k) / STAT_MODIFIER_PER_POINT[k]), 0);
       if (sum > bestSum) {
         best = o;
         bestSum = sum;
@@ -334,7 +334,7 @@ const SKILLS2 = {
     }
     if (best) {
       for (const k of ['atk', 'spa', 'def', 'spd', 'spe', 'acc', 'eva', 'crit']) {
-        const n = Math.max(0, S.rank(best, k));
+        const n = Math.max(0, S.statModifier(best, k) / STAT_MODIFIER_PER_POINT[k]);
         if (n) S.perma(u, k, n);
       }
       S.emit({ type: 'retype', uid: u.uid, kind: 'suggest', value: best.name });
@@ -432,8 +432,8 @@ const SKILLS2 = {
     if (!t) return;
     if (u.skillCount % 2 === 1) {
       u.tmp = u.tmp.filter(b => b.feint !== true);
-      u.tmp.push({ k: 'def', n: P.buff, until: S.time + 999, feint: true });
-      u.tmp.push({ k: 'spd', n: P.buff, until: S.time + 999, feint: true });
+      u.tmp.push({ k: 'def', value: statModifierDelta('def', P.buff), until: S.time + 999, feint: true });
+      u.tmp.push({ k: 'spd', value: statModifierDelta('spd', P.buff), until: S.time + 999, feint: true });
       S.hit(u, t, P.m, { special: false, onHit: o => S.status(u, o, 'flinch', 1) });
       return;
     }

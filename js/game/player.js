@@ -8,7 +8,6 @@ class Player {
     this.boxOpen = null;
     this.augs = [];
     this.augOffer = null;
-    this.augSeen = [];
     this.augState = {};
     this.freeRolls = 0;
     this.levelUps = [];
@@ -43,8 +42,8 @@ class Player {
     this.mine = 0;
     this.mineOffer = null;
     this.mineSkip = false;
-    this.kabutoBattles = 0;
-    this.aerodactylBattles = 0;
+    this.fossilWins = 0;
+    this.fossilLosses = 0;
     this.participants = new Set();
     this.history = {};
     this.orbs = [];

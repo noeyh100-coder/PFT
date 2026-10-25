@@ -125,7 +125,7 @@ const Bot = {
     if (!d) return false;
     if (d.box) return false;
     if (d.candy) return inst.star < 3 && UNITS[inst.unitId].cost <= d.maxCost;
-    if (d.reforge || d.traitShop || d.diceShop || d.magnet || d.lucky) return false;
+    if (d.reforge || d.traitShop || d.magnet || d.lucky) return false;
     if (d.gloves) return !(inst.items || []).length;
     if (hasItem(inst, 'thiefs-gloves')) return false;
     if (d.dup) return inst.star < 3 && UNITS[inst.unitId].cost <= d.maxCost && g.pool.remaining(inst.unitId) > 0 && (p.freeBenchSlot() >= 0 || g.countMergeable(p, inst.unitId, 1) >= 2);

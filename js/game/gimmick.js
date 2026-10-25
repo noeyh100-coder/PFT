@@ -11,7 +11,7 @@ const MAX_MOVES = {
   '에스퍼': '다이사이코', '얼음': '다이아이스', '드래곤': '다이드라군', '악': '다이아크', '페어리': '다이페어리'
 };
 
-const GIMMICK = { megaRank: 2, megaAs: 0.3, megaPP: 0.3, zMult: 2, dmaxHp: 1.5, dmaxMult: 1.5, dmaxCasts: 3, super: 1.2, resist: 5 / 6 };
+const GIMMICK = { megaBonus: 2, megaAs: 0.3, megaPP: 0.3, zMult: 2, dmaxHp: 1.5, dmaxMult: 1.5, dmaxCasts: 3, super: 1.2, resist: 5 / 6 };
 
 const GIMMICK_FX = {
   effMult(src, t) {
@@ -31,14 +31,14 @@ const GIMMICK_FX = {
     if (has && !had) {
       const key = this.atkView(u) >= this.spaView(u) ? 'atk' : 'spa';
       u.megaKey = key;
-      u.rk[key] += GIMMICK.megaRank;
+      addStatModifier(u, key, GIMMICK.megaBonus);
       u.pct.as += GIMMICK.megaAs;
       u.megaPP = Math.min(u.maxMana - 1, Math.round(u.maxMana * GIMMICK.megaPP));
       u.maxMana -= u.megaPP;
       u.mana = Math.min(u.mana, u.maxMana);
       if (live) this.emit({ type: 'gimmick', uid: u.uid, kind: 'mega', on: true });
     } else if (had && !has && u.megaKey) {
-      u.rk[u.megaKey] -= GIMMICK.megaRank;
+      addStatModifier(u, u.megaKey, -GIMMICK.megaBonus);
       u.pct.as -= GIMMICK.megaAs;
       u.maxMana += u.megaPP || 0;
       u.megaKey = null;

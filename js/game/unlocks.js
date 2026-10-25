@@ -97,14 +97,18 @@ const Unlocks = {
     const mine = sim.units.filter(cu => cu.side === side);
     if (!p.unlockedShop.has('투구')) {
       if (mine.some(cu => cu.unitId === '암나이트' && cu.star >= 2)) {
-        p.kabutoBattles += 1;
-        if (p.kabutoBattles >= cfg.kabutoBattles) this.unlockGuaranteed(game, p, '투구');
+        p.fossilWins = won ? p.fossilWins + 1 : 0;
+        if (p.fossilWins >= cfg.kabutoWins) this.unlockGuaranteed(game, p, '투구');
+      } else {
+        p.fossilWins = 0;
       }
     }
     if (!p.unlockedShop.has('프테라')) {
       if (mine.some(cu => cu.unitId === '투구' && cu.star >= 2)) {
-        p.aerodactylBattles += 1;
-        if (p.aerodactylBattles >= cfg.aerodactylBattles) this.unlockGuaranteed(game, p, '프테라');
+        p.fossilLosses = won ? 0 : p.fossilLosses + 1;
+        if (p.fossilLosses >= cfg.aerodactylLosses) this.unlockGuaranteed(game, p, '프테라');
+      } else {
+        p.fossilLosses = 0;
       }
     }
     const stage = p.counters.download >= cfg.downloadStage2 ? 2 : p.counters.download >= cfg.downloadStage1 ? 1 : 0;
@@ -191,8 +195,8 @@ const Unlocks = {
       const next = p.downloadStage === 0 ? cfg.downloadStage1 : p.downloadStage === 1 ? cfg.downloadStage2 : null;
       return next ? '다운로드 ' + Math.floor(p.counters.download) + '/' + next : '다운로드 완료';
     }
-    if (id === '암나이트') return p.unlockedShop.has('투구') ? '투구 해금 완료' : '투구 해금: 2성으로 전투 참여 ' + p.kabutoBattles + '/' + cfg.kabutoBattles;
-    if (id === '투구') return p.unlockedShop.has('프테라') ? '프테라 해금 완료' : '프테라 해금: 2성으로 전투 참여 ' + p.aerodactylBattles + '/' + cfg.aerodactylBattles;
+    if (id === '암나이트') return p.unlockedShop.has('투구') ? '투구 해금 완료' : '투구 해금: 2성으로 필드에서 연속 승리 ' + p.fossilWins + '/' + cfg.kabutoWins;
+    if (id === '투구') return p.unlockedShop.has('프테라') ? '프테라 해금 완료' : '프테라 해금: 2성으로 필드에서 연속 패배 ' + p.fossilLosses + '/' + cfg.aerodactylLosses;
     if (id === '뮤') return '뮤츠 해금: 유전자 ' + Math.floor(p.counters.gene) + '/' + cfg.geneStack;
     return '';
   }

@@ -130,7 +130,7 @@ const AUG_FX = {
         u.flatHp += 5 * A.lost;
         u.pct.as += 0.004 * A.lost;
       }
-      if (has('lotus1') || has('lotus2')) u.rk.crit += 1;
+      if (has('lotus1') || has('lotus2')) addStatModifier(u, 'crit', 1);
       if (has('lotus2')) u.critDmg += 0.1;
       if (has('bigstrong')) {
         u.flatHp += 200;
@@ -164,8 +164,8 @@ const AUG_FX = {
       }
       if (has('doublebattle') && u.unitId && copies[u.unitId] === 2) {
         both(u, 0.3);
-        u.pct.armor += 0.3;
-        u.pct.mr += 0.3;
+        u.flatArmor += 30;
+        u.flatMr += 30;
       }
       if (has('gildedsteel') && anyFive && u.cost <= 4) u.dura += 0.08;
       if (buddy) {

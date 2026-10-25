@@ -32,13 +32,13 @@ const ESPER_FX = {
       if (!(u.types.includes('에스퍼') || u.mew)) continue;
       u.esper = true;
       if (v === '매직룸') {
-        u.rk.spe += val('spe');
+        addStatModifier(u, 'spe', val('spe'));
         u.roomExtra = val('extra');
       } else if (v === '미러코트') {
-        u.rk.spd += val('spd');
+        addStatModifier(u, 'spd', val('spd'));
         u.mirror = { acc: 0, at: 4 };
       } else if (v === '신통력') {
-        u.rk.spa += val('spa');
+        addStatModifier(u, 'spa', val('spa'));
         u.psyBonus = val('bonus');
         u.psyChance = val('chance');
         u.psyPer = val('per');
@@ -47,8 +47,8 @@ const ESPER_FX = {
         u.pct.hp += val('hp');
         u.wish = true;
       } else if (v === '봉인') {
-        u.rk.acc += val('acc');
-        u.rk.eva += val('acc');
+        addStatModifier(u, 'acc', val('acc'));
+        addStatModifier(u, 'eva', val('acc'));
         u.sealKill = val('kill') > 0;
       }
     }
