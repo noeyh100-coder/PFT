@@ -176,9 +176,9 @@ const Unlocks = {
     if (id === '잉어킹') return inst.star === 3 ? '갸라도스 진화: 전투 참여 ' + (inst.battles || 0) + '/' + cfg.magikarpBattles : '3성이 되면 전투 참여 횟수를 셉니다 (갸라도스)';
     if (id === '고오스') return '팬텀 진화: 처치 관여 ' + Math.min(inst.takedowns, cfg.gastlyTakedowns) + '/' + cfg.gastlyTakedowns + (inst.star >= 2 ? '' : ' (고우스트가 되어야 진화)');
     if (id === '망키') return inst.star >= 2 ? '저승갓숭 진화: PvP 전투에서 쓰러지면 진화' : '성원숭이 되면 조건이 열립니다 (저승갓숭)';
-    if (id === '캐이시') return '후딘 진화: 윤겔라가 재운 시간 ' + Math.floor(p.counters.hypnosis) + '/' + cfg.hypnosisSeconds + '초 + 윤겔라 전투 참여';
-    if (id === '핑복') return '치유 스택 ' + Math.floor(p.counters.heal) + (p.counters.heal >= cfg.healStack ? ' · 럭키가 전투에 참여하면 해피너스 진화' : '/' + cfg.healStack + ' (해피너스)');
-    if (id === '해피너스') return '치유 스택 ' + Math.floor(p.counters.heal);
+    if (id === '캐이시') return '후딘 진화: 윤겔라가 기절시킨 시간 ' + Math.floor(p.counters.hypnosis) + '/' + cfg.hypnosisSeconds + '초 + 윤겔라 전투 참여';
+    if (id === '핑복') return '회복 중첩 ' + Math.floor(p.counters.heal) + (p.counters.heal >= cfg.healStack ? ' · 럭키가 전투에 참여하면 해피너스 진화' : '/' + cfg.healStack + ' (해피너스)');
+    if (id === '해피너스') return '회복 중첩 ' + Math.floor(p.counters.heal);
     if (id === '야돈') return '앞 칸에 셀러 → 야도킹 / 뒤 칸에 셀러 → 야도란 (둘 중 낮은 별로 진화)';
     if (id === '가라르 야돈') return '앞 칸에 셀러 → 가라르 야도킹 / 뒤 칸에 셀러 → 가라르 야도란 (둘 중 낮은 별로 진화)';
     if (id === '메타몽') {
@@ -188,7 +188,7 @@ const Unlocks = {
     }
     if (id === '먹고자') {
       const f = inst.feast;
-      const parts = f ? [['atk', '공격'], ['spa', '특수공격'], ['def', '방어'], ['spd', '특수방어']].filter(([k]) => f[k] > 0).map(([k, n]) => n + ' +' + Math.round(f[k] * 100) + '%') : [];
+      const parts = f ? [['atk', '물리공격'], ['spa', '특수공격'], ['def', '물리방어'], ['spd', '특수방어']].filter(([k]) => f[k] > 0).map(([k, n]) => n + ' +' + Math.round(f[k] * 100) + '%') : [];
       return (p.fedRound === game.roundLabel() ? '이번 준비 단계 먹이 완료' : '먹이 가능') + (parts.length ? ' · ' + parts.join(', ') : '');
     }
     if (id === '폴리곤') {

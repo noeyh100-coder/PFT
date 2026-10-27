@@ -163,7 +163,7 @@ class Lab {
   label(tab, key) {
     if (tab === 'units') {
       const d = UNITS[key];
-      return { name: key, sub: d ? (d.region ? '리전 · ' : '') + d.cost + '코스트' + (d.unlockOnly ? ' · 해금' : '') : '' };
+      return { name: key, sub: d ? (d.region ? '리전폼 · ' : '') + d.cost + '코스트' + (d.unlockOnly ? ' · 해금' : '') : '' };
     }
     if (tab === 'augs') {
       const a = AUGMENTS.find(x => x.id === key);

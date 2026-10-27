@@ -27,7 +27,7 @@
   --gold: #f6c945;
   --good: #59d97a;
   --bad: #ef5a5a;
-  --mana: #4fa3ff;
+  --pp: #4fa3ff;
   --accent: #ffd34d;
   --phys: #e8892f;
   --spec: #5b8fd9;
@@ -48,6 +48,54 @@ body {
   height: 100%;
   background: var(--bg);
   overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  position: fixed;
+  inset: 0;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#rotate-hint {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  font-size: 18px;
+  color: #e6e8f5;
+  background: #0c0d18;
+}
+
+.rotate-phone {
+  width: 46px;
+  height: 78px;
+  border: 4px solid #f2d27a;
+  border-radius: 8px;
+  animation: rotatePhone 1.6s ease-in-out infinite;
+}
+
+@keyframes rotatePhone {
+  0%,
+  20% {
+    transform: rotate(0deg);
+  }
+  60%,
+  100% {
+    transform: rotate(-90deg);
+  }
+}
+
+@media (orientation: portrait) {
+  body.touch #rotate-hint {
+    display: flex;
+  }
 }
 
 body {
@@ -94,6 +142,7 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
+  touch-action: none;
 }
 
 #game {
@@ -967,12 +1016,12 @@ button:disabled {
   background: var(--bad);
 }
 
-.bar.mana {
+.bar.pp {
   height: 3px;
 }
 
-.bar.mana > i {
-  background: var(--mana);
+.bar.pp > i {
+  background: var(--pp);
 }
 
 .unit.cunit .stars {
@@ -1702,7 +1751,7 @@ button:disabled {
 }
 
 .ip-bar.pp i {
-  background: var(--mana);
+  background: var(--pp);
 }
 
 .ip-bar span {
@@ -3343,9 +3392,9 @@ button:disabled {
   box-shadow: 0 0 0 1px #0b0c14, 0 0 0 2px #f2c94c, 0 0 6px 1px rgba(255, 210, 90, 0.6);
 }
 
-.unit.s1 .bar.mana,
-.unit.s2 .bar.mana,
-.unit.s3 .bar.mana {
+.unit.s1 .bar.pp,
+.unit.s2 .bar.pp,
+.unit.s3 .bar.pp {
   box-shadow: 0 0 0 1px #0b0c14;
 }
 
@@ -3807,6 +3856,34 @@ button:disabled {
 
 .pl-head .pl-x {
   margin-left: auto;
+}
+
+.pl-tabs {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+  background: #15172a;
+  box-shadow: inset 0 0 0 1px #0c0d18, 0 0 0 2px var(--edge);
+}
+
+.pl-tab {
+  padding: 5px 12px;
+  font-size: 13px;
+  color: #9aa0c0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pl-tab:hover:not(.on) {
+  color: #e6e8f5;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.pl-tab.on {
+  color: #2a2210;
+  font-weight: bold;
+  background: linear-gradient(180deg, #f2d27a, #c9a24a);
 }
 
 .pl-icon {

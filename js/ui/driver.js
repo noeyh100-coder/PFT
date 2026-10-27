@@ -1,6 +1,10 @@
 const DRIVER_TICK = 0.05;
 
 function orbFlatPos(o) {
+  if (o.spot !== undefined) {
+    const y = View.BOARD_Y + 3.5 * View.ROW_STEP + View.CELL_H / 2;
+    return { x: View.BOARD_X + 30 + (o.spot % 10) * 30, y: y + Math.floor(o.spot / 10) * 28 };
+  }
   const p = View.cellCenter(o.r, o.c);
   return { x: p.x + (((o.id * 37) % 21) - 10), y: p.y + (((o.id * 53) % 15) - 7) };
 }
@@ -266,6 +270,7 @@ class Driver {
     const L2 = dx * dx + dy * dy;
     if (L2 < 1) return false;
     for (const o of p.orbs) {
+      if (!this.game.canOpenOrb(p, o)) continue;
       const op = orbFlatPos(o);
       const t = Math.max(0, Math.min(1, ((op.x - s.x) * dx + (op.y - s.y) * dy) / L2));
       if (Math.hypot(op.x - (s.x + dx * t), op.y - (s.y + dy * t)) < 39) return true;
@@ -301,8 +306,7 @@ class Driver {
       for (const o of p.orbs.slice()) {
         const op = orbFlatPos(o);
         if (Math.hypot(op.x - s.x, op.y - s.y) < 39) {
-          g.pickOrb(p, o.id);
-          this.emit('orb', { pid: p.id, id: o.id, tier: o.tier, grade: o.grade });
+          if (g.pickOrb(p, o.id)) this.emit('orb', { pid: p.id, id: o.id, tier: o.tier, grade: o.grade });
         }
       }
     }

@@ -33,23 +33,23 @@ const AUG_FX = {
     const X = (T && T.augX) || {};
     const A = this.side && this.side[u.side] ? this.side[u.side].aug : null;
     const it = u.it || {};
-    const m = { hp: 0, as: 0, pa: 0, sa: 0, def: 0 };
+    const m = { hp: 0, spe: 0, atk: 0, spa: 0, def: 0 };
     if (list.length) {
       if (list.includes('yoshhelp')) m.hp += 85 * (it['leftovers'] || 0);
-      if (list.includes('gardhelp')) m.as += 0.05 * (it['wise-glasses'] || 0);
-      if (list.includes('harihelp')) m.as += 0.05 * (it['muscle-band'] || 0);
-      if (list.includes('deadlyband')) m.pa += 0.01 * (A ? A.band : X.band || 0) * (it['choice-band'] || 0);
-      if (list.includes('deadlyspecs')) m.sa += 0.01 * (A ? A.specs : X.specs || 0) * (it['choice-specs'] || 0);
+      if (list.includes('gardhelp')) m.spe += 0.05 * (it['wise-glasses'] || 0);
+      if (list.includes('harihelp')) m.spe += 0.05 * (it['muscle-band'] || 0);
+      if (list.includes('deadlyband')) m.atk += 0.01 * (A ? A.band : X.band || 0) * (it['choice-band'] || 0);
+      if (list.includes('deadlyspecs')) m.spa += 0.01 * (A ? A.specs : X.specs || 0) * (it['choice-specs'] || 0);
       const mk = list.includes('makeshift2') ? 50 : list.includes('makeshift1') ? 30 : 0;
       if (mk && !(u.items || []).length) m.def += mk;
     }
-    const o = u.augItem || { hp: 0, as: 0, pa: 0, sa: 0, def: 0 };
+    const o = u.augItem || { hp: 0, spe: 0, atk: 0, spa: 0, def: 0 };
     u.flatHp += m.hp - o.hp;
-    u.pct.as += m.as - o.as;
-    u.pct.pa += m.pa - o.pa;
-    u.pct.sa += m.sa - o.sa;
-    u.flatArmor += m.def - o.def;
-    u.flatMr += m.def - o.def;
+    u.pct.spe += m.spe - o.spe;
+    u.pct.atk += m.atk - o.atk;
+    u.pct.spa += m.spa - o.spa;
+    u.flatDef += m.def - o.def;
+    u.flatSpd += m.def - o.def;
     u.augItem = m;
   },
 
@@ -60,8 +60,8 @@ const AUG_FX = {
     for (const u of units) {
       if (!u.augOne) continue;
       u.pct.hp += 0.01 * u.augOne;
-      u.pct.pa += 0.015 * u.augOne;
-      u.pct.sa += 0.015 * u.augOne;
+      u.pct.atk += 0.015 * u.augOne;
+      u.pct.spa += 0.015 * u.augOne;
     }
     const list = (T && T.augs) || [];
     if (!list.length) return;
@@ -93,8 +93,8 @@ const AUG_FX = {
     };
     st.aug = A;
     const both = (u, k) => {
-      u.pct.pa += k;
-      u.pct.sa += k;
+      u.pct.atk += k;
+      u.pct.spa += k;
     };
     const front = u => this.augFront(side, u.r);
     const nb = u => units.filter(o => o !== u && Hex.dist(o.r, o.c, u.r, u.c) === 1);
@@ -112,23 +112,23 @@ const AUG_FX = {
     for (const u of units) {
       if (vamp) u.vamp += vamp[0];
       if (has('formation') && !front(u)) {
-        u.pct.sa += 0.1 * fronts;
-        u.pct.pa += 0.09 * fronts;
+        u.pct.spa += 0.1 * fronts;
+        u.pct.atk += 0.09 * fronts;
       }
       if (has('shrink')) {
-        u.pct.as += 0.3;
+        u.pct.spe += 0.3;
         u.mvMul *= 1.3;
       }
       if (bronze && (has('bronze1') || has('bronze2'))) {
         u.amp += 0.025 * bronze;
         if (has('bronze2')) {
-          u.flatArmor += 4 * bronze;
-          u.flatMr += 4 * bronze;
+          u.flatDef += 4 * bronze;
+          u.flatSpd += 4 * bronze;
         }
       }
       if (has('comeback') && A.lost) {
         u.flatHp += 5 * A.lost;
-        u.pct.as += 0.004 * A.lost;
+        u.pct.spe += 0.004 * A.lost;
       }
       if (has('lotus1') || has('lotus2')) addStatModifier(u, 'crit', 1);
       if (has('lotus2')) u.critDmg += 0.1;
@@ -138,41 +138,41 @@ const AUG_FX = {
       }
       if (has('lateclass') && u.cost >= 5) {
         u.pct.hp += 0.12;
-        u.pct.as += 0.12;
+        u.pct.spe += 0.12;
       }
       if (has('earlyedu')) both(u, (0.08 + 0.01 * (X.edu || 0)) * (u.cost === 1 ? 2 : 1));
       if (has('haste')) u.hasteUntil = 3;
       if (has('littlebuddies') && u.cost >= 4 && smalls) {
         u.flatHp += 55 * smalls;
-        u.pct.as += 0.06 * smalls;
+        u.pct.spe += 0.06 * smalls;
       }
       if (sb && this.augBackRow(side, u.r)) u.amp += sb;
       if (has('polymath')) {
-        u.pct.sa += 0.08;
-        u.flatArmor += 6;
+        u.pct.spa += 0.08;
+        u.flatDef += 6;
       }
       if (has('soulbeat')) {
         u.flatHp += 44;
         both(u, 0.04);
-        u.flatArmor += 4;
-        u.flatMr += 4;
-        u.pct.as += 0.04;
+        u.flatDef += 4;
+        u.flatSpd += 4;
+        u.pct.spe += 0.04;
       }
       if (trio.includes(u)) {
         u.flatHp += 220;
-        u.pct.as += 0.2;
+        u.pct.spe += 0.2;
       }
       if (has('doublebattle') && u.unitId && copies[u.unitId] === 2) {
         both(u, 0.3);
-        u.flatArmor += 30;
-        u.flatMr += 30;
+        u.flatDef += 30;
+        u.flatSpd += 30;
       }
       if (has('gildedsteel') && anyFive && u.cost <= 4) u.dura += 0.08;
       if (buddy) {
         const n = nb(u);
         if (n.length === 1 && nb(n[0]).length === 1) {
-          u.pct.as += buddy[0];
-          u.flatArmor += buddy[1];
+          u.pct.spe += buddy[0];
+          u.flatDef += buddy[1];
         }
       }
       if (has('crownweight') && u.it && u.it['kings-rock'] && !units.some(o => o !== u && o.r === u.r)) u.pct.hp += 0.2;
@@ -180,14 +180,14 @@ const AUG_FX = {
         u.pct.hp += 2;
         both(u, 2);
       }
-      if (has('swordsdance')) u.pct.pa += 0.1;
-      if (has('calmmind')) u.pct.sa += 0.1;
+      if (has('swordsdance')) u.pct.atk += 0.1;
+      if (has('calmmind')) u.pct.spa += 0.1;
       if (has('laststand') && u.r === fr && u.c === fc) {
         u.amp += 0.15;
         u.pct.hp += 0.25;
       }
       if (has('boxing')) u.flatHp += 30 * fronts;
-      if (has('shellup') && u.it && u.it['shell-bell']) u.pct.pa += 0.1;
+      if (has('shellup') && u.it && u.it['shell-bell']) u.pct.atk += 0.1;
     }
   },
 
@@ -200,8 +200,8 @@ const AUG_FX = {
     const big = has('bigfriend') ? units.filter(o => o.maxHp >= 1750) : [];
     for (const u of units) {
       if (exile && !units.some(o => o !== u && Hex.dist(o.r, o.c, u.r, u.c) === 1)) this.timedShield(u, u.maxHp * exile, 10);
-      if (has('chaos') && u.traits.includes('주문술사') && !u.experiment) u.mana = Math.min(u.maxMana, u.mana + 40);
-      if (has('soulbeat') && !u.experiment) u.mana = Math.min(u.maxMana, u.mana + 10);
+      if (has('chaos') && u.traits.includes('주문술사') && !u.experiment) u.pp = Math.min(u.maxPP, u.pp + 40);
+      if (has('soulbeat') && !u.experiment) u.pp = Math.min(u.maxPP, u.pp + 10);
       if (has('shellup') && u.it && u.it['shell-bell']) {
         u.hp = Math.max(1, Math.round(u.hp - u.maxHp * 0.2));
         this.addShield(u, u.maxHp * 0.3);
@@ -212,9 +212,9 @@ const AUG_FX = {
   },
 
   augRegen(u, n) {
-    if (!u.alive || n <= 0 || u.experiment || u.egg || u.casting || u.channel || u.manaLockUntil > this.time) return;
+    if (!u.alive || n <= 0 || u.experiment || u.egg || u.casting || u.channel || u.ppLockUntil > this.time) return;
     n *= PP_RULE.event;
-    u.mana = Math.min(u.maxMana, u.mana + (u.ppFreezeUntil > this.time ? n * 0.5 : n));
+    u.pp = Math.min(u.maxPP, u.pp + (u.ppFreezeUntil > this.time ? n * 0.5 : n));
   },
 
   augTick(dt) {
@@ -242,8 +242,8 @@ const AUG_FX = {
         const allies = this.aliveOf(side);
         if (has('soulawaken') && n <= 10) {
           for (const u of allies) {
-            u.pct.pa += 0.02;
-            u.pct.sa += 0.02;
+            u.pct.atk += 0.02;
+            u.pct.spa += 0.02;
           }
           if (n === 10) {
             A.soulMax = true;
@@ -251,11 +251,11 @@ const AUG_FX = {
           }
         }
         if (has('wootears')) for (const u of allies) this.augRegen(u, this.time >= 12 ? 3 : 1);
-        if (has('heartup')) for (const u of allies) if (u.it && u.it['soul-dew'] && u.pct.sa >= 0.9) this.augRegen(u, 2);
+        if (has('heartup')) for (const u of allies) if (u.it && u.it['soul-dew'] && u.pct.spa >= 0.9) this.augRegen(u, 2);
         if (n % 5 === 0) {
           for (const u of allies) {
-            if (has('swordsdance')) u.pct.pa += 0.05;
-            if (has('calmmind')) u.pct.sa += 0.05;
+            if (has('swordsdance')) u.pct.atk += 0.05;
+            if (has('calmmind')) u.pct.spa += 0.05;
           }
         }
         if (has('mindlink') && n % 4 === 0) {

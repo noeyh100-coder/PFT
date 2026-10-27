@@ -216,8 +216,8 @@ const View = {
     if (id === 'assault-vest') return u.vestRanks || 0;
     if (id === 'absorb-bulb') return u.bulbPct || 0;
     if (/^griseous-orb-/.test(id)) return u.grisStacks || 0;
-    if (id === 'red-orb-3') return u.redAs || 0;
-    if (/^blue-orb-/.test(id)) return u.blueSa || 0;
+    if (id === 'red-orb-3') return u.redSpe || 0;
+    if (/^blue-orb-/.test(id)) return u.blueSpa || 0;
     return null;
   },
 
@@ -419,7 +419,7 @@ const View = {
     const offer = p.mineOffer;
     if (!offer) return;
     box.appendChild(this.el('div', 'mine-tab', '채굴장'));
-    box.appendChild(this.el('div', 'mine-stack-n', '채굴 스택 ' + Math.floor(p.mine) + ' · 받으면 -' + offer.th));
+    box.appendChild(this.el('div', 'mine-stack-n', '채굴 중첩 ' + Math.floor(p.mine) + ' · 받으면 -' + offer.th));
     const inner = this.el('div', 'mine-inner');
     for (const e of offer.list) {
       const cell = this.el('div', 'mine-cell');
@@ -477,18 +477,22 @@ const View = {
       hp += st.hp || 0;
       pp += st.pp || 0;
     }
-    const evo = evolvable ? 1 + 0.2 * n('eviolite') : 1;
-    out.hp = Math.round(stats.hp * evo * (1 + 0.2 * n('big-root')) + hp);
-    out.pa = Math.round(stats.pa * evo * (1 + 0.3 * n('choice-band') + bonus.atk));
-    out.sa = Math.round((stats.sa * evo * (1 + 0.25 * n('choice-specs') + bonus.spa / 100)));
-    out.armor = Math.round(stats.armor * evo + bonus.def);
-    out.mr = Math.round(stats.mr * evo + bonus.spd);
-    out.as = Math.round(Math.min(5, stats.as * (1 + bonus.spe)) * 100) / 100;
-    out.basic = out.pa;
+    out.hp = Math.round(stats.hp * (1 + 0.2 * n('big-root')) + hp);
+    out.atk = Math.round(stats.atk * (1 + 0.3 * n('choice-band') + bonus.atk));
+    out.spa = Math.round((stats.spa * (1 + 0.25 * n('choice-specs') + bonus.spa / 100)));
+    out.def = Math.round(stats.def + bonus.def);
+    out.spd = Math.round(stats.spd + bonus.spd);
+    out.spe = Math.round(Math.min(5, stats.spe * (1 + bonus.spe)) * 100) / 100;
+    const evoK = n('eviolite') ? eviolitePick(stats, bonus, hp) : null;
+    if (evoK) {
+      const m = 1 + n('eviolite') * (evolvable ? 0.4 : 0.2);
+      out[evoK] = evoK === 'spe' ? Math.round(Math.min(5, out.spe * m) * 100) / 100 : Math.round(out[evoK] * m);
+    }
+    out.basic = out.atk;
     out.crit = Math.max(0, Math.min(1, stats.crit + bonus.crit));
     out.omnivamp = (stats.omnivamp || 0) + 0.4 * n('shell-bell');
     out.range = stats.range + n('zoom-lens');
-    out.startMana = Math.min(stats.maxMana, (stats.startMana || 0) + pp);
+    out.startPP = Math.min(stats.maxPP, (stats.startPP || 0) + pp);
     return out;
   },
 
@@ -501,15 +505,15 @@ const View = {
     hp.appendChild(hpFill);
     hp.appendChild(shFill);
     hp.appendChild(tk);
-    const mana = this.el('div', 'bar mana');
-    const manaFill = this.el('i');
-    mana.appendChild(manaFill);
+    const ppBar = this.el('div', 'bar pp');
+    const ppFill = this.el('i');
+    ppBar.appendChild(ppFill);
     bars.appendChild(hp);
-    bars.appendChild(mana);
+    bars.appendChild(ppBar);
     el.appendChild(bars);
     hpFill.style.width = '100%';
-    manaFill.style.width = '0%';
-    const out = { bars, hpFill, shFill, manaFill, tk, tkTotal: 0 };
+    ppFill.style.width = '0%';
+    const out = { bars, hpFill, shFill, ppFill, tk, tkTotal: 0 };
     this.setTicks(out, maxHp);
     return out;
   },
@@ -664,7 +668,7 @@ const View = {
     const lines = [];
     if (!owner) return lines;
     if (id === '드래곤') lines.push('보유한 용의 비늘: ' + (owner.dragonScales || 0) + '개');
-    if (id === '땅') lines.push('채굴 스택: ' + Math.floor(owner.mine || 0));
+    if (id === '땅') lines.push('채굴 중첩: ' + Math.floor(owner.mine || 0));
     if (id === '물') lines.push(entry && entry.pairCosts.length ? '짝을 이룬 가격: ' + entry.pairCosts.map(c => c + '코').join(', ') : '짝을 이룬 가격이 없습니다');
     if (id === '벌레') lines.push('필드의 3성 벌레: ' + (entry ? entry.count : 0) + '마리');
     if (entry && entry.bonus) lines.push('조우자 메타몽: 기물 수 +' + entry.bonus);
@@ -708,12 +712,12 @@ const View = {
       '가라르 야도킹': '가라르 야돈 앞 칸에 셀러를 두고 전투 시작 (셀러를 소모하고, 둘 중 낮은 별로 진화)',
       '저승갓숭': '성원숭(망키 2성 이상)이 PvP 전투에서 쓰러지면 진화',
       '갸라도스': '잉어킹 3성으로 전투에 ' + u.magikarpBattles + '번 참여하면 진화',
-      '해피너스': '치유 스택 ' + u.healStack + ' 이상에서 럭키가 전투에 참여하면 진화 (럭키 3성이면 스택 2배)',
+      '해피너스': '회복 중첩 ' + u.healStack + ' 이상에서 럭키가 전투에 참여하면 진화 (럭키 3성이면 중첩 2배)',
       '팬텀': '고오스로 처치 관여 ' + u.gastlyTakedowns + '번을 쌓고 고우스트(2성 이상)가 되면 진화',
-      '후딘': '윤겔라가 스킬로 적을 재운 시간 합계 ' + u.hypnosisSeconds + '초를 채운 뒤 윤겔라가 전투에 참여하면 진화',
+      '후딘': '윤겔라가 스킬로 적을 기절시킨 시간 합계 ' + u.hypnosisSeconds + '초를 채운 뒤 윤겔라가 전투에 참여하면 진화',
       '뮤': '한 전투에서 서로 다른 타입 시너지 ' + u.mewTypes + '개 켜기',
       '뮤츠': '뮤가 참여한 PvP 전투로 유전자 ' + u.geneStack + ' 모으기',
-      '프리져': '필드에 있는 서로 다른 얼음 타입 포켓몬의 별 합계 ' + u.iceStarTotal + ' 이상으로 전투 시작 (같은 계열은 가장 높은 별 하나만 셈)',
+      '프리져': '필드에 있는 서로 다른 얼음 타입 포켓몬의 성 합계 ' + u.iceStarTotal + ' 이상으로 전투 시작 (같은 계열은 가장 높은 성 하나만 셈)',
       '썬더': '전기 시너지 낙뢰를 적에게 누적 ' + u.electricBolts + '번 맞히기',
       '파이어': '불꽃 시너지 화염 피해 누적 ' + u.burnDamage
     };
@@ -762,10 +766,10 @@ const View = {
     const starStats = [1, 2, 3].map(star => computeStats(form, def.cost, star, def.unlockOnly ? UNLOCK_STAT_BONUS : 1, { boost: def.boost }));
     const statRows = [
       ['체력', stats => stats.hp],
-      ['PP', stats => stats.maxMana],
-      ['물리공격', stats => stats.pa],
-      ['방어/특수방어', stats => stats.armor + '/' + stats.mr],
-      ['공격속도', stats => stats.as]
+      ['PP', stats => stats.maxPP],
+      ['물리공격', stats => stats.atk],
+      ['물리방어/특수방어', stats => stats.def + '/' + stats.spd],
+      ['스피드', stats => stats.spe]
     ];
     for (const [label, value] of statRows) {
       const row = this.el('tr');
@@ -785,7 +789,7 @@ const View = {
     }
     info.appendChild(traits);
     if (typeof ADAPT !== 'undefined' && ADAPT[def.id]) {
-      const lab = { atk: '공격↑', spa: '특공↑', dmg: '딜↑', tank: '탱↑', eq: '딜=탱' };
+      const lab = { atk: '물리공격↑', spa: '특수공격↑', dmg: '딜↑', tank: '탱↑', eq: '딜=탱' };
       const box = this.el('div', 'ut-adapt');
       for (const k in ADAPT[def.id].modes) {
         const m = ADAPT[def.id].modes[k];
@@ -1090,7 +1094,7 @@ const View = {
     const items = inst.items || [];
     const stats = this.itemPreview(raw, items, canEvolveFurther(inst, owner));
     const base = computeStats(form, def.cost, inst.star, def.unlockOnly ? UNLOCK_STAT_BONUS : 1, { boost: def.boost });
-    return { form, star: inst.star, cost: def.cost, sell: sellValue(def, inst.star), def, traits: allTraitsOf(def, inst.star, owner, inst), stats, base, hp: stats.hp, maxHp: stats.hp, mana: stats.startMana || 0, maxMana: stats.maxMana, inst, owner, items };
+    return { form, star: inst.star, cost: def.cost, sell: sellValue(def, inst.star), def, traits: allTraitsOf(def, inst.star, owner, inst), stats, base, hp: stats.hp, maxHp: stats.hp, pp: stats.startPP || 0, maxPP: stats.maxPP, inst, owner, items };
   },
 
   infoFromCombat(cu) {
@@ -1099,11 +1103,11 @@ const View = {
     const stats = cu.eff ? Object.assign({}, cu.stats, cu.eff) : cu.stats;
     const base = def && !cu.ditto ? computeStats(form, def.cost, cu.star, def.unlockOnly ? UNLOCK_STAT_BONUS : 1, { boost: def.boost }) : cu.stats;
     const sell = def && cu.iid && !cu.ditto ? sellValue(def, cu.star) : cu.cost;
-    return { form, star: cu.star, cost: cu.cost, sell, def, traits: cu.traits, stats, base, hp: cu.hp, maxHp: Math.round(cu.maxHp), shield: cu.shield, mana: cu.mana, maxMana: cu.maxMana, combat: cu, creep: cu.creep, items: cu.items || [] };
+    return { form, star: cu.star, cost: cu.cost, sell, def, traits: cu.traits, stats, base, hp: cu.hp, maxHp: Math.round(cu.maxHp), shield: cu.shield, pp: cu.pp, maxPP: cu.maxPP, combat: cu, creep: cu.creep, items: cu.items || [] };
   },
 
   infoFromCreep(spec) {
-    return { form: spec.form, star: spec.star, cost: spec.cost, def: null, traits: spec.form.types.slice(), stats: spec.stats, hp: spec.stats.hp, maxHp: spec.stats.hp, mana: 0, maxMana: spec.stats.maxMana, creep: true };
+    return { form: spec.form, star: spec.star, cost: spec.cost, def: null, traits: spec.form.types.slice(), stats: spec.stats, hp: spec.stats.hp, maxHp: spec.stats.hp, pp: 0, maxPP: spec.stats.maxPP, creep: true };
   },
 
   statParts(t) {
@@ -1111,13 +1115,13 @@ const View = {
     const b = t.base || s;
     const pct = v => (v < 0.1 && v > 0 ? (v * 100).toFixed(1) : Math.round(v * 100)) + '%';
     const statPct = v => Math.round(v) + '%';
-    const extraSpecialAttack = b.sa > 0 ? (s.sa / b.sa - 1) * 100 : 0;
+    const extraSpecialAttack = b.spa > 0 ? (s.spa / b.spa - 1) * 100 : 0;
     return [
-      ['pa', '물리공격력', s.pa, b.pa, statPct],
-      ['sa', '추가 특수공격', extraSpecialAttack, 0, statPct],
-      ['armor', '물리방어력', s.armor, b.armor, v => Math.round(v)],
-      ['mr', '특수방어력', s.mr, b.mr, v => Math.round(v)],
-      ['as', '공격속도 (초당 기본 공격 횟수)', s.as, b.as, v => v.toFixed(2)],
+      ['atk', '물리공격', s.atk, b.atk, statPct],
+      ['spa', '추가 특수공격', extraSpecialAttack, 0, statPct],
+      ['def', '물리방어', s.def, b.def, v => Math.round(v)],
+      ['spd', '특수방어', s.spd, b.spd, v => Math.round(v)],
+      ['spe', '스피드 (초당 기본 공격 횟수)', s.spe, b.spe, v => v.toFixed(2)],
       ['crit', '급소율', s.crit, b.crit, pct],
       ['vamp', '모든 피해 흡혈', s.omnivamp || 0, b.omnivamp || 0, pct],
       ['amp', '피해증폭', s.amp || 0, 0, pct],
@@ -1169,7 +1173,7 @@ const View = {
       cost.dataset.tip = '판매 가격 ' + price + '골드';
       name.appendChild(cost);
     } else {
-      name.appendChild(this.el('span', 'chip', '야생'));
+      name.appendChild(this.el('span', 'chip', 'PvE'));
     }
     art.appendChild(name);
     container.appendChild(art);
@@ -1180,14 +1184,14 @@ const View = {
     hp.appendChild(this.el('span', null, Math.max(0, Math.round(t.hp)) + ' / ' + t.maxHp + (t.shield >= 1 ? ' (+' + Math.round(t.shield) + ')' : '')));
     const pp = this.el('div', 'ip-bar pp');
     const ppFill = this.el('i');
-    ppFill.style.width = Math.max(0, (t.mana / t.maxMana) * 100) + '%';
+    ppFill.style.width = Math.max(0, (t.pp / t.maxPP) * 100) + '%';
     pp.appendChild(ppFill);
-    pp.appendChild(this.el('span', null, 'PP ' + Math.floor(t.mana) + ' / ' + t.maxMana));
+    pp.appendChild(this.el('span', null, 'PP ' + Math.floor(t.pp) + ' / ' + t.maxPP));
     container.appendChild(hp);
     container.appendChild(pp);
     const row = this.el('div', 'ip-row');
     const st = !t.creep && t.form ? skillTextOf(t.form) : null;
-    const skill = this.el('div', 'ip-skill', st ? st.name : t.creep ? '야생' : '스킬');
+    const skill = this.el('div', 'ip-skill', st ? st.name : t.creep ? 'PvE' : '스킬');
     if (st) skill.dataset.tip = st.name + ' (' + st.type + ')\n' + st.text + (hooks.skillNote ? hooks.skillNote(t) : '');
     const skillUrl = Assets.skillUrl(t.form);
     if (Assets.ready(skillUrl)) {
@@ -1224,7 +1228,7 @@ const View = {
     for (const [ico, label, value, base, fmt] of this.statParts(t)) {
       const cell = this.el('div', 'ip-stat');
       const diff = value - base;
-      const eps = ico === 'as' ? 0.005 : ico === 'crit' || ico === 'vamp' || ico === 'amp' || ico === 'dura' ? 0.0005 : 0.5;
+      const eps = ico === 'spe' ? 0.005 : ico === 'crit' || ico === 'vamp' || ico === 'amp' || ico === 'dura' ? 0.0005 : 0.5;
       const up = diff > eps;
       const down = diff < -eps;
       let tip = label + ' ' + fmt(value);
@@ -1245,8 +1249,8 @@ const View = {
       ['미뇽', '신뇽', '2성 이상으로 승리 ' + u.dratiniWins + '번'],
       ['신뇽', '망나뇽', '2성 이상으로 승리 ' + u.dragonairWins + '번'],
       ['고오스', '팬텀', '처치 관여 ' + u.gastlyTakedowns + '번 + 고우스트(2성 이상)'],
-      ['캐이시', '후딘', '윤겔라가 재운 시간 ' + u.hypnosisSeconds + '초 + 윤겔라 전투 참여'],
-      ['핑복', '해피너스', '치유 스택 ' + u.healStack + ' + 럭키 전투 참여'],
+      ['캐이시', '후딘', '윤겔라가 기절시킨 시간 ' + u.hypnosisSeconds + '초 + 윤겔라 전투 참여'],
+      ['핑복', '해피너스', '회복 중첩 ' + u.healStack + ' + 럭키 전투 참여'],
       ['망키', '저승갓숭', '2성 이상이 PvP 전투에서 쓰러짐'],
       ['야돈', '야도란', '야돈 뒤 칸에 셀러 (낮은 별로)'],
       ['야돈', '야도킹', '야돈 앞 칸에 셀러 (낮은 별로)'],

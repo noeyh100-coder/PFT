@@ -573,7 +573,7 @@ class Arena {
     if (u.dmax) el.classList.add('dmax');
     if (u.tera) el.classList.add('tera');
     const barSet = View.unitBars(el, u.maxHp);
-    const { hpFill, shFill, manaFill } = barSet;
+    const { hpFill, shFill, ppFill } = barSet;
     const status = document.createElement('div');
     status.className = 'status';
     el.appendChild(status);
@@ -592,7 +592,7 @@ class Arena {
       const k = (aug.has.has('bigstrong') ? 1.2 : 1) * (aug.has.has('shrink') ? 0.78 : 1);
       if (k !== 1) Sprites.setScale(el._spr, k);
     }
-    this.cunits[u.uid] = { el, hpFill, shFill, manaFill, barSet, itemEls: [], itemKey: null, flags: '', pos: Proj.toScreen(f.x, f.y), walkUntil: 0, walkDir: null };
+    this.cunits[u.uid] = { el, hpFill, shFill, ppFill, barSet, itemEls: [], itemKey: null, flags: '', pos: Proj.toScreen(f.x, f.y), walkUntil: 0, walkDir: null };
     this.syncItemRow(this.cunits[u.uid], u);
     if (u.gyara) {
       el.classList.add('gyara');
@@ -638,7 +638,7 @@ class Arena {
       e.hpFill.style.width = Math.max(0, (u.hp / total) * 100) + '%';
       e.shFill.style.left = Math.max(0, (u.hp / total) * 100) + '%';
       e.shFill.style.width = Math.max(0, (u.shield / total) * 100) + '%';
-      e.manaFill.style.width = Math.max(0, Math.min(100, (u.mana / u.maxMana) * 100)) + '%';
+      e.ppFill.style.width = Math.max(0, Math.min(100, (u.pp / u.maxPP) * 100)) + '%';
       if (e.itemKey !== (u.items || []).join(',')) this.syncItemRow(e, u);
       if (e.itemEls) {
         for (const it of e.itemEls) {
@@ -764,8 +764,7 @@ class Arena {
       } else if (ev.type === 'heal') {
         if (ev.amount >= 3) this.floatText(ev.target, '+' + Math.round(ev.amount), 'heal');
       } else if (ev.type === 'stun') {
-        const label = { flinch: '풀죽음', airborne: '공중', quake: '기절', stun: '기절', lightning: '기절', sleep: '잠듦', recharge: '반동', seal: '봉인' }[ev.kind];
-        if (label) this.floatText(ev.target, label, 'cc');
+        this.floatText(ev.target, '기절', 'cc');
       } else if (ev.type === 'skillfx') {
         const cells = ev.radius * 2 + 1.2;
         const el = this.cellFx(ev.r, ev.c, 'fx-skill' + (ev.heal ? ' heal' : '') + (ev.slam ? ' slam' : ''), Math.min(cells, 13), 520);
@@ -810,7 +809,7 @@ class Arena {
           if (ev.on) this.floatText(ev.uid, '테라스탈!', 'zmove');
         } else if (ev.kind === 'mega' && ev.on) this.floatText(ev.uid, '메가진화!', 'zmove');
       } else if (ev.type === 'retype') {
-        const txt = ev.kind === 'mew' ? ev.move : ev.kind === 'mimic' ? '흉내: ' + ev.value : ev.kind === 'suggest' ? '자기암시' : (ev.kind === 'def' ? '방어 ' : '') + ev.value;
+        const txt = ev.kind === 'mew' ? ev.move : ev.kind === 'mimic' ? '흉내: ' + ev.value : ev.kind === 'suggest' ? '자기암시' : (ev.kind === 'def' ? '물리방어 ' : '') + ev.value;
         this.floatText(ev.uid, txt, 'retype');
       } else if (ev.type === 'egg') {
         const e = this.cunits[ev.uid];
@@ -1003,7 +1002,7 @@ class Arena {
         this.flash(this.root, 'shake', 300);
       } else if (ev.type === 'charm') {
         for (const uid of ev.targets) {
-          this.floatText(uid, '서로 공격', 'cc');
+          this.floatText(uid, '서로 물리공격', 'cc');
           const e = this.cunits[uid];
           if (e) this.flash(e.el, 'charmed', (ev.dur * 1000) / speed);
         }
@@ -1335,9 +1334,9 @@ class Arena {
       const el = document.createElement('div');
       el.className = 'orb-loot ' + o.tier;
       el.appendChild(document.createElement('i'));
-      const p = View.cellCenter(o.r, o.c);
-      o.x = p.x + (((o.id * 37) % 21) - 10);
-      o.y = p.y + (((o.id * 53) % 15) - 7);
+      const p = orbFlatPos(o);
+      o.x = p.x;
+      o.y = p.y;
       placeSprite(el, o.x, o.y, 17, 24);
       this.orbLayer.appendChild(el);
       this.orbEls[o.id] = el;

@@ -1,8 +1,8 @@
 importScripts(
-  '../data/units.js', '../data/regional.js', '../data/pp.js', '../data/config.js', '../data/traits.js', '../data/items.js', '../data/encounters.js',
+  '../data/units.js', '../data/regional.js', '../data/config.js', '../data/traits.js', '../data/items.js', '../data/encounters.js',
   '../data/augments.js', '../data/skilltext.js', '../data/traiticons.js', '../core/rng.js', '../core/hex.js', '../game/units.js', '../game/player.js',
-  '../game/pool.js', '../game/synergy.js', '../game/combat.js', '../game/skills.js', '../game/skills2.js', '../game/itemfx.js', '../game/esper.js',
-  '../game/augfx.js', '../game/gimmick.js', '../game/unlocks.js', '../game/bot.js', '../game/game.js', '../game/augments.js', '../game/botaug.js'
+  '../game/pool.js', '../game/synergy.js', '../game/combat.js', '../game/skills.js', '../game/itemfx.js', '../game/esper.js',
+  '../game/augfx.js', '../game/gimmick.js', '../game/unlocks.js', '../game/bot.js', '../game/game.js', '../game/augments.js'
 );
 
 function snapshot(g, p) {

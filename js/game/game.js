@@ -126,7 +126,7 @@ class Game {
     eater.feast = eater.feast || { atk: 0, spa: 0, def: 0, spd: 0 };
     eater.feast[key] += amount;
     p.fedRound = this.roundLabel();
-    const label = { atk: '공격', spa: '특수공격', def: '방어', spd: '특수방어' }[key];
+    const label = { atk: '물리공격', spa: '특수공격', def: '물리방어', spd: '특수방어' }[key];
     this.notify(p, formOf(UNITS[eater.unitId], eater.star, p).name + '이(가) ' + form.name + '을(를) 삼켰습니다: ' + label + ' +' + Math.round(amount * 100) + '%', 'evolve');
     this.emit('update');
     return chk;
@@ -289,7 +289,8 @@ class Game {
 
   lockedVariants(p) {
     const locked = new Set();
-    for (const inst of p.allUnits()) {
+    const held = (p.orbs || []).filter(o => o.inst).map(o => o.inst);
+    for (const inst of p.allUnits().concat(held)) {
       const def = UNITS[inst.unitId];
       for (const v of FAMILIES[def.family]) if (v.variant !== def.variant) locked.add(v.id);
     }
@@ -448,7 +449,37 @@ class Game {
       this.mergeAll(p, inst);
       return inst;
     }
+    if (this.orbMode(p)) {
+      this.holdUnit(p, inst);
+      return inst;
+    }
     return null;
+  }
+
+    orbMode(p) {
+    return !!(p.isHuman && this.realtime);
+  }
+
+    nextOrbSpot(p) {
+    const used = new Set((p.orbs || []).filter(o => o.spot !== undefined).map(o => o.spot));
+    let spot = 0;
+    while (used.has(spot)) spot++;
+    return spot;
+  }
+
+    holdUnit(p, inst) {
+    const orb = { id: this.orbSeq++, tier: 'white', grade: 'unit', r: 3, c: 0, gold: 0, cost: 0, inst, spot: this.nextOrbSpot(p) };
+    p.orbs = (p.orbs || []).concat([orb]);
+    this.notify(p, '대기석이 가득 차서 ' + formOf(UNITS[inst.unitId], inst.star, p, inst).name + '이(가) 몬스터볼에 담겼습니다', 'info');
+    this.emit('orbs');
+  }
+
+    releaseUnit(p, inst) {
+    const slot = p.freeBenchSlot();
+    if (slot >= 0) {
+      p.placeBench(inst, slot);
+      this.mergeAll(p);
+    } else this.mergeAll(p, inst);
   }
 
   mergeAll(p, extra) {
@@ -1188,6 +1219,12 @@ class Game {
     return orbs;
   }
 
+    canOpenOrb(p, orb) {
+    if (orb.item || orb.gold) return true;
+    if (orb.inst) return p.freeBenchSlot() >= 0 || this.countMergeable(p, orb.inst.unitId, orb.inst.star) >= 2;
+    return p.freeBenchSlot() >= 0;
+  }
+
   openOrb(p, orb) {
     if (orb.item) {
       this.giveItem(p, orb.item);
@@ -1200,6 +1237,11 @@ class Game {
       this.notify(p, '전리품: ' + orb.gold + '골드', 'loot');
       return;
     }
+    if (orb.inst) {
+      this.releaseUnit(p, orb.inst);
+      this.notify(p, '전리품: ' + formOf(UNITS[orb.inst.unitId], orb.inst.star, p, orb.inst).name + ' ' + '★'.repeat(orb.inst.star), 'loot');
+      return;
+    }
     const res = this.giveRandomUnit(p, orb.cost);
     if (res.def && !res.gold) this.notify(p, '전리품: ' + formOf(res.def, 1, p).name + ' (' + orb.cost + '코스트)', 'loot');
     else if (res.gold) this.notify(p, '전리품: ' + res.gold + '골드 (대기석 부족)', 'loot');
@@ -1209,6 +1251,13 @@ class Game {
     const list = p.orbs || [];
     const i = list.findIndex(o => o.id === id);
     if (i < 0) return null;
+    if (!this.canOpenOrb(p, list[i])) {
+      if (!list[i].warned) {
+        list[i].warned = true;
+        this.notify(p, '대기석이 가득 차서 몬스터볼을 열 수 없습니다', 'info');
+      }
+      return null;
+    }
     const orb = list.splice(i, 1)[0];
     this.openOrb(p, orb);
     this.emit('update');
@@ -1218,7 +1267,14 @@ class Game {
   collectOrbs(p) {
     const list = p.orbs || [];
     p.orbs = [];
-    for (const o of list) this.openOrb(p, o);
+    for (const o of list) {
+      if (this.canOpenOrb(p, o)) this.openOrb(p, o);
+      else {
+        if (o.spot === undefined) o.spot = this.nextOrbSpot(p);
+        o.warned = false;
+        p.orbs.push(o);
+      }
+    }
   }
 
   afterSynergy(p, team, sim, side, won, pvp) {
@@ -1278,12 +1334,12 @@ class Game {
       const n = Math.max(1, -p.streak);
       const gain = Math.round((cfg.base + cfg.step * (n - 1)) * traitVal('땅', 'gain', tier));
       p.mine += gain;
-      this.notify(p, '땅굴을 팠습니다: 채굴 스택 +' + gain + ' (현재 ' + p.mine + ')', 'loot');
+      this.notify(p, '땅굴을 팠습니다: 채굴 중첩 +' + gain + ' (현재 ' + p.mine + ')', 'loot');
     } else if (res === 'win') {
       const cut = Math.floor(p.mine * cfg.winCut);
       if (cut > 0) {
         p.mine -= cut;
-        this.notify(p, '승리: 채굴 스택 -' + cut + ' (현재 ' + p.mine + ')', 'info');
+        this.notify(p, '승리: 채굴 중첩 -' + cut + ' (현재 ' + p.mine + ')', 'info');
       }
     }
   }
@@ -1362,7 +1418,7 @@ class Game {
         } else p.gold += def.cost * copies;
       }
     }
-    this.notify(p, '채굴 보상을 받았습니다 (채굴 스택 -' + offer.th + ')', 'loot');
+    this.notify(p, '채굴 보상을 받았습니다 (채굴 중첩 -' + offer.th + ')', 'loot');
     this.refreshMineOffer(p);
     this.emit('update');
     return { ok: true, reason: '' };
@@ -1761,24 +1817,7 @@ class Game {
   }
 
   deliverUnit(p, unitId) {
-    const def = UNITS[unitId];
-    const slot = p.freeBenchSlot();
-    if (slot >= 0 || this.countMergeable(p, unitId, 1) >= 2 || !p.isHuman) {
-      if (!this.addUnit(p, unitId, 1)) p.gold += def.cost;
-      return;
-    }
-    const cell = this.frontCell(p);
-    if (!cell) {
-      p.gold += def.cost;
-      return;
-    }
-    const inst = newInstance(unitId, 1);
-    if (p.boardCount() >= p.boardLimit()) {
-      inst.overflow = true;
-      this.notify(p, '대기석이 가득 차서 ' + formOf(def, 1, p).name + '이(가) 필드 밖 자리에서 기다립니다. 전투 전까지 자리를 비우지 않으면 골드로 바뀝니다', 'info');
-    }
-    p.setAt(cell, inst);
-    this.mergeAll(p);
+    if (!this.addUnit(p, unitId, 1)) p.gold += UNITS[unitId].cost;
   }
 
   resolveOverflow(p) {

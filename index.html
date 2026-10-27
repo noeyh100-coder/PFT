@@ -2,11 +2,12 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>포켓몬 TFT</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <div id="rotate-hint"><div class="rotate-phone"></div><div>화면을 가로로 돌려주세요</div></div>
   <div id="viewport">
     <div id="game">
       <div id="tracker">
@@ -77,15 +78,15 @@
           <button data-dbg="xp" data-amt="10">경험치 +10</button>
           <button data-dbg="refresh">무료 새로고침</button>
           <button data-dbg="hypnosis" data-amt="10">최면 +10초</button>
-          <button data-dbg="heal" data-amt="500">치유 +500</button>
+          <button data-dbg="heal" data-amt="500">회복 +500</button>
           <button data-dbg="gene" data-amt="5">유전자 +5</button>
           <button data-dbg="download" data-amt="10">다운로드 +10</button>
           <button data-dbg="bolt" data-amt="10">낙뢰 적중 +10</button>
           <button data-dbg="burn" data-amt="500">화상 피해 +500</button>
           <button data-dbg="item" data-amt="1">조합 아이템 +1</button>
           <button data-dbg="itemdone" data-amt="1">완성 아이템 +1</button>
-          <button data-dbg="treasure" data-amt="1">1티어 보물 +1</button>
-          <button data-dbg="treasure" data-amt="3">3티어 보물 +1</button>
+          <button data-dbg="treasure" data-amt="1">1등급 보물 +1</button>
+          <button data-dbg="treasure" data-amt="3">3등급 보물 +1</button>
           <button data-dbg="candy" data-amt="0">경험사탕S +1</button>
           <button data-dbg="candy" data-amt="1">경험사탕M +1</button>
           <button data-dbg="candy" data-amt="2">경험사탕L +1</button>
@@ -95,7 +96,7 @@
           <button data-dbg="give" data-amt="0">황금 자석 +1</button>
           <button data-dbg="give" data-amt="1">행운의 아이템 상자 +1</button>
           <button data-dbg="give" data-amt="2">도적의 장갑 +1</button>
-          <button data-dbg="mine" data-amt="100">채굴 스택 +100</button>
+          <button data-dbg="mine" data-amt="100">채굴 중첩 +100</button>
           <button data-dbg="esper" data-amt="0">에스퍼 효과 변경</button>
           <button data-dbg="pokebox" data-amt="1">작은 모으령 상자 +1</button>
           <button data-dbg="greatbox" data-amt="1">큰 모으령 상자 +1</button>
@@ -128,11 +129,9 @@
 
   <script src="js/data/units.js"></script>
   <script src="js/data/regional.js"></script>
-  <script src="js/data/pp.js"></script>
   <script src="js/data/config.js"></script>
   <script src="js/data/traits.js"></script>
   <script src="js/data/items.js"></script>
-  <script src="js/data/itemcolors.js"></script>
   <script src="js/data/encounters.js"></script>
   <script src="js/data/augments.js"></script>
   <script src="js/data/traiticons.js"></script>
@@ -146,7 +145,6 @@
   <script src="js/game/synergy.js"></script>
   <script src="js/game/combat.js"></script>
   <script src="js/game/skills.js"></script>
-  <script src="js/game/skills2.js"></script>
   <script src="js/game/itemfx.js"></script>
   <script src="js/game/esper.js"></script>
   <script src="js/game/augfx.js"></script>
@@ -155,7 +153,6 @@
   <script src="js/game/bot.js"></script>
   <script src="js/game/game.js"></script>
   <script src="js/game/augments.js"></script>
-  <script src="js/game/botaug.js"></script>
   <script src="js/ui/assets.js"></script>
   <script src="js/ui/sprites.js"></script>
   <script src="js/ui/view.js"></script>

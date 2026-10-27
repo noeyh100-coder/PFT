@@ -45,27 +45,27 @@ const COST_ATK = [50, 55, 65, 75, 90];
 const ROLE_KEY = { 탱커: 'tank', 전사: 'warrior', 마법사: 'mage' };
 const COST_STATS = {
   1: {
-    physical: { hp: { warrior: 650, mage: 500, tank: 650 }, atk: { warrior: 55, mage: 55, tank: 50 }, def: { warrior: 40, mage: 15, tank: 40 }, as: { warrior: 0.7, mage: 0.7, tank: 0.6 } },
-    special: { hp: { warrior: 650, mage: 500, tank: 650 }, atk: { warrior: 30, mage: 30, tank: 45 }, def: { warrior: 40, mage: 15, tank: 40 }, as: { warrior: 0.7, mage: 0.7, tank: 0.6 } }
+    physical: { hp: { warrior: 650, mage: 500, tank: 650 }, atk: { warrior: 55, mage: 55, tank: 50 }, def: { warrior: 40, mage: 15, tank: 40 }, spe: { warrior: 0.7, mage: 0.7, tank: 0.6 } },
+    special: { hp: { warrior: 650, mage: 500, tank: 650 }, atk: { warrior: 30, mage: 30, tank: 45 }, def: { warrior: 40, mage: 15, tank: 40 }, spe: { warrior: 0.7, mage: 0.7, tank: 0.6 } }
   },
   2: {
-    physical: { hp: { warrior: 700, mage: 600, tank: 800 }, atk: { warrior: 55, mage: 55, tank: 55 }, def: { warrior: 45, mage: 20, tank: 50 }, as: { warrior: 0.75, mage: 0.7, tank: 0.6 } },
-    special: { hp: { warrior: 700, mage: 600, tank: 650 }, atk: { warrior: 35, mage: 35, tank: 45 }, def: { warrior: 45, mage: 20, tank: 40 }, as: { warrior: 0.7, mage: 0.7, tank: 0.6 } }
+    physical: { hp: { warrior: 700, mage: 600, tank: 800 }, atk: { warrior: 55, mage: 55, tank: 55 }, def: { warrior: 45, mage: 20, tank: 50 }, spe: { warrior: 0.75, mage: 0.7, tank: 0.6 } },
+    special: { hp: { warrior: 700, mage: 600, tank: 650 }, atk: { warrior: 35, mage: 35, tank: 45 }, def: { warrior: 45, mage: 20, tank: 40 }, spe: { warrior: 0.7, mage: 0.7, tank: 0.6 } }
   },
   3: {
-    physical: { hp: { warrior: 800, mage: 700, tank: 950 }, atk: { warrior: 60, mage: 60, tank: 60 }, def: { warrior: 50, mage: 25, tank: 60 }, as: { warrior: 0.75, mage: 0.75, tank: 0.6 } },
-    special: { hp: { warrior: 800, mage: 700, tank: 800 }, atk: { warrior: 40, mage: 40, tank: 50 }, def: { warrior: 50, mage: 25, tank: 45 }, as: { warrior: 0.75, mage: 0.7, tank: 0.6 } }
+    physical: { hp: { warrior: 800, mage: 700, tank: 950 }, atk: { warrior: 60, mage: 60, tank: 60 }, def: { warrior: 50, mage: 25, tank: 60 }, spe: { warrior: 0.75, mage: 0.75, tank: 0.6 } },
+    special: { hp: { warrior: 800, mage: 700, tank: 800 }, atk: { warrior: 40, mage: 40, tank: 50 }, def: { warrior: 50, mage: 25, tank: 45 }, spe: { warrior: 0.75, mage: 0.7, tank: 0.6 } }
   },
   4: {
-    physical: { hp: { warrior: 950, mage: 850, tank: 1150 }, atk: { warrior: 70, mage: 70, tank: 70 }, def: { warrior: 55, mage: 30, tank: 70 }, as: { warrior: 0.8, mage: 0.75, tank: 0.65 } },
-    special: { hp: { warrior: 950, mage: 850, tank: 950 }, atk: { warrior: 45, mage: 45, tank: 55 }, def: { warrior: 55, mage: 30, tank: 50 }, as: { warrior: 0.8, mage: 0.75, tank: 0.6 } }
+    physical: { hp: { warrior: 950, mage: 850, tank: 1150 }, atk: { warrior: 70, mage: 70, tank: 70 }, def: { warrior: 55, mage: 30, tank: 70 }, spe: { warrior: 0.8, mage: 0.75, tank: 0.65 } },
+    special: { hp: { warrior: 950, mage: 850, tank: 950 }, atk: { warrior: 45, mage: 45, tank: 55 }, def: { warrior: 55, mage: 30, tank: 50 }, spe: { warrior: 0.8, mage: 0.75, tank: 0.6 } }
   },
   5: {
-    physical: { hp: { warrior: 1100, mage: 1000, tank: 1400 }, atk: { warrior: 80, mage: 80, tank: 80 }, def: { warrior: 60, mage: 35, tank: 80 }, as: { warrior: 0.8, mage: 0.8, tank: 0.65 } },
-    special: { hp: { warrior: 1100, mage: 1000, tank: 1150 }, atk: { warrior: 55, mage: 55, tank: 65 }, def: { warrior: 60, mage: 35, tank: 60 }, as: { warrior: 0.8, mage: 0.75, tank: 0.6 } }
+    physical: { hp: { warrior: 1100, mage: 1000, tank: 1400 }, atk: { warrior: 80, mage: 80, tank: 80 }, def: { warrior: 60, mage: 35, tank: 80 }, spe: { warrior: 0.8, mage: 0.8, tank: 0.65 } },
+    special: { hp: { warrior: 1100, mage: 1000, tank: 1150 }, atk: { warrior: 55, mage: 55, tank: 65 }, def: { warrior: 60, mage: 35, tank: 60 }, spe: { warrior: 0.8, mage: 0.75, tank: 0.6 } }
   }
 };
-const BASE_AP = 100;
+const BASE_SPA = 100;
 const STAR_SKILL = [1, 2, 3.5];
 const CRIT_CHANCE = 0.25;
 const OMNIVAMP = 0;
@@ -178,47 +178,47 @@ function computeStats(form, cost, star, bonus, opts) {
   const boost = o.boost || {};
   const range = o.range || form.range || (special ? CONFIG.combat.rangedRange : 1);
   const pp = ppFor(c, role, form);
-  let pa, sa, dfn, pwP, pwS, pwD, pwStar;
+  let atkV, spaV, defV, pwP, pwS, pwD, pwStar;
   if (o.legacy) {
     const atk = COST_ATK[c - 1] * STAR_ATK[star - 1] * k;
-    const main = Math.round(atk * (boost.pa || 1));
-    const off = Math.round(atk * 0.5 * (boost.pa || 1));
-    pa = Math.round(atk * (boost.pa || 1));
-    sa = special ? main : off;
-    dfn = classStats.def[roleKey];
+    const main = Math.round(atk * (boost.atk || 1));
+    const off = Math.round(atk * 0.5 * (boost.atk || 1));
+    atkV = Math.round(atk * (boost.atk || 1));
+    spaV = special ? main : off;
+    defV = classStats.def[roleKey];
     pwD = 1;
     pwP = 1;
     pwS = 1;
     pwStar = 1;
   } else {
-    const atk = COST_ATK[c - 1] * k * (boost.pa || 1);
-    pa = Math.round(classStats.atk[roleKey] * STAR_ATK[star - 1] * k * (boost.pa || 1));
-    sa = BASE_AP;
-    dfn = classStats.def[roleKey];
+    const atk = COST_ATK[c - 1] * k * (boost.atk || 1);
+    atkV = Math.round((classStats.atk[roleKey] + (boost.basic || 0)) * STAR_ATK[star - 1] * k * (boost.atk || 1));
+    spaV = BASE_SPA;
+    defV = classStats.def[roleKey];
     pwD = 1;
     pwP = 1;
-    pwS = (special ? atk : atk * 0.5) / BASE_AP;
+    pwS = (special ? atk : atk * 0.5) / BASE_SPA;
     pwStar = STAR_SKILL[Math.max(1, Math.min(3, star)) - 1];
   }
   return {
     hp: Math.round(classStats.hp[roleKey] * STAR_HP[star - 1] * k * (o.hpMult || 1) * (boost.hp || 1)),
-    pa,
-    sa,
+    atk: atkV,
+    spa: spaV,
     pwP,
     pwS,
     pwD,
     pwStar,
-    basic: pa,
+    basic: atkV,
     special,
     role,
-    armor: dfn,
-    mr: dfn,
-    as: classStats.as[roleKey],
+    def: defV,
+    spd: defV,
+    spe: classStats.spe[roleKey],
     range,
     crit: CRIT_CHANCE,
     omnivamp: OMNIVAMP,
-    maxMana: pp.max,
-    startMana: pp.start
+    maxPP: pp.max,
+    startPP: pp.start
   };
 }
 
@@ -268,12 +268,12 @@ function adaptMode(defId, v) {
   const A = ADAPT[defId];
   if (!A) return null;
   if (A.cmp === 'atkspa') {
-    if (v.pa > v.sa) return 'atk';
-    if (v.sa > v.pa) return 'spa';
+    if (v.atk > v.spa) return 'atk';
+    if (v.spa > v.atk) return 'spa';
     return A.tie;
   }
-  const dmg = Math.max(v.pa, v.sa);
-  const tank = Math.max(v.armor, v.mr);
+  const dmg = Math.max(v.atk, v.spa);
+  const tank = Math.max(v.def, v.spd);
   if (dmg > tank) return 'dmg';
   if (tank > dmg) return 'tank';
   return A.tie;
@@ -307,10 +307,10 @@ function plannedView(inst) {
   const stats = applyFeast(computeStats(form, def.cost, inst.star, def.unlockOnly ? UNLOCK_STAT_BONUS : 1, { boost: def.boost }), inst.feast);
   const mods = itemStatBonuses(inst.items);
   return {
-    pa: stats.pa * (1 + mods.atk),
-    sa: stats.sa * (1 + mods.spa / 100) * stats.pwS,
-    armor: stats.armor + mods.def,
-    mr: stats.mr + mods.spd
+    atk: stats.atk * (1 + mods.atk),
+    spa: stats.spa * (1 + mods.spa / 100) * stats.pwS,
+    def: stats.def + mods.def,
+    spd: stats.spd + mods.spd
   };
 }
 
@@ -356,11 +356,11 @@ const FEAST_STAT = { '물리 탱커': 'def', '특수 탱커': 'spd', '물리 마
 
 function applyFeast(stats, feast) {
   if (!feast) return stats;
-  stats.pa = Math.round(stats.pa * (1 + (feast.atk || 0)));
-  stats.sa = Math.round(stats.sa * (1 + (feast.spa || 0)));
-  stats.armor = Math.round(stats.armor * (1 + (feast.def || 0)));
-  stats.mr = Math.round(stats.mr * (1 + (feast.spd || 0)));
-  stats.basic = stats.pa;
+  stats.atk = Math.round(stats.atk * (1 + (feast.atk || 0)));
+  stats.spa = Math.round(stats.spa * (1 + (feast.spa || 0)));
+  stats.def = Math.round(stats.def * (1 + (feast.def || 0)));
+  stats.spd = Math.round(stats.spd * (1 + (feast.spd || 0)));
+  stats.basic = stats.atk;
   return stats;
 }
 
@@ -427,8 +427,8 @@ function dittoCopy(ditto, owner) {
   const form = formOf(def, tgt.star, owner, tgt);
   const base = computeStats(form, def.cost, tgt.star, def.unlockOnly ? UNLOCK_STAT_BONUS : 1, { boost: def.boost });
   const k = DITTO_MULT[Math.min(3, ditto.star) - 1];
-  for (const key of ['hp', 'pa', 'sa', 'armor', 'mr']) base[key] = Math.round(base[key] * k);
-  base.basic = base.pa;
+  for (const key of ['hp', 'atk', 'spa', 'def', 'spd']) base[key] = Math.round(base[key] * k);
+  base.basic = base.atk;
   const traits = allTraitsOf(def, tgt.star, owner, tgt).slice();
   if (!traits.includes('괴짜')) traits.push('괴짜');
   return { target: tgt, def, form, stats: base, traits, star: tgt.star };

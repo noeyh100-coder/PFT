@@ -374,6 +374,7 @@ class App {
     this.$('arena').addEventListener('pointerdown', e => {
       if (e.button === 2) this.moveStrategist(e.clientX, e.clientY);
     });
+    this.setupTouchMove();
     this.$('aug-toggle').addEventListener('click', () => {
       this.augHidden = !this.augHidden;
       this.renderAugPick();
@@ -1349,7 +1350,7 @@ class App {
       el.classList.toggle('ready', m >= 100);
       el.querySelector('.drill-n').textContent = m;
       const next = Math.min(700, (Math.floor(m / 100) + 1) * 100);
-      el.dataset.tip = '다크엘릭서 정제소\n채굴 스택 ' + m + (m >= 100 ? '\n채굴 보상 ' + Math.min(700, Math.floor(m / 100) * 100) + ' 받을 수 있음' : '') + (m < 700 ? '\n다음 보상까지 ' + (next - m) : '');
+      el.dataset.tip = '다크엘릭서 정제소\n채굴 중첩 ' + m + (m >= 100 ? '\n채굴 보상 ' + Math.min(700, Math.floor(m / 100) * 100) + ' 받을 수 있음' : '') + (m < 700 ? '\n다음 보상까지 ' + (next - m) : '');
     });
   }
 
@@ -1630,7 +1631,7 @@ class App {
     const m = g.phase === 'combat' && g.matches.length ? g.matchFor(p) : null;
     const side = m ? g.sideOf(m, p) : null;
     const live = fn => (m && side ? fn(m.sim, side) : 0);
-    if (id === '치유의 마음') return '치유 스택 ' + Math.floor(p.counters.heal + live((s, sd) => s.side[sd].stats.heal));
+    if (id === '치유의 마음') return '회복 중첩 ' + Math.floor(p.counters.heal + live((s, sd) => s.side[sd].stats.heal));
     if (id === '유전자') return '유전자 ' + Math.floor(p.counters.gene) + ' / ' + cfg.geneStack;
     if (id === '다운로드') {
       const next = p.downloadStage === 0 ? cfg.downloadStage1 : p.downloadStage === 1 ? cfg.downloadStage2 : null;
@@ -1783,7 +1784,7 @@ class App {
     const side = m.a === V ? 'A' : 'B';
     const other = side === 'A' ? 'B' : 'A';
     let oppTitle;
-    if (m.kind === 'pve') oppTitle = m.camp.leader ? '체육관' : (m.camp === CONFIG.pve.default ? '아르세우스' : '야생 포켓몬');
+    if (m.kind === 'pve') oppTitle = m.camp.leader ? '체육관' : (m.camp === CONFIG.pve.default ? '아르세우스' : 'PvE 포켓몬');
     else oppTitle = side === 'A' ? m.b.name + (m.ghost ? ' (복제)' : '') : m.a.name;
     const pick = s => m.sim.units.filter(u => u.side === s);
     const syn = s => m.sim.side[s].synDmg || {};
@@ -2013,6 +2014,26 @@ class App {
       Sound.sfx('place');
     }
   }
+
+  setupTouchMove() {
+    let tap = null;
+    this.$('arena').addEventListener('pointerdown', e => {
+      tap = null;
+      if (e.pointerType === 'mouse' || !e.isPrimary) return;
+      if (!this.carouselScene && e.target.closest('.unit')) return;
+      tap = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() };
+    }, true);
+    window.addEventListener('pointerup', e => {
+      const t = tap;
+      tap = null;
+      if (!t || e.pointerId !== t.id) return;
+      if (Math.hypot(e.clientX - t.x, e.clientY - t.y) > 16 || performance.now() - t.t > 600) return;
+      this.moveStrategist(e.clientX, e.clientY);
+    });
+    window.addEventListener('pointercancel', () => {
+      tap = null;
+    });
+  }  
 
   moveStrategist(cx, cy) {
     if (!this.human.alive) return;
@@ -2673,13 +2694,13 @@ class App {
     const u = CONFIG.unlock;
     const c = h.counters;
     const lines = [
-      '윤겔라가 재운 시간 ' + Math.floor(c.hypnosis) + ' / ' + u.hypnosisSeconds + '초 (후딘)',
-      '치유 스택 ' + Math.floor(c.heal) + ' / ' + u.healStack + ' (해피너스)',
+      '윤겔라가 기절시킨 시간 ' + Math.floor(c.hypnosis) + ' / ' + u.hypnosisSeconds + '초 (후딘)',
+      '회복 중첩 ' + Math.floor(c.heal) + ' / ' + u.healStack + ' (해피너스)',
       '유전자 ' + Math.floor(c.gene) + ' / ' + u.geneStack + ' (뮤츠)',
       '다운로드 ' + Math.floor(c.download) + ' / ' + u.downloadStage1 + ', ' + u.downloadStage2 + ' (현재 ' + UNITS['폴리곤'].stageForms[h.downloadStage].name + ')',
       '낙뢰 적중 ' + Math.floor(c.bolt) + ' / ' + u.electricBolts + ' (썬더)',
       '화상 피해 ' + Math.floor(c.burn) + ' / ' + u.burnDamage + ' (파이어)',
-      '서로 다른 얼음 포켓몬 별 합계 ' + u.iceStarTotal + ' 이상으로 전투 시작 (프리져)',
+      '서로 다른 얼음 포켓몬 성 합계 ' + u.iceStarTotal + ' 이상으로 전투 시작 (프리져)',
       '화석 연승 ' + h.fossilWins + ' / ' + u.kabutoWins + ' (투구) · 연패 ' + h.fossilLosses + ' / ' + u.aerodactylLosses + ' (프테라)',
       '용의 비늘 ' + h.dragonScales + ' · 에스퍼 효과 ' + this.game.espVariant,
       '리전폼: ' + (this.game.isRegional() ? '켜짐' : '꺼짐'),
@@ -2691,6 +2712,29 @@ class App {
   }
 }
 
+function setupMobile() {
+  const touch = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+  document.body.classList.toggle('touch', touch);
+  if (!touch) return;
+  const block = e => e.preventDefault();
+  document.addEventListener('gesturestart', block);
+  document.addEventListener('touchmove', e => {
+    if (e.touches.length > 1) e.preventDefault();
+  }, { passive: false });
+  const full = () => {
+    const el = document.documentElement;
+    if (document.fullscreenElement || !el.requestFullscreen) return;
+    el.requestFullscreen({ navigationUI: 'hide' }).then(() => {
+      if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
+    }).catch(() => {});
+  };
+  document.addEventListener('pointerup', full);
+  const refit = () => window.dispatchEvent(new Event('resize'));
+  window.addEventListener('orientationchange', () => setTimeout(refit, 250));
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', refit);
+}
+
 window.addEventListener('DOMContentLoaded', () => {
+  setupMobile();
   window.lobby = new Lobby();
 });

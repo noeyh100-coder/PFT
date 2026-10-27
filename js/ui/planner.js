@@ -1,6 +1,8 @@
 const PLAN_KEY = 'pokemon-tft-planner';
 const PLAN_SLOTS = 10;
 const PLAN_SORTS = [['viewed', '최근 확인'], ['created', '최근 생성'], ['name', '이름순']];
+const PLAN_MODES = [['origin', '원종'], ['regional', '리전폼']];
+const PLAN_STAGES = ['미진화', '1단진화', '2단진화'];
 
 class Planner {
   constructor(app) {
@@ -29,7 +31,7 @@ class Planner {
   }
 
   load() {
-    const base = { teams: [], activeId: null, nextNum: 1, sort: 'viewed', view: 'list', draft: null, filter: [] };
+    const base = { teams: [], activeId: null, nextNum: 1, sort: 'viewed', view: 'list', draft: null, filter: [], mode: 'origin', stage: 0 };
     let s = null;
     try {
       s = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null');
@@ -43,9 +45,12 @@ class Planner {
       name: String(t.name || '팀').slice(0, 20),
       slots: this.cleanSlots(t.slots),
       created: Number(t.created) || 0,
-      viewed: Number(t.viewed) || 0
+      viewed: Number(t.viewed) || 0,
+      region: !!t.region
     }));
-    out.draft = out.draft && out.draft.id ? { id: String(out.draft.id), name: String(out.draft.name || '새 팀').slice(0, 20), slots: this.cleanSlots(out.draft.slots), isNew: !!out.draft.isNew } : null;
+    out.draft = out.draft && out.draft.id ? { id: String(out.draft.id), name: String(out.draft.name || '새 팀').slice(0, 20), slots: this.cleanSlots(out.draft.slots), isNew: !!out.draft.isNew, region: !!out.draft.region } : null;
+    out.mode = out.mode === 'regional' ? 'regional' : 'origin';
+    out.stage = [0, 1, 2].includes(out.stage) ? out.stage : 0;
     if (!PLAN_SORTS.some(([k]) => k === out.sort)) out.sort = 'viewed';
     out.filter = (Array.isArray(out.filter) ? out.filter : []).filter(id => TRAIT_DATA.map[id]);
     out.nextNum = Math.max(1, Number(out.nextNum) || 1);
@@ -169,17 +174,56 @@ class Planner {
     return list;
   }
 
+  stageEntry(def) {
+    const star = this.state.stage + 1;
+    const owner = this.planOwner([]);
+    return { form: formOf(def, star, owner), traits: classTraitsOf(def, star, owner) };
+  }
+  
+    setMode(mode) {
+    if (this.state.mode === mode) return;
+    this.state.mode = mode;
+    this.menuFor = null;
+    this.renaming = null;
+    this.delConfirm = null;
+    this.sortOpen = false;
+    this.listScroll = 0;
+    this.save();
+    this.render();
+  }
+
+    setStage(stage) {
+    if (this.state.stage === stage) return;
+    this.state.stage = stage;
+    this.save();
+    this.render();
+  }
+
+    tabGroup(list, cur, fn) {
+    const box = this.el('div', 'pl-tabs');
+    list.forEach(([k, label]) => {
+      const b = this.el('button', 'pl-tab' + (k === cur ? ' on' : ''), label);
+      b.addEventListener('click', e => {
+        e.stopPropagation();
+        fn(k);
+      });
+      box.appendChild(b);
+    });
+    return box;
+  }
+
   unitTraits(def) {
     return allTraitsOf(def, 1, null).filter(t => TRAIT_DATA.map[t] && TRAIT_DATA.map[t].kind !== 'unique');
   }
 
   planOwner(slots) {
-    const insts = slots.filter(Boolean).map((id, i) => ({ iid: 'plan' + i, unitId: id, star: 1, loc: { zone: 'plan', r: 0, c: i } }));
+    const star = this.state.stage + 1;
+    const insts = slots.filter(Boolean).map((id, i) => ({ iid: 'plan' + i, unitId: id, star, loc: { zone: 'plan', r: 0, c: i } }));
     const h = this.app.human;
     return {
       boardUnits: () => insts,
       branch: {},
-      downloadStage: 0,
+      downloadStage: this.state.stage,
       region: h ? h.region : null,
       dragonScales: 0,
       espVariant: h ? h.espVariant : null,
@@ -189,7 +233,8 @@ class Planner {
   }
 
   sortedTeams() {
-    const list = this.state.teams.slice();
+    const regional = this.state.mode === 'regional';
+    const list = this.state.teams.filter(t => t.region === regional);
     const s = this.state.sort;
     if (s === 'name') list.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
     else if (s === 'created') list.sort((a, b) => b.created - a.created);
@@ -199,7 +244,7 @@ class Planner {
 
   newTeam() {
     const id = 't' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36);
-    this.state.draft = { id, name: '새 팀 (' + this.state.nextNum + ')', slots: new Array(PLAN_SLOTS).fill(null), isNew: true };
+    this.state.draft = { id, name: '새 팀 (' + this.state.nextNum + ')', slots: new Array(PLAN_SLOTS).fill(null), isNew: true, region: this.state.mode === 'regional' };
     this.state.view = 'edit';
     this.undo = [];
     this.editName = false;
@@ -211,7 +256,7 @@ class Planner {
     const t = this.teamById(id);
     if (!t) return;
     t.viewed = Date.now();
-    this.state.draft = { id: t.id, name: t.name, slots: t.slots.slice(), isNew: false };
+    this.state.draft = { id: t.id, name: t.name, slots: t.slots.slice(), isNew: false, region: !!t.region };
     this.state.view = 'edit';
     this.undo = [];
     this.editName = false;
@@ -227,7 +272,7 @@ class Planner {
       if (d.isNew) {
         if (filled) {
           const now = Date.now();
-          this.state.teams.push({ id: d.id, name: d.name, slots: d.slots.slice(), created: now, viewed: now });
+          this.state.teams.push({ id: d.id, name: d.name, slots: d.slots.slice(), created: now, viewed: now, region: !!d.region });
           this.state.nextNum += 1;
         } else if (this.state.activeId === d.id) this.state.activeId = null;
       } else if (!filled) {
@@ -494,6 +539,8 @@ class Planner {
     const head = this.el('div', 'pl-head');
     if (back) head.appendChild(this.button('pl-icon pl-back', 'back', null, () => this.back(), '팀 목록으로'));
     head.appendChild(this.el('div', 'pl-title', title));
+    if (!back) head.appendChild(this.tabGroup(PLAN_MODES, this.state.mode, k => this.setMode(k)));
+    head.appendChild(this.tabGroup(PLAN_STAGES.map((label, i) => [i, label]), this.state.stage, k => this.setStage(k)));
     head.appendChild(this.button('pl-icon pl-x', 'close', null, () => this.close(), '닫기'));
     p.appendChild(head);
   }
@@ -571,7 +618,7 @@ class Planner {
     for (let i = 0; i < PLAN_SLOTS; i++) {
       const id = t.slots[i];
       if (id) {
-        const pic = this.portrait(UNITS[id], 46);
+        const pic = this.portrait(UNITS[id], 46, this.stageEntry(UNITS[id]).form);
         pic.dataset.unit = id;
         this.hoverAnim(pic, pic);
         units.appendChild(pic);
@@ -621,7 +668,7 @@ class Planner {
 
   renderEdit(p) {
     const d = this.state.draft;
-    this.renderHead(p, '팀 구성', true);
+    this.renderHead(p, '팀 구성' + (d.region ? ' · 리전폼' : ''), true);
     const body = this.el('div', 'pl-edit');
     const left = this.el('div', 'pl-left');
     const fbar = this.el('div', 'pl-filterbar');
@@ -653,7 +700,7 @@ class Planner {
     const filter = this.state.filter;
     let shown = 0;
     for (let cost = 1; cost <= 6; cost++) {
-      const defs = this.units().filter(def => def.cost === cost && (!filter.length || filter.every(id => allTraitsOf(def, 1, null).includes(id) || (def.forms || []).some(f => f.types.includes(id)))));
+      const defs = this.units(d.region).filter(def => def.cost === cost && (!filter.length || filter.every(id => allTraitsOf(def, 1, null).includes(id) || (def.forms || []).some(f => f.types.includes(id)))));
       if (!defs.length) continue;
       const h = this.el('div', 'pl-cost-h');
       h.innerHTML = iconSvg('coin', 14);
@@ -664,7 +711,7 @@ class Planner {
       for (const def of defs) {
         shown++;
         const card = this.el('div', 'pl-card' + (d.slots.includes(def.id) ? ' picked' : ''));
-        const fin = this.finalEntry(def);
+        const fin = this.stageEntry(def);
         card.appendChild(this.listPic(def, fin, false));
         card.appendChild(this.el('div', 'pl-card-name', fin.form.name));
         card.dataset.unit = def.id;
@@ -751,11 +798,12 @@ class Planner {
       if (id) {
         const def = UNITS[id];
         paintCost(slot, def.cost);
-        const pic = this.portrait(def, 84);
-        pic.appendChild(this.traitStrip(def));
+        const entry = this.stageEntry(def);
+        const pic = this.portrait(def, 84, entry.form);
+        pic.appendChild(this.traitStrip(def, entry));
         slot.appendChild(pic);
         this.hoverAnim(slot, pic);
-        slot.appendChild(this.el('div', 'pl-slot-name', this.baseForm(def).name));
+        slot.appendChild(this.el('div', 'pl-slot-name', entry.form.name));
         slot.dataset.unit = id;
         slot.addEventListener('pointerdown', e => this.startDrag(e, { from: 'slot', index: i, id }, slot));
       } else {
@@ -793,7 +841,7 @@ class Planner {
   renderFilter() {
     const box = this.el('div', 'pl-filter frame');
     const head = this.el('div', 'pl-filter-head');
-    head.appendChild(this.el('div', 'pl-title', '특성 필터'));
+    head.appendChild(this.el('div', 'pl-title', '시너지 필터'));
     head.appendChild(this.button('pl-clearall', null, '모두 지우기', () => {
       this.state.filter = [];
       this.save();
@@ -831,13 +879,17 @@ class Planner {
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
-    this.drag = { src, el, x: e.clientX, y: e.clientY, moved: false, ghost: null };
+    this.drag = { src, el, x: e.clientX, y: e.clientY, moved: false, ghost: null, touchList: e.pointerType === 'touch' && src.from === 'list' };
   }
 
   onMove(e) {
     const dr = this.drag;
     if (!dr) return;
     if (!dr.moved && Math.hypot(e.clientX - dr.x, e.clientY - dr.y) < 6) return;
+    if (!dr.moved && dr.touchList) {
+      this.drag = null;
+      return;
+    }
     if (!dr.moved) {
       dr.moved = true;
       this.app.hideUnitTip();

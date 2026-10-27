@@ -81,7 +81,7 @@ const ESPER_FX = {
     const items = u.items.slice();
     const pp = this.itemStatic(items, u.evolvable).pp;
     this.roomSwap(u, []);
-    if (!u.experiment) u.mana = Math.max(0, u.mana - pp);
+    if (!u.experiment) u.pp = Math.max(0, u.pp - pp);
     u.roomItems = items;
     u.roomUntil = until;
     u.roomTaken = [];
@@ -161,7 +161,7 @@ const ESPER_FX = {
   seal(side, n, dur) {
     const list = this.sealTargets(side, n);
     for (const o of list) {
-      const d = this.stun(o, dur, side, 'seal');
+      const d = this.stun(o, dur, side);
       if (d > 0) {
         o.sealedBy = o.sealedBy || {};
         o.sealedBy[side] = true;
@@ -176,8 +176,8 @@ const ESPER_FX = {
       if (!k) continue;
       for (const a of this.aliveOf(side)) {
         if (!a.esper) continue;
-        a.pct.sa += k;
-        a.sealSa += Math.round(k * 100);
+        a.pct.spa += k;
+        a.sealSpa += Math.round(k * 100);
       }
     }
   },
@@ -224,13 +224,13 @@ const ESPER_FX = {
     if (!src || src.side === t.side || !t.alive) return;
     if (src.roomExtra && total > 0 && !(t.items && t.items.length)) this.dealDamage(src, t, total * src.roomExtra, { trueDmg: true, kind: 'room' });
     if (!src.psyBonus || !t.alive) return;
-    if (t.flinchUntil > this.time) {
+    if (t.stunUntil > this.time) {
       this.emit({ type: 'hitfx', target: t.uid, kind: '에스퍼' });
       this.dealDamage(src, t, this.spaStat(src) * src.psyBonus, { special: true, kind: 'psy' });
     }
     if (o.kind === 'skill' && t.alive) {
       const p = src.psyChance + Math.min(src.psyPerMax, this.spaStat(src) * src.psyPer);
-      if (this.rng.next() < p) this.stun(t, 1, src.side, 'flinch');
+      if (this.rng.next() < p) this.stun(t, 1, src.side);
     }
   },
 
