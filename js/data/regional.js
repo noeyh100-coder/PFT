@@ -1084,7 +1084,7 @@ const REGIONAL_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "학살자"
+   "타격대"
   ],
   "uniques": [],
   "forms": [
@@ -1162,7 +1162,7 @@ const REGIONAL_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "주문술사"
+   "선도자"
   ],
   "uniques": [],
   "forms": [
@@ -1316,7 +1316,7 @@ const REGIONAL_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "약탈자"
+   "전쟁기계"
   ],
   "uniques": [],
   "forms": [

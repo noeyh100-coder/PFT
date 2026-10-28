@@ -307,7 +307,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "감시자"
+   "선도자"
   ],
   "uniques": [],
   "forms": [
@@ -1113,7 +1113,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "약탈자"
+   "파수꾼"
   ],
   "uniques": [],
   "forms": [
@@ -1800,7 +1800,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "전쟁기계"
+   "타격대"
   ],
   "uniques": [],
   "forms": [
@@ -2099,7 +2099,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "약탈자"
+   "매복자"
   ],
   "uniques": [],
   "forms": [
@@ -2623,7 +2623,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "주문술사"
+   "선도자"
   ],
   "uniques": [],
   "forms": [
@@ -4152,9 +4152,7 @@ const UNIT_DATA = [
   "cost": 5,
   "shop": true,
   "unlockOnly": false,
-  "traits": [
-   "약탈자"
-  ],
+  "traits": [],
   "uniques": [],
   "forms": [
    {
@@ -4230,7 +4228,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "약탈자"
+   "전쟁기계"
   ],
   "uniques": [],
   "forms": [
@@ -4677,7 +4675,7 @@ const UNIT_DATA = [
   "id": "쁘사이저",
   "family": "쁘사이저",
   "variant": "원종",
-  "cost": 4,
+  "cost": 3,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -5059,7 +5057,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "학살자"
+   "타격대"
   ],
   "uniques": [],
   "forms": [
@@ -5133,7 +5131,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "주문술사"
+   "선도자"
   ],
   "uniques": [],
   "forms": [
@@ -5281,7 +5279,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "약탈자"
+   "전쟁기계"
   ],
   "uniques": [],
   "forms": [
@@ -5649,7 +5647,7 @@ const UNIT_DATA = [
   "shop": true,
   "unlockOnly": false,
   "traits": [
-   "약탈자"
+   "타격대"
   ],
   "uniques": [],
   "forms": [
@@ -5804,7 +5802,7 @@ const UNIT_DATA = [
      ],
      "range": 1,
      "special": false,
-     "role": "물리 탱커",
+     "role": "물리 전사",
      "skill": "불릿펀치",
      "skillType": "강철",
      "stats": {
@@ -6618,9 +6616,7 @@ const UNIT_DATA = [
   "cost": 5,
   "shop": false,
   "unlockOnly": true,
-  "traits": [
-   "약탈자"
-  ],
+  "traits": [],
   "uniques": [
    "저주받은 그림자"
   ],

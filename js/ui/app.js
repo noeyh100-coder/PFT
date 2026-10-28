@@ -1671,7 +1671,8 @@ class App {
   renderTraitTip() {
     const tip = this.$('trait-tip');
     if (!this.tipTrait) return;
-    View.renderTraitTip(tip, this.tipTrait, this.tipOwner || this.viewed(), this.game ? this.game.isRegional() : false);
+    const draft = this.tipWhere === 'planner' && this.planner ? this.planner.state.draft : null;
+    View.renderTraitTip(tip, this.tipTrait, this.tipOwner || this.viewed(), draft ? !!draft.region : this.game ? this.game.isRegional() : false);
     tip.classList.add('show');
     tip.style.left = this.tipWhere === 'info' ? (1096 - tip.offsetWidth - 10) + 'px' : this.tipWhere === 'planner' ? (this.tipRight + 8) + 'px' : '';
     const h = tip.offsetHeight;
@@ -2501,7 +2502,7 @@ class App {
       tip.id = 'unit-tip';
       this.gameEl.appendChild(tip);
     }
-    View.renderUnitTip(tip, anchor.dataset.unit, anchor.dataset.form, anchor.dataset.note, this.human);
+    View.renderUnitTip(tip, anchor.dataset.unit, anchor.dataset.form, anchor.dataset.note, this.human, { noStats: !!anchor.closest('#planner') });
     tip.classList.add('show');
     const r = anchor.getBoundingClientRect();
     const host = anchor.closest('#trait-tip');

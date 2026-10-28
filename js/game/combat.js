@@ -314,6 +314,7 @@ class CombatSim {
       darkGuard: 0,
       poisoner: 0,
       bulkGain: 0,
+      steelWall: 0,
       charmTo: 0,
       charmUntil: 0,
       fsArmed: false,
@@ -423,9 +424,12 @@ class CombatSim {
       for (const u of units) {
         const ty = id => u.types.includes(id) || (u.mew && t(id) > 0);
         const cl = id => u.traits.includes(id);
-        if (ty('강철') && t('강철')) {
-          addStatModifier(u, 'def', v('강철', 'def'));
-          u.endure = v('강철', 'endure');
+        if (t('강철')) {
+          if (this.augFront(side, u.r)) u.steelWall = v('강철', 'wall');
+          else {
+            u.amp += v('강철', 'gear');
+            u.pct.spe += v('강철', 'gear');
+          }
         }
         if (ty('바위') && t('바위')) {
           addStatModifier(u, 'def', v('바위', 'def'));
@@ -502,7 +506,6 @@ class CombatSim {
           u.waterPaired = t('물') >= 3 && (T.waterPairCosts || []).includes(u.cost);
         }
         if (t('전쟁기계')) u.taken *= 1 - (cl('전쟁기계') ? v('전쟁기계', 'self') : v('전쟁기계', 'all'));
-        if (cl('약탈자')) u.vamp += v('약탈자', 'vamp');
         if (cl('주문술사')) addStatModifier(u, 'spa', v('주문술사', 'modifier'));
         if (cl('타격대')) addStatModifier(u, 'atk', v('타격대', 'modifier'));
         if (cl('감시자')) addStatModifier(u, 'spd', v('감시자', 'modifier'));
@@ -760,7 +763,7 @@ class CombatSim {
     if (ignoreUp && bonus > 0) bonus = 0;
     const pw = view ? 1 : u.pwD || 1;
     const b = special ? u.base.spd * pw + u.flatSpd : u.base.def * pw + u.flatDef;
-    return Math.max(0, b + bonus) * this.otMult('def') * this.evoMul(u, special ? 'spd' : 'def');
+    return Math.max(0, b + bonus) * (1 + (u.steelWall || 0)) * this.otMult('def') * this.evoMul(u, special ? 'spd' : 'def');
   }
 
   attackSpeed(u) {
@@ -1267,12 +1270,6 @@ class CombatSim {
       return total;
     }
     if (src && src.side !== t.side && src.alive && src.it && this.swordExecute(src, t)) return total;
-    if (src && src.frostExec && src.side !== t.side && t.hp <= t.maxHp * 0.12) {
-      this.emit({ type: 'freeze', target: t.uid, duration: 0.6 });
-      t.killedBy = src;
-      this.execute(t, src.side);
-      return total;
-    }
     if (isHit) {
       if (t.channel) t.channel.hitDuring = true;
       if (t.form && t.form.skill === '분노의주먹') t.rageHits += 1;

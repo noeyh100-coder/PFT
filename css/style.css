@@ -4199,6 +4199,50 @@ button:disabled {
   gap: 10px 9px;
 }
 
+.pl-branch {
+  position: relative;
+  display: grid;
+  gap: 10px 9px;
+  margin: 2px -4px 0;
+  padding: 8px 3px 4px;
+  border: 1px dashed var(--cost-color, #5fb7e0);
+  background: rgba(95, 183, 224, 0.07);
+}
+
+.pl-branch::before {
+  content: '';
+  position: absolute;
+  left: 40px;
+  right: 40px;
+  top: 41px;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, rgba(95, 183, 224, 0.55) 0 6px, transparent 6px 10px);
+  pointer-events: none;
+}
+
+.pl-branch:hover {
+  border-style: solid;
+  background: rgba(95, 183, 224, 0.13);
+}
+
+.pl-branch-tag {
+  position: absolute;
+  left: 6px;
+  top: -7px;
+  padding: 0 4px;
+  font-family: 'Galmuri9', monospace;
+  font-size: 9px;
+  line-height: 12px;
+  color: #9fd8f0;
+  background: var(--panel, #10121c);
+  pointer-events: none;
+}
+
+.pl-branch .pl-card {
+  position: relative;
+  z-index: 1;
+}
+
 .pl-card {
   width: 80px;
   display: flex;

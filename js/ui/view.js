@@ -1,7 +1,7 @@
 const CLASS_COLORS = {
   '최면술사': '#c77dff', '난동꾼': '#ff7b54', '감시자': '#5ec4b6', '타격대': '#e05252', '파수꾼': '#7f9cf5',
   '매복자': '#6b8f71', '주문술사': '#5fa8ff', '선도자': '#f2e394', '도전자': '#ff9f43',
-  '학살자': '#b0413e', '화석': '#a68a64', '약탈자': '#8e5bb5', '전쟁기계': '#8d99ae'
+  '학살자': '#b0413e', '화석': '#a68a64', '전쟁기계': '#8d99ae'
 };
 
 const ROUND_ICON = { encounter: 'encounter', pve: 'ball', pvp: 'sword', carousel: 'sushi' };
@@ -724,7 +724,34 @@ const View = {
     return m[id] || '특별한 조건으로 해금됩니다';
   },
 
-  renderUnitTip(container, unitId, formName, note, owner) {
+  unitStatTable(def, form) {
+    const statTable = this.el('table', 'ut-stats');
+    const statHead = this.el('thead');
+    const statHeader = this.el('tr');
+    statHeader.appendChild(this.el('th', null, '능력치'));
+    for (let star = 1; star <= 3; star++) statHeader.appendChild(this.el('th', null, star + '성'));
+    statHead.appendChild(statHeader);
+    statTable.appendChild(statHead);
+    const statBody = this.el('tbody');
+    const starStats = [1, 2, 3].map(star => computeStats(form, def.cost, star, def.unlockOnly ? UNLOCK_STAT_BONUS : 1, { boost: def.boost }));
+    const statRows = [
+      ['체력', stats => stats.hp],
+      ['PP', stats => stats.maxPP],
+      ['물리공격', stats => stats.atk],
+      ['물리방어/특수방어', stats => stats.def + '/' + stats.spd],
+      ['스피드', stats => stats.spe]
+    ];
+    for (const [label, value] of statRows) {
+      const row = this.el('tr');
+      row.appendChild(this.el('th', null, label));
+      for (const stats of starStats) row.appendChild(this.el('td', null, value(stats)));
+      statBody.appendChild(row);
+    }
+    statTable.appendChild(statBody);
+    return statTable;
+  },
+
+  renderUnitTip(container, unitId, formName, note, owner, opts) {
     container.innerHTML = '';
     const def = UNITS[unitId];
     if (!def) return;
@@ -755,30 +782,7 @@ const View = {
     role.appendChild(this.el('span', null, form.role || roleOf(form, computeStats(form, def.cost, 1, 1))));
     if (note) role.appendChild(this.el('span', 'ut-note', note));
     info.appendChild(role);
-    const statTable = this.el('table', 'ut-stats');
-    const statHead = this.el('thead');
-    const statHeader = this.el('tr');
-    statHeader.appendChild(this.el('th', null, '능력치'));
-    for (let star = 1; star <= 3; star++) statHeader.appendChild(this.el('th', null, star + '성'));
-    statHead.appendChild(statHeader);
-    statTable.appendChild(statHead);
-    const statBody = this.el('tbody');
-    const starStats = [1, 2, 3].map(star => computeStats(form, def.cost, star, def.unlockOnly ? UNLOCK_STAT_BONUS : 1, { boost: def.boost }));
-    const statRows = [
-      ['체력', stats => stats.hp],
-      ['PP', stats => stats.maxPP],
-      ['물리공격', stats => stats.atk],
-      ['물리방어/특수방어', stats => stats.def + '/' + stats.spd],
-      ['스피드', stats => stats.spe]
-    ];
-    for (const [label, value] of statRows) {
-      const row = this.el('tr');
-      row.appendChild(this.el('th', null, label));
-      for (const stats of starStats) row.appendChild(this.el('td', null, value(stats)));
-      statBody.appendChild(row);
-    }
-    statTable.appendChild(statBody);
-    info.appendChild(statTable);
+    if (!(opts && opts.noStats)) info.appendChild(this.unitStatTable(def, form));
     const tr = [];
     for (const x of form.types.concat(br && br.traits ? br.traits : def.traits, def.uniques)) if (!tr.includes(x)) tr.push(x);
     const traits = this.el('div', 'ut-traits');

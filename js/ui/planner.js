@@ -4,6 +4,17 @@ const PLAN_SORTS = [['viewed', '최근 확인'], ['created', '최근 생성'], [
 const PLAN_MODES = [['origin', '원종'], ['regional', '리전폼']];
 const PLAN_STAGES = ['미진화', '1단진화', '2단진화'];
 
+function planKey(k) {
+  const i = k ? k.indexOf('@') : -1;
+  return i < 0 ? { id: k, branch: null } : { id: k.slice(0, i), branch: k.slice(i + 1) };
+}
+
+function planKeyValid(k) {
+  const { id, branch } = planKey(k);
+  const def = UNITS[id];
+  return !!def && (!branch || !!(def.branches && def.branches.some(b => b.key === branch)));
+}
+
 class Planner {
   constructor(app) {
     this.app = app;
@@ -25,7 +36,7 @@ class Planner {
     const out = [];
     for (let i = 0; i < PLAN_SLOTS; i++) {
       const id = slots && slots[i];
-      out.push(id && UNITS[id] && !out.includes(id) ? id : null);
+      out.push(id && planKeyValid(id) && !out.some(x => x && planKey(x).id === planKey(id).id) ? id : null);
     }
     return out;
   }
@@ -151,7 +162,7 @@ class Planner {
   }
 
   syncPlanned() {
-    View.planned = new Set(this.activeSlots().filter(Boolean));
+    View.planned = new Set(this.activeSlots().filter(Boolean).map(k => planKey(k).id));
     if (this.app.game && this.app.human) this.app.requestRender();
   }
 
@@ -166,18 +177,25 @@ class Planner {
     return def.stageForms ? def.stageForms[0] : def.forms[0];
   }
 
-  units() {
-    if (this.unitList) return this.unitList;
-    const list = UNIT_DATA.filter(d => !d.region && (d.shop || d.unlockOnly));
+  units(regional) {
+    const key = regional ? 'regional' : 'origin';
+    if (!this.unitLists) this.unitLists = {};
+    if (this.unitLists[key]) return this.unitLists[key];
+    const list = UNIT_DATA.filter(d => regionVisible(d, regional) && (d.shop || d.unlockOnly));
     list.sort((a, b) => a.cost - b.cost || this.baseForm(a).name.localeCompare(this.baseForm(b).name, 'ko'));
-    this.unitList = list;
+    this.unitLists[key] = list;
     return list;
   }
 
-  stageEntry(def) {
+  stageEntry(def, branch) {
     const star = this.state.stage + 1;
     const owner = this.planOwner([]);
+    if (branch) owner.branch[def.id] = branch;
     return { form: formOf(def, star, owner), traits: classTraitsOf(def, star, owner) };
+  }
+
+  branchesShown(def) {
+    return def.branches && def.branches.length > 1 && this.state.stage + 1 >= def.branchStar ? def.branches : null;
   }
   
     setMode(mode) {
@@ -218,11 +236,14 @@ class Planner {
 
   planOwner(slots) {
     const star = this.state.stage + 1;
-    const insts = slots.filter(Boolean).map((id, i) => ({ iid: 'plan' + i, unitId: id, star, loc: { zone: 'plan', r: 0, c: i } }));
+    const keys = slots.filter(Boolean).map(planKey);
+    const insts = keys.map((k, i) => ({ iid: 'plan' + i, unitId: k.id, star, loc: { zone: 'plan', r: 0, c: i } }));
+    const branch = {};
+    for (const k of keys) if (k.branch) branch[k.id] = k.branch;
     const h = this.app.human;
     return {
       boardUnits: () => insts,
-      branch: {},
+      branch,
       downloadStage: this.state.stage,
       region: h ? h.region : null,
       dragonScales: 0,
@@ -313,9 +334,14 @@ class Planner {
 
   addUnit(id, at) {
     const d = this.state.draft;
-    const cur = d.slots.indexOf(id);
+    const cur = d.slots.findIndex(k => k && planKey(k).id === planKey(id).id);
     if (at == null) {
-      if (cur >= 0) return this.removeAt(cur);
+      if (cur >= 0 && d.slots[cur] === id) return this.removeAt(cur);
+      if (cur >= 0) {
+        this.pushUndo();
+        d.slots[cur] = id;
+        return this.commit();
+      }
       const free = d.slots.indexOf(null);
       if (free < 0) {
         this.app.toast('팀은 최대 ' + PLAN_SLOTS + '마리까지 넣을 수 있습니다', 'error');
@@ -365,7 +391,12 @@ class Planner {
     if (!h || !d) return;
     const board = h.boardUnits().slice().sort((a, b) => a.loc.r - b.loc.r || a.loc.c - b.loc.c);
     const ids = [];
-    for (const u of board) if (UNITS[u.unitId] && !ids.includes(u.unitId) && ids.length < PLAN_SLOTS) ids.push(u.unitId);
+    for (const u of board) {
+      const def = UNITS[u.unitId];
+      if (!def || ids.some(k => planKey(k).id === u.unitId) || ids.length >= PLAN_SLOTS) continue;
+      const b = branchOf(def, u.star, h);
+      ids.push(b ? u.unitId + '@' + b.key : u.unitId);
+    }
     if (!ids.length) return;
     this.pushUndo();
     d.slots = ids.concat(new Array(PLAN_SLOTS - ids.length).fill(null));
@@ -449,16 +480,13 @@ class Planner {
     el.addEventListener('mouseleave', () => box._spr && Sprites.hoverPlay(box._spr, false));
   }
 
-  formChain(def) {
+  formChain(def, branch) {
     const out = [];
-    for (const f of def.stageForms || def.forms) if (!out.some(x => x.form.name === f.name)) out.push({ form: f, traits: def.traits });
-    for (const b of def.branches || []) out.push({ form: b.form, traits: b.traits || def.traits });
-    return out;
-  }
-
-  finalEntry(def) {
     const forms = def.stageForms || def.forms;
-    return { form: forms[forms.length - 1], traits: def.traits };
+    const pre = def.branches && branch ? forms.slice(0, def.branchStar - 1) : forms;
+    for (const f of pre) if (!out.some(x => x.form.name === f.name)) out.push({ form: f, traits: def.traits });
+    for (const b of def.branches || []) if (!branch || b.key === branch) out.push({ form: b.form, traits: b.traits || def.traits });
+    return out;
   }
 
   traitStrip(def, entry) {
@@ -468,7 +496,7 @@ class Planner {
     return strip;
   }
 
-  listPic(def, entry, animate) {
+  listPic(def, entry, animate, key) {
     const d = this.state.draft;
     const human = this.app.human;
     const pic = this.portrait(def, 70, entry.form, animate);
@@ -479,7 +507,7 @@ class Planner {
       lk.innerHTML = iconSvg(open ? 'unlock' : 'lock', 14);
       pic.appendChild(lk);
     }
-    if (d && d.slots.includes(def.id)) {
+    if (d && d.slots.includes(key || def.id)) {
       const ck = this.el('div', 'pl-check');
       ck.innerHTML = iconSvg('check', 14);
       pic.appendChild(ck);
@@ -487,8 +515,8 @@ class Planner {
     return pic;
   }
 
-  setCardEntry(card, def, entry, animate) {
-    const pic = this.listPic(def, entry, animate);
+  setCardEntry(card, def, entry, animate, key) {
+    const pic = this.listPic(def, entry, animate, key);
     const old = card.querySelector('.pl-pic');
     if (old) card.replaceChild(pic, old);
     else card.insertBefore(pic, card.firstChild);
@@ -496,13 +524,13 @@ class Planner {
     if (nm) nm.textContent = entry.form.name;
   }
 
-  cycleStart(card, def) {
+  cycleStart(card, def, key, rest) {
     if (this.cycle && this.cycle.card === card) return;
     this.cycleStop();
-    const chain = this.formChain(def);
-    const cy = { card, def, i: 0, timer: null };
+    const chain = this.formChain(def, planKey(key).branch);
+    const cy = { card, def, key, rest, i: 0, timer: null };
     this.cycle = cy;
-    this.setCardEntry(card, def, chain[0], true);
+    this.setCardEntry(card, def, chain[0], true, key);
     if (chain.length > 1) {
       cy.timer = setInterval(() => {
         if (!card.isConnected) {
@@ -510,7 +538,7 @@ class Planner {
           return;
         }
         cy.i = (cy.i + 1) % chain.length;
-        this.setCardEntry(card, def, chain[cy.i], true);
+        this.setCardEntry(card, def, chain[cy.i], true, key);
       }, 1000);
     }
   }
@@ -520,7 +548,7 @@ class Planner {
     if (!cy) return;
     this.cycle = null;
     if (cy.timer) clearInterval(cy.timer);
-    if (cy.card.isConnected) this.setCardEntry(cy.card, cy.def, this.finalEntry(cy.def), false);
+    if (cy.card.isConnected) this.setCardEntry(cy.card, cy.def, cy.rest, false, cy.key);
   }
 
   render() {
@@ -618,8 +646,11 @@ class Planner {
     for (let i = 0; i < PLAN_SLOTS; i++) {
       const id = t.slots[i];
       if (id) {
-        const pic = this.portrait(UNITS[id], 46, this.stageEntry(UNITS[id]).form);
-        pic.dataset.unit = id;
+        const k = planKey(id);
+        const form = this.stageEntry(UNITS[k.id], k.branch).form;
+        const pic = this.portrait(UNITS[k.id], 46, form);
+        pic.dataset.unit = k.id;
+        pic.dataset.form = form.name;
         this.hoverAnim(pic, pic);
         units.appendChild(pic);
       } else {
@@ -700,7 +731,7 @@ class Planner {
     const filter = this.state.filter;
     let shown = 0;
     for (let cost = 1; cost <= 6; cost++) {
-      const defs = this.units(d.region).filter(def => def.cost === cost && (!filter.length || filter.every(id => allTraitsOf(def, 1, null).includes(id) || (def.forms || []).some(f => f.types.includes(id)))));
+      const defs = this.units(d.region).filter(def => def.cost === cost && (!filter.length || filter.every(id => allTraitsOf(def, 1, null).includes(id) || (def.forms || []).some(f => f.types.includes(id)) || (def.branches || []).some(b => b.form.types.includes(id) || (b.traits || []).includes(id)))));
       if (!defs.length) continue;
       const h = this.el('div', 'pl-cost-h');
       h.innerHTML = iconSvg('coin', 14);
@@ -710,19 +741,18 @@ class Planner {
       const grid = this.el('div', 'pl-grid');
       for (const def of defs) {
         shown++;
-        const card = this.el('div', 'pl-card' + (d.slots.includes(def.id) ? ' picked' : ''));
-        const fin = this.stageEntry(def);
-        card.appendChild(this.listPic(def, fin, false));
-        card.appendChild(this.el('div', 'pl-card-name', fin.form.name));
-        card.dataset.unit = def.id;
-        card.addEventListener('pointerdown', e => this.startDrag(e, { from: 'list', id: def.id }, card));
-        card.addEventListener('mouseenter', () => this.cycleStart(card, def));
-        card.addEventListener('mouseleave', () => {
-          setTimeout(() => {
-            if (this.cycle && this.cycle.card === card && !card.matches(':hover')) this.cycleStop();
-          }, 0);
-        });
-        grid.appendChild(card);
+        const branches = this.branchesShown(def);
+        if (!branches) {
+          grid.appendChild(this.unitCard(def, null));
+          continue;
+        }
+        const group = this.el('div', 'pl-branch');
+        const cols = Math.min(branches.length, 5);
+        group.style.gridColumn = 'span ' + cols;
+        group.style.gridTemplateColumns = 'repeat(' + cols + ', 80px)';
+        group.appendChild(this.el('div', 'pl-branch-tag', this.baseForm(def).name + ' 계열'));
+        for (const b of branches) group.appendChild(this.unitCard(def, b.key));
+        grid.appendChild(group);
       }
       scroll.appendChild(grid);
     }
@@ -796,15 +826,17 @@ class Planner {
       const slot = this.el('div', 'pl-slot' + (id ? '' : ' empty'));
       slot.dataset.slot = i;
       if (id) {
-        const def = UNITS[id];
+        const k = planKey(id);
+        const def = UNITS[k.id];
         paintCost(slot, def.cost);
-        const entry = this.stageEntry(def);
+        const entry = this.stageEntry(def, k.branch);
         const pic = this.portrait(def, 84, entry.form);
         pic.appendChild(this.traitStrip(def, entry));
         slot.appendChild(pic);
         this.hoverAnim(slot, pic);
         slot.appendChild(this.el('div', 'pl-slot-name', entry.form.name));
-        slot.dataset.unit = id;
+        slot.dataset.unit = k.id;
+        slot.dataset.form = entry.form.name;
         slot.addEventListener('pointerdown', e => this.startDrag(e, { from: 'slot', index: i, id }, slot));
       } else {
         slot.innerHTML = iconSvg('ball', 40);
@@ -836,6 +868,25 @@ class Planner {
     scroll.addEventListener('scroll', () => {
       this.unitScroll = scroll.scrollTop;
     });
+  }
+
+  unitCard(def, branch) {
+    const d = this.state.draft;
+    const key = branch ? def.id + '@' + branch : def.id;
+    const card = this.el('div', 'pl-card' + (d.slots.includes(key) ? ' picked' : ''));
+    const fin = this.stageEntry(def, branch);
+    card.appendChild(this.listPic(def, fin, false, key));
+    card.appendChild(this.el('div', 'pl-card-name', fin.form.name));
+    card.dataset.unit = def.id;
+    card.dataset.form = fin.form.name;
+    card.addEventListener('pointerdown', e => this.startDrag(e, { from: 'list', id: key }, card));
+    card.addEventListener('mouseenter', () => this.cycleStart(card, def, key, fin));
+    card.addEventListener('mouseleave', () => {
+      setTimeout(() => {
+        if (this.cycle && this.cycle.card === card && !card.matches(':hover')) this.cycleStop();
+      }, 0);
+    });
+    return card;
   }
 
   renderFilter() {
@@ -894,7 +945,8 @@ class Planner {
       dr.moved = true;
       this.app.hideUnitTip();
       const g = this.el('div', 'pl-ghost');
-      g.appendChild(this.portrait(UNITS[dr.src.id], 64));
+      const k = planKey(dr.src.id);
+      g.appendChild(this.portrait(UNITS[k.id], 64, this.stageEntry(UNITS[k.id], k.branch).form));
       this.wrap.appendChild(g);
       dr.ghost = g;
       dr.el.classList.add('dragging');
