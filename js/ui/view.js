@@ -182,7 +182,7 @@ const View = {
     ring.style.boxShadow = '0 0 0 2px ' + (COST_COLORS[opts.cost] || '#888');
     const mega = !!(opts.form && opts.items && opts.items.some(x => itemBase(x) === 'mega-stone'));
     const mf = mega ? MEGA_FORMS[opts.form.en] : null;
-    let orb = opts.form ? Sprites.make(mf ? { en: mf.en } : opts.form, { star: opts.star, dir: opts.dir }) : null;
+    let orb = opts.form ? Sprites.make(mf ? { en: mf.en } : opts.form, { star: opts.star, dir: opts.dir, shiny: opts.shiny }) : null;
     if (mega) el.classList.add(mf ? 'mega' : 'mega-rainbow');
     if (orb) {
       ring.style.display = 'none';
@@ -190,6 +190,7 @@ const View = {
       el._spr = orb._spr;
       el.style.setProperty('--head', Math.min(6, Math.round(Sprites.headY(orb._spr))) + 'px');
       if (opts.ditto) el.classList.add('ditto-copy');
+      if (opts.shiny) el.classList.add('shiny', orb._spr.shiny ? 'shiny-real' : 'shiny-tint');
     } else {
       orb = this.el('div', 'orb');
       orb.style.background = this.orbBackground(opts.types);
@@ -529,7 +530,7 @@ const View = {
   instanceView(inst, owner) {
     const def = UNITS[inst.unitId];
     const form = formOf(def, inst.star, owner, inst);
-    return { name: form.name, form, types: form.types, star: inst.star, cost: def.cost, badge: this.badgeFor(def), items: inst.items || [] };
+    return { name: form.name, form, types: form.types, star: inst.star, cost: def.cost, badge: this.badgeFor(def), items: inst.items || [], shiny: !!inst.shiny };
   },
 
   portrait(name, size) {

@@ -157,6 +157,7 @@ class Arena {
     this.carLayer = document.getElementById('carousel-layer');
     this.stratLayer = document.getElementById('strat-layer');
     this.fx = document.getElementById('fx-layer');
+    PixelFX.init(this);
     this.boardCount = document.getElementById('board-count');
     this.benchLayer = document.getElementById('bench-layer');
     this.cunits = {};
@@ -325,6 +326,7 @@ class Arena {
   clearUnits() {
     this.unitLayer.innerHTML = '';
     this.fx.innerHTML = '';
+    PixelFX.clear();
     this.cunits = {};
     this.shadowEls = { A: [], B: [] };
     this.sim = null;
@@ -423,6 +425,7 @@ class Arena {
     this.unitLayer.querySelectorAll('.unit:not(.bench-top):not(.bench-bottom)').forEach(el => el.remove());
     this.clearFieldFx();
     this.fx.innerHTML = '';
+    PixelFX.clear();
     this.cunits = {};
     this.sim = sim;
     this.flip = flip;
@@ -567,6 +570,7 @@ class Arena {
       cost: u.cost,
       badge: View.badgeFor(def),
       ditto: u.ditto,
+      shiny: u.shiny,
       items: u.items,
       dir: this.isFoeSide(u.side) ? SPRITE_DIR.down : SPRITE_DIR.up
     });
@@ -742,16 +746,15 @@ class Arena {
         const e = this.cunits[ev.uid];
         if (e) this.flash(e.el, 'attack', 110 / speed);
         if (e && e.el._spr) this.spriteAction(ev.uid, ev.target, 'attack');
-        if (ev.ranged || ev.icicle) this.projectile(ev.uid, ev.target, (ev.special ? 'special' : '') + (ev.fan ? ' fan' : '') + (ev.icicle ? ' icicle' : ''));
+        if (ev.icicle || (ev.ranged && ev.fan)) this.projectile(ev.uid, ev.target, (ev.special ? 'special' : '') + (ev.fan ? ' fan' : '') + (ev.icicle ? ' icicle' : ''));
         else if (ev.fan) this.fanBurst(ev.uid, ev.target);
+        this.pixelAttack(ev);
       } else if (ev.type === 'skill') {
         const e = this.cunits[ev.uid];
         if (e) this.flash(e.el, 'casting', 260 / speed);
         if (e && e.el._spr) this.spriteAction(ev.uid, ev.target, ev.special ? 'special' : 'physical');
-        this.projectile(ev.uid, ev.target, 'skill' + (ev.special ? ' special' : '') + (ev.enhanced ? ' enhanced' : ''));
         if (ev.enhanced) this.floatText(ev.uid, '강화', 'buff');
-        const cost = this.casterCost(ev.uid);
-        if (cost >= 4) this.ultBurst(ev.uid, cost >= 5);
+        this.pixelSkill(ev);
       } else if (ev.type === 'cast') {
         this.skillFx(ev);
       } else if (ev.type === 'damage') {
@@ -770,7 +773,8 @@ class Arena {
         const el = this.cellFx(ev.r, ev.c, 'fx-skill' + (ev.heal ? ' heal' : '') + (ev.slam ? ' slam' : ''), Math.min(cells, 13), 520);
         el.style.setProperty('--fx-color', TYPE_COLORS[ev.kind] || '#ffffff');
         if (ev.slam) this.flash(this.root, 'shake', 420);
-        if (this.casterCost(ev.uid) >= 4 && !ev.heal) this.bigRing(ev.r, ev.c, Math.min(cells, 13), TYPE_COLORS[ev.kind] || '#ffffff');
+        const box = this.cellBox(ev.r, ev.c, Math.min(cells, 13));
+        PixelFX.area(box.x, box.y, box.w / 2, this.casterCost(ev.uid), ev.kind, ev.heal);
       } else if (ev.type === 'hitfx') {
         const p = this.unitPos(ev.target);
         if (p) {
@@ -781,6 +785,7 @@ class Arena {
           el.style.setProperty('--fx-color', TYPE_COLORS[ev.kind] || '#ffffff');
           this.fx.appendChild(el);
           setTimeout(() => el.remove(), 320);
+          PixelFX.hit(p, ev.kind);
         }
       } else if (ev.type === 'hide') {
         const e = this.cunits[ev.uid];
@@ -1070,6 +1075,18 @@ class Arena {
     }, T);
   }
 
+  pixelAttack(ev) {
+    const u = this.sim && this.sim.byUid[ev.uid];
+    if (!u) return;
+    PixelFX.basic(this.screenPos(ev.uid), this.unitPos(ev.target), u.cost, u.types[0] || u.skillType, ev.ranged && !ev.icicle && !ev.fan, u.star);
+  }
+
+  pixelSkill(ev) {
+    const u = this.sim && this.sim.byUid[ev.uid];
+    if (!u) return;
+    PixelFX.skill(this.screenPos(ev.uid), this.unitPos(ev.target), u.cost, u.skillType || u.types[0], ev.ranged, u.star);
+  }
+
   casterCost(uid) {
     const u = this.sim && this.sim.byUid[uid];
     return u ? u.cost || 0 : 0;
@@ -1087,39 +1104,6 @@ class Arena {
   screenPos(uid) {
     const e = this.cunits[uid];
     return e && e.pos ? { x: e.pos.x, y: e.pos.y } : this.unitPos(uid);
-  }
-
-  ultBurst(uid, big) {
-    const u = this.sim && this.sim.byUid[uid];
-    const p = this.screenPos(uid);
-    if (!u || !p) return;
-    const col = TYPE_COLORS[u.skillType] || '#ffffff';
-    const speed = this.app.speed || 1;
-    const ring = this.fxDiv('fx-ult', p.x, p.y - 18);
-    ring.style.setProperty('--c', col);
-    setTimeout(() => ring.remove(), 650 / speed);
-    const n = big ? 14 : 9;
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 + Math.random() * 0.4;
-      const d = (big ? 46 : 34) + Math.random() * 14;
-      const sp = this.fxDiv('fx-spark', p.x, p.y - 18);
-      sp.style.setProperty('--c', col);
-      sp.animate([
-        { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
-        { transform: 'translate(calc(-50% + ' + (Math.cos(a) * d).toFixed(1) + 'px), calc(-50% + ' + (Math.sin(a) * d * 0.7 - 10).toFixed(1) + 'px)) scale(0.3)', opacity: 0 }
-      ], { duration: 520 / speed, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' });
-      setTimeout(() => sp.remove(), 540 / speed);
-    }
-    if (!big) return;
-    const pil = this.fxDiv('fx-pillar', p.x, p.y);
-    pil.style.setProperty('--c', col);
-    setTimeout(() => pil.remove(), 700 / speed);
-    const vig = document.createElement('div');
-    vig.className = 'fx-vignette';
-    vig.style.setProperty('--c', col);
-    this.fx.appendChild(vig);
-    setTimeout(() => vig.remove(), 700 / speed);
-    this.flash(this.root, 'shake', 420);
   }
 
   bigRing(r, c, cells, col) {

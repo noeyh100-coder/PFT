@@ -1,4 +1,13 @@
 class Player {
+  get gold() {
+    return this._gold;
+  }
+
+  set gold(v) {
+    if (v > this._gold) this.goldEarned += v - this._gold;
+    this._gold = v;
+  }
+
   constructor(id, name, isHuman) {
     this.id = id;
     this.name = name;
@@ -14,7 +23,10 @@ class Player {
     this.encounter = null;
     this.frzUsed = false;
     this.fireUsed = false;
-    this.gold = 0;
+    this.goldEarned = 0;
+    this.shinyCharm = false;
+    this.buyCount = 0;
+    this._gold = 0;
     this.level = 1;
     this.xp = 0;
     this.streak = 0;

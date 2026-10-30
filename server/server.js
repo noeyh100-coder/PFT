@@ -105,7 +105,7 @@ function handleApi(req, res, url) {
   let raw = '';
   req.on('data', d => {
     raw += d;
-    if (raw.length > 4096) req.destroy();
+    if (raw.length > 32768) req.destroy();
   });
   req.on('end', async () => {
     let body = {};
@@ -121,6 +121,7 @@ function handleApi(req, res, url) {
       else if (url === '/api/login') out = await accounts.login(body);
       else if (url === '/api/me') out = await accounts.me(auth);
       else if (url === '/api/rename') out = await accounts.rename(auth, body.name);
+      else if (url === '/api/wallet') out = await accounts.saveWallet(auth, body.wallet);
       else return apiSend(res, 404, { error: '없는 주소입니다' });
       apiSend(res, out.error ? 400 : 200, out);
     } catch (e) {
@@ -278,7 +279,8 @@ function startGame(room) {
   room.seats = [];
   room.slotOf = {};
   humans.forEach((t, i) => {
-    room.seats.push({ name: room.names[t], look: room.looks[t] || '', map: (room.maps && room.maps[t]) || '', human: true });
+    const cl = clients.get(t);
+    room.seats.push({ name: room.names[t], look: room.looks[t] || '', map: (room.maps && room.maps[t]) || '', charm: !!(cl && cl.charm), human: true });
     room.slotOf[t] = i;
   });
   while (room.seats.length < 8) room.seats.push({ human: false });
@@ -416,6 +418,7 @@ async function onHello(c, m) {
   c.look = cleanLook(m.look);
   c.map = cleanLook(m.map);
   c.icon = cleanIcon(m.icon);
+  c.charm = !!m.charm;
   const room = roomOfToken(c.token);
   send(c, { t: 'welcome', token: c.token, name: c.name, room: room ? room.code : null, account: !!c.uid, rankSize: RANK_SIZE, rankQueued: rankQueue.includes(c.token) });
   if (!room) return;

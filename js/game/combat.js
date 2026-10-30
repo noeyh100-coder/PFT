@@ -184,6 +184,7 @@ class CombatSim {
       unlockOnly: !!spec.unlockOnly,
       strongDragon: !!spec.strongDragon,
       ditto: !!spec.ditto,
+      shiny: !!spec.shiny,
       pp: 0,
       maxPP: st.maxPP,
       r,

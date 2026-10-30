@@ -46,6 +46,7 @@ class Game {
       const wm = p.isHuman ? (o.seats ? o.seats[i] && o.seats[i].map : o.map) : null;
       p.mapId = CONFIG.maps.includes(wm) ? wm : maps[i % maps.length];
       p.seaTiles = this.rollSea();
+      if (p.isHuman) p.shinyCharm = !!(o.seats ? o.seats[i] && o.seats[i].charm : o.charm);
     });
     this.realtime = !!o.realtime;
     this.hostLog = {};
@@ -424,21 +425,24 @@ class Game {
     p.gold -= def.cost;
     p.shop[slot] = null;
     this.augBought(p);
+    const shiny = shinyRoll(this.seed, p.id, p.buyCount++, p.shinyCharm);
+    if (shiny) this.notify(p, '반짝! 이로치 ' + formOf(def, 1, p).name + '이(가) 나왔습니다!', 'evolve');
     const up = p.augs.length ? this.augBuyStar(p, def) : null;
     if (up && (p.freeBenchSlot() >= 0 || this.countMergeable(p, id, up.star) >= 2)) {
       p.augState[up.key] = false;
-      const inst = this.addUnit(p, id, up.star);
+      const inst = this.addUnit(p, id, up.star, shiny);
       if (inst) {
         this.onStarUp(p, inst, true);
         this.notify(p, formOf(def, up.star, p, inst).name + ' ' + '★'.repeat(up.star) + '(으)로 바로 업그레이드!', 'merge');
       }
       return inst;
     }
-    return this.addUnit(p, id, 1);
+    return this.addUnit(p, id, 1, shiny);
   }
 
-  addUnit(p, unitId, star) {
+  addUnit(p, unitId, star, shiny) {
     const inst = newInstance(unitId, star || 1);
+    if (shiny) inst.shiny = true;
     const slot = p.freeBenchSlot();
     if (slot >= 0) {
       p.placeBench(inst, slot);
@@ -530,6 +534,7 @@ class Game {
           keep.fzFree = false;
         }
         keep.star += 1;
+        if (others.some(o => o.shiny)) keep.shiny = true;
         keep.wins = Math.max(keep.wins, ...others.map(o => o.wins));
         keep.pvpWins = Math.max(keep.pvpWins, ...others.map(o => o.pvpWins));
         keep.takedowns = Math.max(keep.takedowns, ...others.map(o => o.takedowns));
@@ -730,6 +735,7 @@ class Game {
       if (cp) {
         specs.push({
           iid: ghost ? null : inst.iid,
+          shiny: !!inst.shiny,
           unitId: def.id,
           name: cp.form.name,
           form: cp.form,
@@ -752,6 +758,7 @@ class Game {
       }
       specs.push({
         iid: ghost ? null : inst.iid,
+        shiny: !!inst.shiny,
         unitId: def.id,
         name: form.name,
         form,

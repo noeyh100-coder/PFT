@@ -162,7 +162,52 @@ function verify(token) {
 }
 
 function publicView(row) {
-  return { id: row.id, name: row.name, lp: row.lp || 0, games: row.games || 0, wins: row.wins || 0, top4: row.top4 || 0, rank: rankOf(row.lp), dev: DEV_IDS.has(row.id) };
+  return { id: row.id, name: row.name, lp: row.lp || 0, games: row.games || 0, wins: row.wins || 0, top4: row.top4 || 0, rank: rankOf(row.lp), dev: DEV_IDS.has(row.id), wallet: row.wallet || null };
+}
+
+function cleanList(v, max) {
+  if (!Array.isArray(v)) return [];
+  const out = [];
+  for (const x of v) {
+    if (typeof x !== 'string' || x.length > 40 || out.includes(x)) continue;
+    out.push(x);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+function cleanInt(v) {
+  const n = Math.floor(Number(v) || 0);
+  return Math.max(0, Math.min(1e9, n));
+}
+
+function cleanWallet(w) {
+  if (!w || typeof w !== 'object') return null;
+  const owned = w.owned && typeof w.owned === 'object' ? w.owned : {};
+  const gg = w.gameGold && typeof w.gameGold === 'object' ? w.gameGold : {};
+  return {
+    rev: cleanInt(w.rev),
+    vp: cleanInt(w.vp),
+    gold: cleanInt(w.gold),
+    owned: { icon: cleanList(owned.icon, 2000), look: cleanList(owned.look, 200), map: cleanList(owned.map, 50) },
+    used: cleanList(w.used, 500),
+    shinyCharm: !!w.shinyCharm,
+    amuletCoin: !!w.amuletCoin,
+    awards: cleanList(w.awards, 30),
+    gameGold: { k: String(gg.k || '').slice(0, 40), n: cleanInt(gg.n) }
+  };
+}
+
+async function saveWallet(token, w) {
+  const id = verify(token);
+  if (!id) return { error: '다시 로그인해 주세요' };
+  const wallet = cleanWallet(w);
+  if (!wallet) return { error: '잘못된 요청입니다' };
+  const row = await store.get(id);
+  if (!row) return { error: '계정을 찾지 못했습니다' };
+  if (row.wallet && (row.wallet.rev || 0) >= wallet.rev) return { wallet: row.wallet };
+  const next = await store.update(id, { wallet });
+  return { wallet: next ? next.wallet : wallet };
 }
 
 function cleanId(v) {
@@ -226,4 +271,4 @@ async function applyResult(id, placement) {
   return { placement, before: rankOf(before), after: rankOf(after), delta: after - before, account: next ? publicView(next) : null };
 }
 
-module.exports = { store, register, login, me, rename, verify, applyResult, rankOf, rankDelta, RANK_TIERS };
+module.exports = { store, register, login, me, rename, saveWallet, verify, applyResult, rankOf, rankDelta, RANK_TIERS };

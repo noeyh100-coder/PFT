@@ -8,7 +8,7 @@ class App {
     this.ranked = !!o.ranked;
     this.game = this.mode === 'mp'
       ? new Game({ seed: o.seed, seats: o.seats, localSlot: o.slot, realtime: true })
-      : new Game({ humanName: o.name || '나', look: o.look, map: o.map, realtime: true });
+      : new Game({ humanName: o.name || '나', look: o.look, map: o.map, charm: Wallet.get().shinyCharm, realtime: true });
     this.human = this.game.human;
     this.driver = new Driver(this.game, { mp: this.mode === 'mp' });
     this.pending = [];
@@ -432,8 +432,15 @@ class App {
       this.requestRender();
     });
     this.game.on('eliminated', p => {
+      if (p === this.human) this.walletAward();
       if (p === this.human && this.mode === 'mp' && this.game.phase !== 'over') this.showEliminated();
     });
+    this.game.on('combat', () => {
+      const got = Wallet.markUsed(this.human.boardUnits().map(u => u.unitId));
+      if (got && !this.replaying) this.toast('빛나는부적 획득! 모든 포켓몬을 한 번씩 써 봤습니다. 이제 이로치 확률이 2배입니다', 'unlock');
+      this.walletGold();
+    });
+    this.game.on('round', () => this.walletGold());
     const d = this.driver;
     d.on('combatStart', e => this.onCombatStart(e));
     d.on('combatOver', () => {
@@ -2600,12 +2607,39 @@ class App {
     this.openModal('credit', box);
   }
 
+  walletKey() {
+    return this.mode + ':' + this.game.seed + ':' + this.human.id;
+  }
+
+  walletGold() {
+    if (Wallet.addGold(this.walletKey(), this.human.goldEarned) && !this.replaying) this.toast('부적금화 획득! 골드를 누적 ' + COIN_GOLD + ' 모았습니다. 이제 게임이 끝나면 VP를 2배로 받습니다', 'unlock');
+  }
+
+  walletAward() {
+    this.walletGold();
+    const r = Wallet.award(this.walletKey(), this.human.placement);
+    if (r) this.vpResult = r;
+  }
+
+  vpResultEl() {
+    const r = this.vpResult;
+    if (!r) return null;
+    const el = View.el('div', 'vp-result');
+    el.appendChild(View.el('b', null, '+' + r.vp + ' VP'));
+    if (r.doubled) el.appendChild(View.el('span', null, '부적금화 2배'));
+    el.appendChild(View.el('span', 'vp-total', '보유 ' + Wallet.get().vp + ' VP'));
+    return el;
+  }
+
   showGameOver() {
     const g = this.game;
     const h = this.human;
+    this.walletAward();
     const box = View.el('div', 'modal-box');
     box.appendChild(View.el('div', 'modal-title', h.placement === 1 ? '우승!' : '게임 종료'));
     box.appendChild(View.el('div', 'modal-sub', '최종 순위 ' + h.placement + '등 · ' + g.roundLabel() + '에서 끝났습니다'));
+    const vpEl = this.vpResultEl();
+    if (vpEl) box.appendChild(vpEl);
     const list = View.el('div', 'order-list');
     const ranked = g.players.slice().sort((a, b) => (a.placement || 99) - (b.placement || 99));
     for (const p of ranked) list.appendChild(View.el('span', 'chip', (p.placement ? p.placement + '등 ' : '생존 ') + p.name));
@@ -2632,6 +2666,8 @@ class App {
     const box = View.el('div', 'modal-box');
     box.appendChild(View.el('div', 'modal-title', '탈락'));
     box.appendChild(View.el('div', 'modal-sub', '최종 순위 ' + (h.placement || '-') + '등 · 남은 플레이어의 게임을 계속 볼 수 있습니다'));
+    const vpEl = this.vpResultEl();
+    if (vpEl) box.appendChild(vpEl);
     const actions = View.el('div', 'modal-actions');
     const watch = View.el('button', null, '계속 관전');
     watch.addEventListener('click', () => this.closeModal());
@@ -2673,11 +2709,15 @@ class App {
   }
 
   leaveToMain() {
+    this.walletGold();
+    Wallet.sync();
     if (this.net) this.net.leave();
     window.location.reload();
   }
 
   backToParty(stay) {
+    this.walletGold();
+    Wallet.sync();
     if (this.net && !stay && this.game.phase !== 'over') this.net.send({ t: 'park' });
     try {
       sessionStorage.setItem('ptft-party', '1');

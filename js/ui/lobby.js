@@ -160,21 +160,9 @@ class Lobby {
     this.settingsOpen = false;
     this.iconPick = false;
     this.name = this.load('ptft-name').slice(0, 12);
-    this.icon = this.load('ptft-icon');
-    if (!ProfileForms.get(this.icon)) {
-      this.icon = ProfileForms.random();
-      this.store('ptft-icon', this.icon);
-    }
-    this.lookPick = this.load('ptft-look-pick');
-    if (!CONFIG.strategists.includes(this.lookPick)) this.lookPick = '';
-    this.mapPick = this.load('ptft-map-pick');
-    if (!CONFIG.maps.includes(this.mapPick)) this.mapPick = '';
-    this.look = this.lookPick || this.randomLook();
-    this.store('ptft-look', this.look);
-    this.net.look = this.look;
-    this.net.map = this.mapPick;
+    Wallet.load(null, null);
+    this.applyWallet();
     this.coll = null;
-    this.net.icon = this.icon;
     this.root = document.createElement('div');
     this.root.id = 'lobby';
     this.view = document.createElement('div');
@@ -238,6 +226,30 @@ class Lobby {
     }
   }
 
+  applyWallet() {
+    const own = (kind, v) => !!v && Wallet.owns(kind, v);
+    this.icon = this.load('ptft-icon');
+    if (!ProfileForms.get(this.icon) || !own('icon', this.icon)) this.icon = WALLET_DEFAULT.icon;
+    this.store('ptft-icon', this.icon);
+    this.lookPick = this.load('ptft-look-pick');
+    if (!CONFIG.strategists.includes(this.lookPick) || !own('look', this.lookPick)) this.lookPick = '';
+    this.mapPick = this.load('ptft-map-pick');
+    if (!CONFIG.maps.includes(this.mapPick) || !own('map', this.mapPick)) this.mapPick = '';
+    const last = this.load('ptft-look');
+    this.look = this.lookPick || (own('look', last) ? last : this.randomLook());
+    this.store('ptft-look', this.look);
+    this.net.look = this.look;
+    this.net.map = this.gameMap();
+    this.net.icon = this.icon;
+    this.net.charm = Wallet.get().shinyCharm;
+  }
+
+  gameMap() {
+    if (this.mapPick) return this.mapPick;
+    const pool = Wallet.get().owned.map.filter(m => CONFIG.maps.includes(m));
+    return pool[Math.floor(Math.random() * pool.length)] || WALLET_DEFAULT.map;
+  }
+
   setAccount(acc, token) {
     this.account = acc;
     if (token) {
@@ -245,6 +257,9 @@ class Lobby {
       this.store('ptft-auth', token);
     }
     this.net.auth = this.authToken;
+    Wallet.api = (path, body) => this.api(path, body);
+    Wallet.load(acc.id, acc.wallet);
+    this.applyWallet();
     this.name = acc.name;
     this.guest = false;
     this.store('ptft-guest', '');
@@ -253,6 +268,9 @@ class Lobby {
   logout(silent) {
     this.authToken = '';
     this.account = null;
+    Wallet.api = null;
+    Wallet.load(null, null);
+    this.applyWallet();
     this.store('ptft-auth', '');
     this.net.auth = '';
     this.guest = false;
@@ -331,8 +349,9 @@ class Lobby {
   }
 
   randomLook(not) {
-    const pool = CONFIG.strategists.filter(l => l !== not);
-    return pool[Math.floor(Math.random() * pool.length)];
+    const owned = Wallet.get().owned.look.filter(l => CONFIG.strategists.includes(l));
+    const pool = owned.length > 1 ? owned.filter(l => l !== not) : owned;
+    return pool[Math.floor(Math.random() * pool.length)] || WALLET_DEFAULT.look;
   }
 
   fit() {
@@ -505,7 +524,7 @@ class Lobby {
     if (this.net.ws) this.net.ws.close();
     this.lobbyCurtain(() => {
       this.closeLobby();
-      this.app = new App({ mode: 'solo', name: this.name || '나', look: this.look, map: this.mapPick });
+      this.app = new App({ mode: 'solo', name: this.name || '나', look: this.look, map: this.gameMap() });
       window.app = this.app;
     });
   }
@@ -631,12 +650,11 @@ class Lobby {
 
   logoEl(big) {
     const logo = this.el('div', 'lg-logo' + (big ? ' big' : ''));
+    logo.appendChild(this.el('div', 'lg-logo-main', 'PokéFight'));
     const top = this.el('div', 'lg-logo-top');
-    const ball = this.el('i', 'lg-ball');
-    top.appendChild(ball);
-    top.appendChild(this.el('span', null, 'POKÉMON'));
+    top.appendChild(this.el('i', 'lg-ball'));
+    top.appendChild(this.el('span', null, 'Tactics'));
     logo.appendChild(top);
-    logo.appendChild(this.el('div', 'lg-logo-main', 'TACTICS'));
     logo.appendChild(this.el('div', 'lg-logo-sub', '포켓몬 오토배틀'));
     return logo;
   }
@@ -865,8 +883,20 @@ class Lobby {
     x.addEventListener('click', () => this.closeSettings());
     head.appendChild(x);
     box.appendChild(head);
+    const charms = this.el('div', 'rec-charms');
+    for (const c of this.charmList()) {
+      const r = this.el('div', 'rec-charm' + (c.on ? ' on' : ''));
+      r.appendChild(Object.assign(this.el('img'), { src: c.src }));
+      const t = this.el('div', 'rec-charm-t');
+      t.appendChild(this.el('b', null, c.name + (c.on ? ' · 보유' : '')));
+      t.appendChild(this.el('span', null, c.desc));
+      t.appendChild(this.el('small', null, c.prog));
+      r.appendChild(t);
+      charms.appendChild(r);
+    }
+    box.appendChild(charms);
     if (!this.account) {
-      box.appendChild(this.el('div', 'lb-set-v', '게스트는 전적이 저장되지 않습니다. 회원가입하면 랭크 게임 전적이 쌓입니다.'));
+      box.appendChild(this.el('div', 'lb-set-v', '게스트는 전적이 저장되지 않습니다. 회원가입하면 랭크 게임 전적이 쌓입니다. 게스트의 VP와 부적은 이 기기에만 저장됩니다.'));
     } else {
       const a = this.account;
       const top = this.el('div', 'rec-top');
@@ -904,6 +934,7 @@ class Lobby {
     }
     bg.appendChild(box);
     this.settingsOpen = true;
+    this.recordOpen = true;
     this.overlay.innerHTML = '';
     this.overlay.appendChild(bg);
     this.overlay.classList.add('show');
@@ -938,12 +969,27 @@ class Lobby {
     const quick = this.el('div', 'lb-quick');
     quick.appendChild(this.quickBtn('map', '결투장', this.mapPick ? MAPS[this.mapPick].name.split(' · ')[0] : '무작위'));
     quick.appendChild(this.quickBtn('strat', '전략가', this.lookPick ? this.stratName(this.lookPick) : '무작위'));
+    const cur = ProfileForms.get(this.icon);
+    quick.appendChild(this.quickBtn('icon', '프로필', cur ? cur.name : ''));
     this.view.appendChild(quick);
     const prof = this.el('div', 'lb-profile');
-    prof.appendChild(this.profileIcon(this.icon, 92, true));
+    const ava = this.profileIcon(this.icon, 92, true);
+    ava.classList.add('click');
+    ava.dataset.tip = '프로필 바꾸기';
+    ava.addEventListener('click', () => this.openCollection('icon'));
+    prof.appendChild(ava);
     const info = this.el('div', 'lb-pinfo');
     info.appendChild(this.el('div', 'lb-pname', this.name));
     info.appendChild(this.rankBadge(18));
+    const row = this.el('div', 'lb-wallet');
+    row.appendChild(this.vpChip());
+    for (const c of this.charmList()) {
+      const im = this.el('img', 'lb-charm' + (c.on ? ' on' : ''));
+      im.src = c.src;
+      im.dataset.tip = c.name + (c.on ? ' (보유)' : ' (미보유)') + '\n' + c.desc + '\n' + c.prog;
+      row.appendChild(im);
+    }
+    info.appendChild(row);
     prof.appendChild(info);
     this.view.appendChild(prof);
     this.view.appendChild(this.topRight());
@@ -957,10 +1003,27 @@ class Lobby {
     this.view.appendChild(this.el('div', 'lb-foot', 'Pokémon © Nintendo, Creatures, GAME FREAK · 도트: PMD Sprite Repository (CC BY-NC 4.0) · 비영리 팬게임'));
   }
 
+  vpChip() {
+    const c = this.el('div', 'lb-vp');
+    c.appendChild(this.el('b', null, 'VP'));
+    c.appendChild(this.el('span', null, Wallet.get().vp.toLocaleString()));
+    c.dataset.tip = '1등 1000 · 2등 500 · 3등 400 · 4등 300 · 5~8등 100 VP\n프로필 250 · 전략가 500 · 결투장 1500 VP';
+    return c;
+  }
+
+  charmList() {
+    const w = Wallet.get();
+    const need = Wallet.requiredUnits().length;
+    return [
+      { key: 'shiny', name: '빛나는부적', src: 'img/aug/shiny-charm.png', on: w.shinyCharm, desc: '포켓몬을 살 때 이로치가 나올 확률 2배 (1/2048 → 1/1024)', prog: '모든 포켓몬 한 번씩 전투에 쓰기: ' + Wallet.usedCount() + ' / ' + need },
+      { key: 'coin', name: '부적금화', src: 'img/aug/amulet-coin.png', on: w.amuletCoin, desc: '게임이 끝나면 얻는 VP 2배', prog: '누적 골드 획득: ' + Math.min(w.gold, COIN_GOLD).toLocaleString() + ' / ' + COIN_GOLD.toLocaleString() }
+    ];
+  }
+
   quickBtn(tab, label, sub) {
     const b = this.el('button', 'lb-quick-btn');
     const ic = this.el('span', 'lb-quick-ic');
-    ic.innerHTML = iconSvg(tab === 'map' ? 'arena' : 'trainer', 26);
+    ic.innerHTML = iconSvg(tab === 'map' ? 'arena' : tab === 'icon' ? 'ball' : 'trainer', 26);
     b.appendChild(ic);
     const t = this.el('span', 'lb-quick-t');
     t.appendChild(this.el('b', null, label));
@@ -975,7 +1038,15 @@ class Lobby {
   }
 
   collGroups(tab) {
-    const rnd = { key: '', name: '무작위', random: true };
+    const rnd = { key: '', name: '무작위 (보유한 것 중)', random: true };
+    if (tab === 'icon') {
+      ProfileForms.build();
+      const base = ProfileForms.get(WALLET_DEFAULT.icon);
+      return [
+        { name: '기본', items: [{ key: base.en, name: base.name }] },
+        { name: '포켓몬', items: ProfileForms.list.filter(f => f.en !== base.en).map(f => ({ key: f.en, name: f.name })) }
+      ];
+    }
     if (tab === 'map') {
       return [
         { name: '기본', items: [rnd] },
@@ -1004,7 +1075,25 @@ class Lobby {
   }
 
   collEquipped(tab) {
-    return tab === 'map' ? this.mapPick : this.lookPick;
+    return tab === 'map' ? this.mapPick : tab === 'icon' ? this.icon : this.lookPick;
+  }
+
+  collKind(tab) {
+    return tab === 'strat' ? 'look' : tab;
+  }
+
+  collOwned(tab, it) {
+    return it.random || Wallet.owns(this.collKind(tab), it.key);
+  }
+
+  buyColl(tab, it) {
+    const r = Wallet.buy(this.collKind(tab), it.key);
+    if (!r.ok) {
+      this.flash(r.reason);
+      return;
+    }
+    this.flash(it.name + '을(를) 샀습니다!');
+    this.equipColl(tab, it.key);
   }
 
   openCollection(tab) {
@@ -1021,7 +1110,11 @@ class Lobby {
   }
 
   equipColl(tab, key) {
-    if (tab === 'map') {
+    if (key && !Wallet.owns(this.collKind(tab), key)) return;
+    if (tab === 'icon') {
+      this.icon = key;
+      this.store('ptft-icon', key);
+    } else if (tab === 'map') {
       this.mapPick = key;
       this.store('ptft-map-pick', key);
     } else {
@@ -1031,7 +1124,8 @@ class Lobby {
       this.store('ptft-look', this.look);
     }
     this.net.look = this.look;
-    this.net.map = this.mapPick;
+    this.net.map = this.gameMap();
+    this.net.icon = this.icon;
     if (this.online()) this.net.connect(this.name);
     this.renderCollection();
   }
@@ -1043,6 +1137,13 @@ class Lobby {
       const q = this.el('span', 'cs-rnd');
       q.innerHTML = iconSvg('dice', big ? 96 : 40);
       box.appendChild(q);
+      return box;
+    }
+    if (tab === 'icon') {
+      box.classList.add('icon');
+      const form = ProfileForms.get(it.key);
+      const spr = form ? Sprites.portrait(form, big ? 200 : 72, { fill: 0.9, animate: !!big }) : null;
+      if (spr) box.appendChild(spr);
       return box;
     }
     if (tab === 'map') {
@@ -1084,9 +1185,12 @@ class Lobby {
     back.appendChild(this.el('span', null, '개인 설정'));
     back.addEventListener('click', () => this.closeCollection());
     head.appendChild(back);
+    const vp = this.vpChip();
+    vp.classList.add('cs-vp');
+    head.appendChild(vp);
     root.appendChild(head);
     const rail = this.el('div', 'cs-rail');
-    for (const [k, label, icon] of [['strat', '전략가', 'trainer'], ['map', '결투장', 'arena']]) {
+    for (const [k, label, icon] of [['strat', '전략가', 'trainer'], ['map', '결투장', 'arena'], ['icon', '프로필', 'ball']]) {
       const b = this.el('button', 'cs-tab' + (k === tab ? ' on' : ''));
       const ic = this.el('span', 'cs-tab-ic');
       ic.innerHTML = iconSvg(icon, 30);
@@ -1103,7 +1207,7 @@ class Lobby {
     const mid = this.el('div', 'cs-mid');
     const tools = this.el('div', 'cs-tools');
     const sel = this.el('select', 'cs-sort');
-    for (const [v, t] of [['basic', '기본'], ['fav', '즐겨찾기 먼저'], ['name', '이름순']]) {
+    for (const [v, t] of [['basic', '기본'], ['own', '보유 먼저'], ['fav', '즐겨찾기 먼저'], ['name', '이름순']]) {
       const o = this.el('option', null, t);
       o.value = v;
       if (C.sort === v) o.selected = true;
@@ -1142,13 +1246,21 @@ class Lobby {
       let items = g.items.filter(it => !q || it.name.includes(q));
       if (C.sort === 'name') items = items.slice().sort((a, b) => a.name.localeCompare(b.name, 'ko'));
       if (C.sort === 'fav') items = items.slice().sort((a, b) => (favs.includes(b.key) ? 1 : 0) - (favs.includes(a.key) ? 1 : 0));
+      if (C.sort === 'own') items = items.slice().sort((a, b) => (this.collOwned(tab, b) ? 1 : 0) - (this.collOwned(tab, a) ? 1 : 0));
       for (const it of g.items) if (it.key === C.sel) selItem = it;
       if (!items.length) continue;
-      list.appendChild(this.el('div', 'cs-gname', g.name + ' ' + g.items.length + '/' + g.items.length));
+      list.appendChild(this.el('div', 'cs-gname', g.name + ' ' + g.items.filter(it => this.collOwned(tab, it)).length + '/' + g.items.length));
       const grid = this.el('div', 'cs-grid');
       for (const it of items) {
-        const t = this.el('button', 'cs-tile' + (it.key === C.sel ? ' sel' : '') + (it.key === eq ? ' eq' : ''));
+        const owned = this.collOwned(tab, it);
+        const t = this.el('button', 'cs-tile' + (it.key === C.sel ? ' sel' : '') + (it.key === eq ? ' eq' : '') + (owned ? '' : ' locked'));
         t.appendChild(this.collThumb(tab, it, false));
+        if (!owned) {
+          const lk = this.el('span', 'cs-price');
+          lk.innerHTML = iconSvg('lock', 14);
+          lk.appendChild(this.el('span', null, String(VP_PRICE[this.collKind(tab)])));
+          t.appendChild(lk);
+        }
         if (it.key === eq) {
           const c = this.el('span', 'cs-eq');
           c.innerHTML = iconSvg('check', 16);
@@ -1159,12 +1271,12 @@ class Lobby {
           h.innerHTML = iconSvg('heart', 14);
           t.appendChild(h);
         }
-        t.dataset.tip = it.name;
+        t.dataset.tip = it.name + (owned ? '' : ' · ' + VP_PRICE[this.collKind(tab)] + ' VP');
         t.addEventListener('click', () => {
           C.sel = it.key;
           this.renderCollection();
         });
-        t.addEventListener('dblclick', () => this.equipColl(tab, it.key));
+        t.addEventListener('dblclick', () => owned && this.equipColl(tab, it.key));
         grid.appendChild(t);
       }
       list.appendChild(grid);
@@ -1191,10 +1303,17 @@ class Lobby {
       });
       row.appendChild(fav);
       const on = selItem.key === eq;
-      const go = this.el('button', 'cs-equip' + (on ? ' on' : ''), on ? '장착 중' : '장착');
-      go.disabled = on;
-      go.addEventListener('click', () => this.equipColl(tab, selItem.key));
-      row.appendChild(go);
+      if (this.collOwned(tab, selItem)) {
+        const go = this.el('button', 'cs-equip' + (on ? ' on' : ''), on ? '장착 중' : '장착');
+        go.disabled = on;
+        go.addEventListener('click', () => this.equipColl(tab, selItem.key));
+        row.appendChild(go);
+      } else {
+        const price = VP_PRICE[this.collKind(tab)];
+        const go = this.el('button', 'cs-equip buy' + (Wallet.get().vp < price ? ' poor' : ''), '구매 · ' + price + ' VP');
+        go.addEventListener('click', () => this.buyColl(tab, selItem));
+        row.appendChild(go);
+      }
       side.appendChild(row);
     }
     root.appendChild(side);
@@ -1357,12 +1476,14 @@ class Lobby {
 
   openSettings() {
     this.settingsOpen = true;
+    this.recordOpen = false;
     this.iconPick = false;
     this.renderSettings();
   }
 
   closeSettings() {
     this.settingsOpen = false;
+    this.recordOpen = false;
     this.iconPick = false;
     this.overlay.innerHTML = '';
     this.overlay.classList.remove('show');
@@ -1370,7 +1491,7 @@ class Lobby {
 
   pushProfile() {
     this.net.look = this.look;
-    this.net.map = this.mapPick;
+    this.net.map = this.gameMap();
     this.net.icon = this.icon;
     this.net.name = this.name;
     if (this.online()) this.net.connect(this.name);
@@ -1378,7 +1499,7 @@ class Lobby {
   }
 
   renderSettings() {
-    if (!this.settingsOpen) return;
+    if (!this.settingsOpen || this.recordOpen) return;
     const prevInp = this.overlay.querySelector('.lb-set-name');
     const prevVal = prevInp ? prevInp.value : null;
     const scroll = this.overlay.querySelector('.lb-icons');
@@ -1438,30 +1559,11 @@ class Lobby {
     row2.appendChild(this.profileIcon(this.icon, 56, true));
     const cur = ProfileForms.get(this.icon);
     row2.appendChild(this.el('span', 'lb-set-v', cur ? cur.name : ''));
-    row2.appendChild(this.btn(this.iconPick ? '접기' : '바꾸기', null, () => {
-      this.iconPick = !this.iconPick;
-      this.renderSettings();
-    }, this.iconPick ? 'close' : 'pencil'));
+    row2.appendChild(this.btn('바꾸기', null, () => {
+      this.closeSettings();
+      this.openCollection('icon');
+    }, 'pencil'));
     sec2.appendChild(row2);
-    if (this.iconPick) {
-      ProfileForms.build();
-      const grid = this.el('div', 'lb-icons');
-      for (const f of ProfileForms.list) {
-        const b = this.el('button', 'lb-icon' + (f.en === this.icon ? ' on' : ''));
-        const spr = Sprites.portrait(f, 40, { fill: 0.9 });
-        if (spr) b.appendChild(spr);
-        b.dataset.tip = f.name;
-        b.addEventListener('click', () => {
-          this.icon = f.en;
-          this.store('ptft-icon', f.en);
-          this.hideTooltip();
-          this.pushProfile();
-          this.renderSettings();
-        });
-        grid.appendChild(b);
-      }
-      sec2.appendChild(grid);
-    }
     box.appendChild(sec2);
 
     const sec3 = this.el('div', 'lb-set');

@@ -436,6 +436,16 @@ function dittoCopy(ditto, owner) {
 
 let NEXT_IID = 1;
 
+const SHINY_ODDS = 2048;
+
+function shinyRoll(seed, pid, n, charm) {
+  let h = (seed ^ Math.imul(pid + 1, 0x9e3779b1) ^ Math.imul(n + 1, 0x85ebca6b)) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x7feb352d);
+  h = Math.imul(h ^ (h >>> 15), 0x846ca68b);
+  h = (h ^ (h >>> 16)) >>> 0;
+  return h % SHINY_ODDS < (charm ? 2 : 1);
+}
+
 function newInstance(unitId, star) {
   return { iid: NEXT_IID++, unitId, star: star || 1, wins: 0, pvpWins: 0, takedowns: 0, battles: 0, feast: null, loc: null, items: [], fz: null, fzFree: false };
 }

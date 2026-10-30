@@ -14,8 +14,12 @@ const Sprites = {
     return (form && SPRITE_DATA[form.en]) || null;
   },
 
-  url(en, file) {
-    return 'img/dot/pokemon/' + en + '/' + file + '.png';
+  url(en, file, shiny) {
+    return 'img/dot/' + (shiny ? 'pokemon-shiny/' : 'pokemon/') + en + '/' + file + '.png';
+  },
+
+  hasShiny(form) {
+    return !!form && typeof SHINY_SPRITES !== 'undefined' && SHINY_SPRITES.has(form.en);
   },
 
   dirFrom(dx, dy) {
@@ -36,6 +40,7 @@ const Sprites = {
       wrap,
       img,
       en: form.en,
+      shiny: !!opts.shiny && this.hasShiny(form),
       d,
       scale: SPRITE_SCALE * (opts.scale || 1),
       star: SPRITE_STAR[opts.star] || 1,
@@ -75,7 +80,7 @@ const Sprites = {
     const bw = b[2] - b[0];
     const bh = b[3] - b[1];
     const s = Math.min((size * (opts.fill || 0.8)) / bw, (size * (opts.fill || 0.8)) / bh, opts.max || 99);
-    const st = { wrap, img, en: form.en, d, scale: s, star: 1, dir: 0, base: 'idle', key: null, once: false, rate: 1, paused: false, frame: -1, gone: 0, fit: { size, b, s, bottom: opts.bottom } };
+    const st = { wrap, img, en: form.en, shiny: !!opts.shiny && this.hasShiny(form), d, scale: s, star: 1, dir: 0, base: 'idle', key: null, once: false, rate: 1, paused: false, frame: -1, gone: 0, fit: { size, b, s, bottom: opts.bottom } };
     wrap._spr = st;
     this.setAnim(st, 'idle', { offset: 0, clock: true });
     this.render(st, opts.still ? 0 : performance.now());
@@ -120,7 +125,7 @@ const Sprites = {
     const img = st.img;
     img.style.width = an.w * s + 'px';
     img.style.height = an.h * s + 'px';
-    img.style.backgroundImage = 'url("' + this.url(st.en, file) + '")';
+    img.style.backgroundImage = 'url("' + this.url(st.en, file, st.shiny) + '")';
     img.style.backgroundSize = an.n * an.w * s + 'px ' + an.r * an.h * s + 'px';
     if (st.fit) {
       const f = st.fit;
