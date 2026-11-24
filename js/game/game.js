@@ -603,6 +603,7 @@ class Game {
     this.returnItems(p, inst);
     p.gold += sellValue(def, inst.star);
     this.pool.give(inst.unitId, copiesForStar(inst.star));
+    Unlocks.onSell(this, p);
     if (def.branches && !p.allUnits().some(u => u.unitId === def.id && u.star >= def.branchStar)) {
       delete p.branch[def.id];
       p.pendingBranch = p.pendingBranch.filter(x => x !== def.id);

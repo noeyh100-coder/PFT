@@ -160,7 +160,7 @@ const REGIONAL_DATA = [
   "family": "아라리",
   "variant": "알로라",
   "region": "알로라",
-  "cost": 1,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -313,7 +313,7 @@ const REGIONAL_DATA = [
   "family": "흉내내",
   "variant": "가라르",
   "region": "가라르",
-  "cost": 2,
+  "cost": 3,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -391,7 +391,7 @@ const REGIONAL_DATA = [
   "family": "포니타",
   "variant": "가라르",
   "region": "가라르",
-  "cost": 1,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -468,7 +468,7 @@ const REGIONAL_DATA = [
   "family": "나옹",
   "variant": "알로라",
   "region": "알로라",
-  "cost": 2,
+  "cost": 1,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -543,7 +543,7 @@ const REGIONAL_DATA = [
   "family": "나옹",
   "variant": "가라르",
   "region": "가라르",
-  "cost": 2,
+  "cost": 1,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -696,7 +696,7 @@ const REGIONAL_DATA = [
   "family": "피츄",
   "variant": "알로라",
   "region": "알로라",
-  "cost": 2,
+  "cost": 1,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -772,7 +772,7 @@ const REGIONAL_DATA = [
   "family": "꼬마돌",
   "variant": "알로라",
   "region": "알로라",
-  "cost": 3,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -850,7 +850,7 @@ const REGIONAL_DATA = [
   "family": "야돈",
   "variant": "가라르",
   "region": "가라르",
-  "cost": 2,
+  "cost": 4,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -925,7 +925,7 @@ const REGIONAL_DATA = [
   "family": "찌리리공",
   "variant": "히스이",
   "region": "히스이",
-  "cost": 4,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -1003,7 +1003,7 @@ const REGIONAL_DATA = [
   "family": "탕구리",
   "variant": "알로라",
   "region": "알로라",
-  "cost": 2,
+  "cost": 4,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -1235,7 +1235,7 @@ const REGIONAL_DATA = [
   "family": "또가스",
   "variant": "가라르",
   "region": "가라르",
-  "cost": 4,
+  "cost": 5,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -1390,7 +1390,7 @@ const REGIONAL_DATA = [
   "family": "야돈",
   "variant": "가라르",
   "region": "가라르",
-  "cost": 4,
+  "cost": 5,
   "shop": false,
   "unlockOnly": true,
   "traits": [
@@ -1468,7 +1468,7 @@ const REGIONAL_DATA = [
   "family": "야돈",
   "variant": "가라르",
   "region": "가라르",
-  "cost": 4,
+  "cost": 5,
   "shop": false,
   "unlockOnly": true,
   "traits": [

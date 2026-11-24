@@ -25,16 +25,13 @@ const Unlocks = {
       const types = computeSynergies(p).filter(s => s.kind === 'type' && s.active).length;
       if (types >= CONFIG.unlock.mewTypes) this.unlockGuaranteed(game, p, '뮤');
     }
-    if (!p.unlockedShop.has('프리져')) {
-      const best = {};
-      for (const inst of board) {
-        const def = UNITS[inst.unitId];
-        const form = formOf(def, inst.star, p, inst);
-        if (form.types.includes('얼음')) best[def.family] = Math.max(best[def.family] || 0, inst.star);
-      }
-      let total = 0;
-      for (const k in best) total += best[k];
-      if (total >= CONFIG.unlock.iceStarTotal) this.unlockGuaranteed(game, p, '프리져');
+    const cfg = CONFIG.unlock;
+    if (!p.unlockedShop.has('프리져') && this.typeStarTotal(p, board, ['얼음']) >= cfg.iceStarTotal) this.unlockGuaranteed(game, p, '프리져');
+    if (!p.unlockedShop.has('덩쿠리') && this.typeStarTotal(p, board, ['풀']) >= cfg.grassStarTotal) this.unlockGuaranteed(game, p, '덩쿠리');
+    if (!p.unlockedShop.has('롱스톤') && this.typeStarTotal(p, board, ['땅', '바위']) >= cfg.rockStarTotal) this.unlockGuaranteed(game, p, '롱스톤');
+    if (!p.unlockedShop.has('메타몽')) {
+      const normal = computeSynergies(p).find(s => s.id === '노말');
+      if (normal && normal.count >= cfg.dittoNormals) this.unlockGuaranteed(game, p, '메타몽');
     }
     const used = new Set();
     for (const inst of board) {
@@ -60,9 +57,34 @@ const Unlocks = {
     }
   },
 
+  // 필드의 서로 다른 계열 중 해당 타입을 가진 포켓몬의 성 합계 (같은 계열은 가장 높은 성 하나만)
+  typeStarTotal(p, board, types) {
+    const best = {};
+    for (const inst of board) {
+      const def = UNITS[inst.unitId];
+      const form = formOf(def, inst.star, p, inst);
+      if (types.some(t => form.types.includes(t))) best[def.family] = Math.max(best[def.family] || 0, inst.star);
+    }
+    let total = 0;
+    for (const k in best) total += best[k];
+    return total;
+  },
+
+  onSell(game, p) {
+    p.counters.sold = (p.counters.sold || 0) + 1;
+    if (!p.unlockedShop.has('먹고자') && p.counters.sold >= CONFIG.unlock.munchlaxSells) this.unlockGuaranteed(game, p, '먹고자');
+  },
+
   onCombatEnd(game, p, sim, side, isPvp) {
     const won = sim.winner === side;
     const cfg = CONFIG.unlock;
+    if (!p.unlockedShop.has('별가사리') && isPvp && won) {
+      const water = computeSynergies(p).find(s => s.id === '물');
+      if (water && water.count >= cfg.staryuPairs) {
+        p.counters.waterWins = (p.counters.waterWins || 0) + 1;
+        if (p.counters.waterWins >= cfg.staryuWins) this.unlockGuaranteed(game, p, '별가사리');
+      }
+    }
     for (const cu of sim.units) {
       if (cu.side !== side || !cu.iid) continue;
       const inst = p.findInstance(cu.iid);

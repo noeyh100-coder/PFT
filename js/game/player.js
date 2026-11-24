@@ -49,7 +49,7 @@ class Player {
     this.pending = [];
     this.downloadStage = 0;
     this.pendingDownload = 0;
-    this.counters = { hypnosis: 0, heal: 0, gene: 0, download: 0, bolt: 0, burn: 0 };
+    this.counters = { hypnosis: 0, heal: 0, gene: 0, download: 0, bolt: 0, burn: 0, sold: 0, waterWins: 0 };
     this.dragonScales = 0;
     this.mine = 0;
     this.mineOffer = null;

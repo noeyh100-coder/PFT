@@ -21,6 +21,11 @@ function bestInstances(list, owner) {
   return Array.from(best.values()).concat(extra);
 }
 
+// 6코스트 전설 새(프리져·썬더·파이어)는 비행 기물 수에 들어가지 않습니다.
+function excludedFromTrait(def, trait) {
+  return trait === '비행' && !!def && def.cost >= 6;
+}
+
 function tierFor(def, count) {
   let tier = 0;
   for (const t of def.tiers) if (count >= t) tier += 1;
@@ -46,6 +51,7 @@ function computeSynergies(owner, insts) {
     }
     for (const t of traits) {
       if (!TRAIT_DATA.map[t]) continue;
+      if (excludedFromTrait(def, t)) continue;
       if (!groups[t]) groups[t] = [];
       groups[t].push({ inst: ref, def, form });
     }
@@ -148,6 +154,7 @@ function traitMembers(id, regional) {
   const starText = n => (n === 1 ? '1성' : '1~' + n + '성');
   for (const def of UNIT_DATA) {
     if (!regionVisible(def, regional)) continue;
+    if (excludedFromTrait(def, id)) continue;
     const forms = def.stageForms || def.forms;
     const own = def.traits.includes(id) || def.uniques.includes(id);
     const has = forms.map(f => (isType ? f.types.includes(id) : own));

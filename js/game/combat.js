@@ -404,19 +404,20 @@ class CombatSim {
       const st = this.side[side];
       const t = id => this.tier(side, id);
       const v = (id, key) => traitVal(id, key, t(id));
+      const nm = v('노말', 'mult') || 1;
       for (const id of T.normals || []) {
         const e = NORMAL_EFFECTS[id];
         if (!e) continue;
-        if (e.cc) st.cc += e.cc;
-        if (e.regen) st.regen += e.regen;
+        if (e.cc) st.cc += e.cc * nm;
+        if (e.regen) st.regen += e.regen * nm;
         for (const u of units) {
-          if (e.modifiers) for (const k in e.modifiers) addStatModifier(u, k, e.modifiers[k]);
-          if (e.healMod) u.healMod += e.healMod;
-          if (e.vamp) u.vamp += e.vamp;
-          if (e.pp) u.ppBonus += e.pp * PP_RULE.event;
-          if (e.allPct) for (const k in u.pct) u.pct[k] += e.allPct;
-          if (e.hpPct) u.pct.hp += e.hpPct;
-          if (e.shieldMod) u.shieldMod += e.shieldMod;
+          if (e.modifiers) for (const k in e.modifiers) addStatModifier(u, k, e.modifiers[k] * nm);
+          if (e.healMod) u.healMod += e.healMod * nm;
+          if (e.vamp) u.vamp += e.vamp * nm;
+          if (e.pp) u.ppBonus += e.pp * PP_RULE.event * nm;
+          if (e.allPct) for (const k in u.pct) u.pct[k] += e.allPct * nm;
+          if (e.hpPct) u.pct.hp += e.hpPct * nm;
+          if (e.shieldMod) u.shieldMod += e.shieldMod * nm;
         }
       }
       const scales = T.scales || 0;
@@ -440,7 +441,7 @@ class CombatSim {
           addStatModifier(u, 'spa', 1);
           u.fairyHeal = v('페어리', 'healPerPP');
           u.fairyBonus = v('페어리', 'healBonus');
-          u.fairyImmune = t('페어리') >= 2;
+          u.fairyImmune = v('페어리', 'immune') > 0;
         }
         if (t('얼음') && (ty('얼음') || t('얼음') >= 3)) u.chillOn = true;
         if (ty('얼음') && t('얼음')) addStatModifier(u, 'spd', 1);
@@ -507,10 +508,9 @@ class CombatSim {
           u.waterPaired = t('물') >= 3 && (T.waterPairCosts || []).includes(u.cost);
         }
         if (t('전쟁기계')) u.taken *= 1 - (cl('전쟁기계') ? v('전쟁기계', 'self') : v('전쟁기계', 'all'));
-        if (cl('주문술사')) addStatModifier(u, 'spa', v('주문술사', 'modifier'));
-        if (cl('타격대')) addStatModifier(u, 'atk', v('타격대', 'modifier'));
-        if (cl('감시자')) addStatModifier(u, 'spd', v('감시자', 'modifier'));
-        if (cl('파수꾼')) addStatModifier(u, 'def', v('파수꾼', 'modifier'));
+        for (const [id, k] of [['주문술사', 'spa'], ['타격대', 'atk'], ['감시자', 'spd'], ['파수꾼', 'def']]) {
+          if (t(id)) addStatModifier(u, k, cl(id) ? v(id, 'modifier') : v(id, 'team'));
+        }
         if (cl('매복자')) addStatModifier(u, 'crit', v('매복자', 'modifier'));
         if (cl('화석')) {
           const n = v('화석', 'modifier');

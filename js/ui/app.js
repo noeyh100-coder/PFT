@@ -2742,6 +2742,8 @@ class App {
       '낙뢰 적중 ' + Math.floor(c.bolt) + ' / ' + u.electricBolts + ' (썬더)',
       '화상 피해 ' + Math.floor(c.burn) + ' / ' + u.burnDamage + ' (파이어)',
       '서로 다른 얼음 포켓몬 성 합계 ' + u.iceStarTotal + ' 이상으로 전투 시작 (프리져)',
+      '풀 성 합계 ' + u.grassStarTotal + ' (덩쿠리) · 땅·바위 성 합계 ' + u.rockStarTotal + ' (롱스톤) · 노말 ' + u.dittoNormals + '마리 (메타몽)',
+      '판매 ' + (c.sold || 0) + ' / ' + u.munchlaxSells + ' (먹고자) · 물 ' + u.staryuPairs + '짝 승리 ' + (c.waterWins || 0) + ' / ' + u.staryuWins + ' (별가사리)',
       '화석 연승 ' + h.fossilWins + ' / ' + u.kabutoWins + ' (투구) · 연패 ' + h.fossilLosses + ' / ' + u.aerodactylLosses + ' (프테라)',
       '용의 비늘 ' + h.dragonScales + ' · 에스퍼 효과 ' + this.game.espVariant,
       '리전폼: ' + (this.game.isRegional() ? '켜짐' : '꺼짐'),

@@ -3,7 +3,7 @@ const UNIT_DATA = [
   "id": "캐터피",
   "family": "캐터피",
   "variant": "원종",
-  "cost": 3,
+  "cost": 1,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -454,7 +454,7 @@ const UNIT_DATA = [
   "id": "발챙이",
   "family": "발챙이",
   "variant": "원종",
-  "cost": 1,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -580,7 +580,7 @@ const UNIT_DATA = [
   "id": "두두",
   "family": "두두",
   "variant": "원종",
-  "cost": 1,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -657,7 +657,7 @@ const UNIT_DATA = [
   "id": "슬리프",
   "family": "슬리프",
   "variant": "원종",
-  "cost": 2,
+  "cost": 1,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -731,7 +731,7 @@ const UNIT_DATA = [
   "id": "아라리",
   "family": "아라리",
   "variant": "원종",
-  "cost": 1,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -808,7 +808,7 @@ const UNIT_DATA = [
   "id": "콘치",
   "family": "콘치",
   "variant": "원종",
-  "cost": 1,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -882,7 +882,7 @@ const UNIT_DATA = [
   "id": "핑복",
   "family": "핑복",
   "variant": "원종",
-  "cost": 2,
+  "cost": 4,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -959,7 +959,7 @@ const UNIT_DATA = [
   "id": "니드런♀",
   "family": "니드런♀",
   "variant": "원종",
-  "cost": 1,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -1034,7 +1034,7 @@ const UNIT_DATA = [
   "id": "니드런♂",
   "family": "니드런♂",
   "variant": "원종",
-  "cost": 1,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -1109,7 +1109,7 @@ const UNIT_DATA = [
   "id": "뽀뽀라",
   "family": "뽀뽀라",
   "variant": "원종",
-  "cost": 1,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -1186,7 +1186,7 @@ const UNIT_DATA = [
   "id": "쏘드라",
   "family": "쏘드라",
   "variant": "원종",
-  "cost": 1,
+  "cost": 3,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -1261,7 +1261,7 @@ const UNIT_DATA = [
   "id": "코일",
   "family": "코일",
   "variant": "원종",
-  "cost": 1,
+  "cost": 4,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -1341,7 +1341,7 @@ const UNIT_DATA = [
   "id": "마그비",
   "family": "마그비",
   "variant": "원종",
-  "cost": 2,
+  "cost": 1,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -1492,7 +1492,7 @@ const UNIT_DATA = [
   "id": "깨비참",
   "family": "깨비참",
   "variant": "원종",
-  "cost": 1,
+  "cost": 4,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -1720,7 +1720,7 @@ const UNIT_DATA = [
   "id": "셀러",
   "family": "셀러",
   "variant": "원종",
-  "cost": 3,
+  "cost": 1,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -1796,7 +1796,7 @@ const UNIT_DATA = [
   "id": "크랩",
   "family": "크랩",
   "variant": "원종",
-  "cost": 2,
+  "cost": 1,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -1944,7 +1944,7 @@ const UNIT_DATA = [
   "id": "흉내내",
   "family": "흉내내",
   "variant": "원종",
-  "cost": 2,
+  "cost": 3,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -2095,7 +2095,7 @@ const UNIT_DATA = [
   "id": "아보",
   "family": "아보",
   "variant": "원종",
-  "cost": 2,
+  "cost": 1,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -2169,7 +2169,7 @@ const UNIT_DATA = [
   "id": "모다피",
   "family": "모다피",
   "variant": "원종",
-  "cost": 2,
+  "cost": 1,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -2246,7 +2246,7 @@ const UNIT_DATA = [
   "id": "포니타",
   "family": "포니타",
   "variant": "원종",
-  "cost": 1,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -2397,7 +2397,7 @@ const UNIT_DATA = [
   "id": "나옹",
   "family": "나옹",
   "variant": "원종",
-  "cost": 2,
+  "cost": 1,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -2545,7 +2545,7 @@ const UNIT_DATA = [
   "id": "피츄",
   "family": "피츄",
   "variant": "원종",
-  "cost": 2,
+  "cost": 1,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -2619,7 +2619,7 @@ const UNIT_DATA = [
   "id": "쥬쥬",
   "family": "쥬쥬",
   "variant": "원종",
-  "cost": 2,
+  "cost": 4,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -2998,7 +2998,7 @@ const UNIT_DATA = [
   "id": "삐",
   "family": "삐",
   "variant": "원종",
-  "cost": 3,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -3149,7 +3149,7 @@ const UNIT_DATA = [
   "id": "뚜벅쵸",
   "family": "뚜벅쵸",
   "variant": "원종",
-  "cost": 3,
+  "cost": 4,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -3426,7 +3426,7 @@ const UNIT_DATA = [
   "id": "폴리곤",
   "family": "폴리곤",
   "variant": "원종",
-  "cost": 4,
+  "cost": 3,
   "shop": true,
   "unlockOnly": false,
   "traits": [],
@@ -3562,7 +3562,7 @@ const UNIT_DATA = [
   "id": "암나이트",
   "family": "암나이트",
   "variant": "원종",
-  "cost": 3,
+  "cost": 4,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -3996,7 +3996,7 @@ const UNIT_DATA = [
   "id": "꼬마돌",
   "family": "꼬마돌",
   "variant": "원종",
-  "cost": 3,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -4074,8 +4074,8 @@ const UNIT_DATA = [
   "family": "별가사리",
   "variant": "원종",
   "cost": 4,
-  "shop": true,
-  "unlockOnly": false,
+  "shop": false,
+  "unlockOnly": true,
   "traits": [
    "주문술사"
   ],
@@ -4149,7 +4149,7 @@ const UNIT_DATA = [
   "id": "고오스",
   "family": "고오스",
   "variant": "원종",
-  "cost": 5,
+  "cost": 4,
   "shop": true,
   "unlockOnly": false,
   "traits": [],
@@ -4224,7 +4224,7 @@ const UNIT_DATA = [
   "id": "파라스",
   "family": "파라스",
   "variant": "원종",
-  "cost": 1,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -4301,7 +4301,7 @@ const UNIT_DATA = [
   "id": "야돈",
   "family": "야돈",
   "variant": "원종",
-  "cost": 2,
+  "cost": 4,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -4378,7 +4378,7 @@ const UNIT_DATA = [
   "id": "찌리리공",
   "family": "찌리리공",
   "variant": "원종",
-  "cost": 4,
+  "cost": 2,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -4601,9 +4601,9 @@ const UNIT_DATA = [
   "id": "덩쿠리",
   "family": "덩쿠리",
   "variant": "원종",
-  "cost": 4,
-  "shop": true,
-  "unlockOnly": false,
+  "cost": 5,
+  "shop": false,
+  "unlockOnly": true,
   "traits": [
    "감시자"
   ],
@@ -4826,7 +4826,7 @@ const UNIT_DATA = [
   "id": "왕눈해",
   "family": "왕눈해",
   "variant": "원종",
-  "cost": 4,
+  "cost": 3,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -4903,7 +4903,7 @@ const UNIT_DATA = [
   "id": "캥카",
   "family": "캥카",
   "variant": "원종",
-  "cost": 4,
+  "cost": 5,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -4979,7 +4979,7 @@ const UNIT_DATA = [
   "id": "탕구리",
   "family": "탕구리",
   "variant": "원종",
-  "cost": 2,
+  "cost": 4,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -5201,7 +5201,7 @@ const UNIT_DATA = [
   "id": "또가스",
   "family": "또가스",
   "variant": "원종",
-  "cost": 4,
+  "cost": 5,
   "shop": true,
   "unlockOnly": false,
   "traits": [
@@ -5421,7 +5421,7 @@ const UNIT_DATA = [
   "id": "야도란",
   "family": "야돈",
   "variant": "원종",
-  "cost": 4,
+  "cost": 5,
   "shop": false,
   "unlockOnly": true,
   "traits": [
@@ -5498,7 +5498,7 @@ const UNIT_DATA = [
   "id": "야도킹",
   "family": "야돈",
   "variant": "원종",
-  "cost": 4,
+  "cost": 5,
   "shop": false,
   "unlockOnly": true,
   "traits": [
@@ -5576,8 +5576,8 @@ const UNIT_DATA = [
   "family": "메타몽",
   "variant": "원종",
   "cost": 5,
-  "shop": true,
-  "unlockOnly": false,
+  "shop": false,
+  "unlockOnly": true,
   "traits": [],
   "uniques": [
    "괴짜"
@@ -5925,8 +5925,8 @@ const UNIT_DATA = [
   "family": "먹고자",
   "variant": "원종",
   "cost": 5,
-  "shop": true,
-  "unlockOnly": false,
+  "shop": false,
+  "unlockOnly": true,
   "traits": [
    "난동꾼"
   ],
@@ -6228,8 +6228,8 @@ const UNIT_DATA = [
   "family": "롱스톤",
   "variant": "원종",
   "cost": 5,
-  "shop": true,
-  "unlockOnly": false,
+  "shop": false,
+  "unlockOnly": true,
   "traits": [
    "파수꾼"
   ],
